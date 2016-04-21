@@ -1,0 +1,494 @@
+
+
+// IMP create modularized schema model by dividing schema into each row and define schema for a dataset to be a combination of these rows.
+// This will reduce the risk of dataset validation against more than one schema where there are just little differences between the two.
+// Ex. Schema 2 only has its last line definition differs from Schema 1, the parser wouldn't have to throw away all the validation result done 
+// so far until the last line and start over the same validation for the other schema just because of one line difference. Instead, the parser
+// would not judge if the CSV has matched a particular schema for dataset until it has parsed the whole dataset based on its known schema. 
+// For That being said, the dataset's schema definition must keeps the order information of which sub-schema come first.
+
+// For now, we can just go with this version.
+
+// TODO think of unique use case of how csv-x specifically fit:... IoT?, Sensor Stream?, Provenance? or just Non-Uniform CSV & mapping is fine?
+
+{
+	"@context" : [ 
+		//"http://dadfha.com/contexts/csvx.json", 
+		{
+			// Start Definition of CSV-X Schema
+			"csvx" : "http://dadfha.com/schema/csvx", // TODO check how CSVW define its default namespace			
+			"skos" : "http://www.w3.org/2004/02/skos/core",
+			"dc" : "http://purl.org/dc/terms",
+			"title" : 
+			{ 
+				"@id" : "csvx:datasetTitle", 
+				"@container" : "@language",
+				"skos:narrowMatch" : "dc:title"
+			},
+
+			"@base" : "http://dadfha.com/schema/csvx",
+			"@language" : "en" // user: main language used in this schema file,
+			"ex" : "http://example.org"
+			"ssn" : "http://purl.oclc.org/NET/ssnx/ssn",
+
+			"measurementYearMonth" : "ex:measurementYearMonth",
+
+			"hasMeasurementLocation" : 
+			{
+				"@id" : "csvx:hasMeasurementLocation",
+				"title" : 
+				{
+					"en" : "has measurement location",
+					"jp" : "cell[1,1]"
+				}
+			}
+
+			// ... more properties declaration here ...
+		}
+	],
+
+	"@Id" : "http://dadfha.com/dataset/tokyo-airpollution.csvx", // user: ID of the schema file, will use @base if blank
+
+	"@type" : "dataTable", // The schema is not based on Table view but Dataset view for usability sake, and so that Table's metadata and mapping between Table and Dataset is not necessary
+
+	"title" : 
+	{ 
+		"en" : "Tokyo Air Pollutions Report", 
+		"ja" : "cellValue[0,1]"
+	},
+
+	"measurementYearMonth" : "cellValue[0,2]", // TODO compare with ietf csv cell addressing scheme 
+
+	"hasLocationCode" : "cellValue[1,2]", // TODO how to address cell from remote URI?
+
+	"hasLocationName" : "cellValue[1,3]",
+
+	"replaceValueMap" : {
+		"*****" : ""
+	},
+
+	"dataRows" : [ // ROW ARRAY START
+
+		{ // ROW 0 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+				{ // 0,0
+					"type" : "Empty"
+				},
+
+				{ // 0,1 			
+					"@language" : "jp",
+					"regex" : "大気環境月報"
+				},
+
+				{ // 0,2
+					"@language" : "jp",					
+					"regex" : "(平成)(\\d+)(年)(\\d+)(月)"  // Japanese year month format. Ex.平成27年1月
+				}	
+
+			] // COL ARRAY END
+
+		}, // ROW 0 OBJ END
+
+
+		{ // ROW 1 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 1,0
+					"type" : "Empty"	// TODO the parser should also regard an empty object {} as an "Empty" field.
+				},
+
+				{ // 1,1
+					"@language" : "jp",
+					"regex" : "測定場所"	
+				},
+
+				{ // 1,2
+					"regex" : "(\\()(\\d+)(\\))"	
+				},
+
+				{ // 1,3
+					"@language" : "jp",
+					"regex" : "(.*)"	
+				},
+
+				{ // 1,4
+					"@language" : "jp",
+					"regex" : "項目"	
+				},				
+
+				{ // 1,5
+					"regex" : "(\\()(\\d+)(\\))"	
+				},		
+
+				{ // 1,6
+					"@language" : "jp",
+					"regex" : "(.*)"	
+				},		
+
+				{ // 1,7
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : 1,
+					"regex" : "単位"	
+				},	
+
+				{ // 1,8
+					"type" : "Datapoint",
+					"regex" : "(.*)"	
+				}																		
+
+			] // COL ARRAY END
+
+		}, // ROW 1 OBJ END
+
+		{ // ROW 2 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 2,0
+					"type" : "Empty"
+				},
+
+				{ // 2,1
+					"type" : "Header",
+					// "fieldSelect" needs to refer to "field" itself, not field's value, "fieldSelect" : { "mode" : "Dataset" }
+					"applyScope" : "Below",
+					"effectiveRange" : -1,
+					"regex" : "1時"	
+				},
+
+				{ // 2,2
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "2時"	
+				},
+
+				{ // 2,3
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "3時"		
+				},
+
+				{ // 2,4
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "4時"		
+				},		
+
+				{ // 2,5
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "5時"		
+				},
+
+				{ // 2,6
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "6時"		
+				},
+
+				{ // 2,7
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "7時"		
+				},
+
+				{ // 2,8
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "8時"		
+				},
+
+				{ // 2,9
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "9時"		
+				},
+
+				{ // 2,10
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "10時"		
+				},				
+
+				{ // 2,11
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "11時"		
+				},				
+
+				{ // 2,12
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "12時"		
+				},				
+
+				{ // 2,13
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "13時"		
+				},		
+
+				{ // 2,14
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "14時"		
+				},		
+
+				{ // 2,15
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "15時"		
+				},
+
+				{ // 2,16
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "16時"		
+				},
+
+				{ // 2,17
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "17時"		
+				},
+
+				{ // 2,18
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "18時"		
+				},
+
+				{ // 2,19
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "19時"		
+				},
+
+				{ // 2,20
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "20時"		
+				},				
+
+				{ // 2,21
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "21時"		
+				},				
+
+				{ // 2,22
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "22時"		
+				},				
+
+				{ // 2,23
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "23時"		
+				},	
+
+				{ // 2,24
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "24時"		
+				},	
+
+				{ // 2,25
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "平均"		
+				},				
+
+				{ // 2,26
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "最高"		
+				},				
+
+				{ // 2,27
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "最低"		
+				},				
+
+				{ // 2,28
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "回数"		
+				},	
+
+				{ // 2,29
+					"type" : "Header",
+					"applyScope" : "Below",
+					"effectiveRange" : -1,					
+					"regex" : "合計"		
+				}															
+
+			] // COL ARRAY END
+
+		}, // ROW 2 OBJ END
+
+		{ // ROW 3.. OBJ START
+
+			"isRepeat" : true,
+
+			"repeatTime" : -1,
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 3,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "(\\d+)日"
+				},
+
+				{ // 3,[1-29]					
+					"type" : "Datapoint",
+					"datatype" : "integer",	
+					"repeatUntil" : 29
+				}								
+
+			] // COL ARRAY END
+
+		}, // ROW 3.. OBJ END
+
+		{ // ROW 4 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 4,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "平均"
+				},
+
+				{ // 4,[1-29]
+					"repeatUntil" : 29,
+					"type" : "Datapoint",
+					"datatype" : "integer"	
+				}
+
+			] // COL ARRAY END
+
+		}, // ROW 4 OBJ END	
+
+		{ // ROW 5 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 5,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "最高"
+				},
+
+				{ // 5,[1-29]
+					"repeatUntil" : 29,
+					"type" : "Datapoint",
+					"datatype" : "integer"	
+				}				
+
+			] // COL ARRAY END
+
+		}, // ROW 5 OBJ END		
+
+		{ // ROW 6 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 6,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "最低"
+				},
+
+				{ // 6,[1-29]
+					"repeatUntil" : 29,
+					"type" : "Datapoint",
+					"datatype" : "integer"	
+				}							
+
+			] // COL ARRAY END
+
+		}, // ROW 6 OBJ END			
+
+		{ // ROW 7 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 7,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "日数"
+				},
+
+				{ // 7,[1-29]
+					"repeatUntil" : 29,
+					"type" : "Datapoint",
+					"datatype" : "integer"	
+				}							
+
+			] // COL ARRAY END
+
+		}, // ROW 7 OBJ END			
+
+		{ // ROW 8 OBJ START
+
+			"dataCols" : [ // COL ARRAY START
+
+				{ // 8,0
+					"type" : "Header",
+					"applyScope" : "Right",
+					"effectiveRange" : -1,
+					"regex" : "合計"
+				},
+
+				{ // 8,[1-29]
+					"repeatUntil" : 29,
+					"type" : "Datapoint",
+					"datatype" : "integer"	
+				}							
+
+			] // COL ARRAY END
+
+		} // ROW 8 OBJ END			
+
+	] // ROW ARRAY END
+
+}

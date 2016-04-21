@@ -1,0 +1,369 @@
+{
+
+	// TODO research all fundamental properties in needed for parsing a CSV file
+	"@id" : "http://dadfha.com/csv/ex1.csvx", // ID of this csv-x file which can be IRI. (Optional)
+	"@targetCSV" : [ "http://dadfha.com/csv/ex1.csv", "http://dadfha.com/csv/ex2.csv" ], // (optional) CSV file(s) this schema is describing
+	"@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
+	"@lang" : "jp",	// The main language of string literals inside the file. Default to "en" if not specified. (Optional)
+	
+	// CSV dialects. TODO derive from parser customizable parameters & CSVW
+	"@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
+	"@lineTerminators" : ["\n\r"], // End of line character. If not specified, the system default new line character should be used. (Optional)
+	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
+	"@quoteChar" : "\"",
+	"@header" : "test header",
+	"@headerRowCount" : 5,
+	"@doubleQuote" : "test doubleQuote",
+	"@skipBlankRows" : true,
+	"@skipColumns" : [1, 3, 5, 7, 9],
+	"@skipInitialSpace" : true,
+	"@skipRows" : [2, 4, 6, 8, 10],
+	"@trim" : true,
+	"@hasEmbeddedMetadata" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
+
+	"@titles" : 
+	{ 
+		"en" : "Tokyo Air Pollutions Report", 
+		"ja" : "@cell[0,1]"
+	},
+
+	"@replaceValueMap" : {
+		"*****" : ""
+	},
+
+	"@commonProps" : 
+	{
+		"hasMsrMonthYear" : "@cell[0,2]",
+		"hasMsrLocation" : "@cell[1,3]",
+		"hasMsrLocationCode" : "@cell[1,2]",
+		"hasMsrProperty" : "@cell[1,6]",
+		"hasMsrPropertyCode" : "@cell[1,5]",
+		"hasMsrUnit" : "@cell[1,8]"
+	},
+
+	"@cell[0-2,0]" : 
+	{
+		"@cellltype" : "empty" // Empty cell indicates it's a part of the schema but is expected to contain "empty" value
+	},
+
+	"@cell[0,1]" : 
+	{
+		"@regex" : "大気環境月報"
+	},
+
+	"@cell[0,2]" : 
+	{
+		"@regex" : "(平成)(\\d+)(年)(\\d+)(月)"  // Japanese year month format. Ex.平成27年1月
+	},
+
+	"@cell[1,1]" : 
+	{
+		"@regex" : "測定場所"	
+	},
+
+	"@cell[1,2]" : 
+	{
+		"@regex" : "(\\()(\\d+)(\\))"
+	},
+
+	"@cell[1,3]" : 
+	{
+		"@regex" : "(.*)"
+	},	
+
+	"@cell[1,4]" : 
+	{
+		"@regex" : "項目"	
+	},	
+
+	"@cell[1,5]" : 
+	{
+		"@regex" : "(\\()(\\d+)(\\))"
+	},
+
+	"@cell[1,6]" : 
+	{
+		"@regex" : "(.*)"
+	},	
+
+	"@cell[1,7]" : 
+	{
+		"@regex" : "単位"
+	},
+
+	"@cell[1,8]" : 
+	{
+		"@lang" : "en", // Override default @lang
+		"@regex" : "(.*)"
+	},
+
+	"@cell[2,1]" : 
+	{
+		"@regex" : "1時"
+	},	
+	
+	"@cell[2,2]" : 
+	{
+		"@regex" : "2時"
+	},	
+
+	"@cell[2,3]" : 
+	{
+		"@regex" : "3時"
+	},
+
+	"@cell[2,4]" : 
+	{
+		"@regex" : "4時"
+	},	
+
+	"@cell[2,5]" : 
+	{
+		"@regex" : "5時"
+	},	
+
+	"@cell[2,6]" : 
+	{
+		"@regex" : "6時"
+	},	
+	
+	"@cell[2,7]" : 
+	{
+		"@regex" : "7時"
+	},	
+
+	"@cell[2,8]" : 
+	{
+		"@regex" : "8時"
+	},
+
+	"@cell[2,9]" : 
+	{
+		"@regex" : "9時"
+	},	
+
+	"@cell[2,10]" : 
+	{
+		"@regex" : "10時"
+	},	
+
+	"@cell[2,11]" : 
+	{
+		"@regex" : "11時"
+	},	
+	
+	"@cell[2,12]" : 
+	{
+		"@regex" : "12時"
+	},	
+
+	"@cell[2,13]" : 
+	{
+		"@regex" : "13時"
+	},
+
+	"@cell[2,14]" : 
+	{
+		"@regex" : "14時"
+	},	
+
+	"@cell[2,15]" : 
+	{
+		"@regex" : "15時"
+	},	
+
+	"@cell[2,16]" : 
+	{
+		"@regex" : "16時"
+	},	
+	
+	"@cell[2,17]" : 
+	{
+		"@regex" : "17時"
+	},	
+
+	"@cell[2,18]" : 
+	{
+		"@regex" : "18時"
+	},
+
+	"@cell[2,19]" : 
+	{
+		"@regex" : "19時"
+	},	
+
+	"@cell[2,20]" : 
+	{
+		"@regex" : "20時"
+	},	
+
+	"@cell[2,21]" : 
+	{
+		"@regex" : "21時"
+	},	
+	
+	"@cell[2,22]" : 
+	{
+		"@regex" : "22時"
+	},	
+
+	"@cell[2,23]" : 
+	{
+		"@regex" : "23時"
+	},
+
+	"@cell[2,24]" : 
+	{
+		"@regex" : "24時"
+	},
+
+	"@cell[2,25]" : 
+	{
+		"@regex" : "平均"
+	},	
+
+	"@cell[2,26]" : 
+	{
+		"@regex" : "最高"
+	},		
+
+	"@cell[2,27]" : 
+	{
+		"@regex" : "最低"
+	},	
+
+	"@cell[2,28]" : 
+	{
+		"@regex" : "回数"
+	},	
+
+	"@cell[2,29]" : 
+	{
+		"@regex" : "合計"
+	},	
+
+	"@row[3]" : 
+	{
+		"repeatTime" : -1
+	},
+
+	"@cell[3..,1-24]" : 	// TODO define way to describe property name for the value of cell, may be "@name"? or just "hasValue"?
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement value at date/time: @cell[0,2]@cell[3.., 0]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]",
+		"hasMsrHour" : "@cell[2,1-24]",
+		"hasMsrVal" : "@cell[this]"
+	},
+
+	"@cell[3..,25]" :
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement DAILY AVERAGE value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]"
+	},
+
+	"@cell[3..,26]" :
+	{		
+		"@type" : "Datapoint",		
+		"@title" : "@cell[1,6] property measurement DAILY MAXIMUM value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]"
+	},
+
+	"@cell[3..,27]" : 
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement DAILY MINIMUM value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]"
+	},
+
+	"@cell[3..,28]" :
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement DAILY MEASUREMENT TIMES value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]"
+	},
+
+	"@cell[3..,29]" : 
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement DAILY TOTAL value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrDay" : "@cell[3.., 0]"
+	},
+
+	"@cell[4,1-24]" :
+	{
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY AVERAGE PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrHour" : "@cell[2,1-24]"
+	},
+
+	"@cell[5,1-24]" : {
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MAXIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrHour" : "@cell[2,1-24]"
+	},
+
+	"@cell[6,1-24]" : {
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MINIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrHour" : "@cell[2,1-24]"
+	},	
+
+
+	"@cell[7,1-24]" : {
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrHour" : "@cell[2,1-24]"
+	},
+
+	"@cell[8,1-24]" : {
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY TOTAL PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"@datatype" : "integer",
+		"hasMsrHour" : "@cell[2,1-24]"
+	},		
+
+	"@cell[4,25]" : { 
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY AVERAGE value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"@datatype" : "integer"
+	},
+
+	"@cell[5,26]" : { 
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MAXIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"@datatype" : "integer"
+	},
+
+	"@cell[6,27]" : { 
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MINIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"@datatype" : "integer"
+	},	
+	
+	"@cell[7,28]" : { 
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"@datatype" : "integer"
+	},
+
+	"@cell[8,29]" : { 
+		"@type" : "Datapoint",
+		"@title" : "@cell[1,6] property measurement MONTHLY TOTAL value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"@datatype" : "integer"
+	}
+
+
+}
+
