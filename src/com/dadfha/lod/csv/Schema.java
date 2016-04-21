@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -18,7 +19,7 @@ import com.dadfha.lod.csv.HeaderField.ApplyScope;
 import com.github.jsonldjava.utils.JsonUtils;
 
 /**
- * A CSV schema are properties describing unique syntactic, structural, contextual, and semantic information 
+ * A CSV-X schema are metadata describing unique syntactic, structural, contextual, and semantic information 
  * for contents described in a CSV file. A data parsed w.r.t. a schema is regarded as a dataset. 
  * A CSV file may contain more than one dataset of the same schema, or more than one schema for multiple dataset.   
  *     
@@ -27,14 +28,14 @@ import com.github.jsonldjava.utils.JsonUtils;
 public class Schema {
 	
 	/**
-	 * Set this to two times the expected number of row per section. 
-	 */
-	public static final int INIT_ROW_NUM = 100;
-	
-	/**
-	 * ID with the same definition as in JSON-LD.
+	 * ID of the schema with the same definition as in JSON-LD.
 	 */
 	private String id;
+	
+	/**
+	 * SchemaTable stores metadata for tabular structure.
+	 */
+	private SchemaTable sTable = new SchemaTable();
 	
 	/**
 	 * Associate the dataset with an RDF-based schema via context as in JSON-LD
@@ -42,14 +43,35 @@ public class Schema {
 	List<Object> context; // TODO just use JSON-LD Java object!	
 	
 	/**
-	 * List of FieldRow for the section. 
-	 */	
-	List<FieldRow> schemaRows = new ArrayList<FieldRow>(INIT_ROW_NUM);
-	
-	/**
 	 * Map of the value(s) to replace. It'll be used by the parser.
 	 */
 	Map<String, String> replaceValueMap;
+	
+	private String delimiter;
+	
+	private List<String> lineTerminators; 
+	
+	private String commentPrefix;
+	
+	private String quoteChar;
+	
+	private boolean header;
+	
+	private Integer headerRowCount;
+	
+	private boolean skipBlankRow;
+	
+	private Integer skipColumns;
+	
+	private boolean doubleQuote;
+	
+	private boolean skipInitialSpace;
+	
+	private Integer skipRows;
+	
+	private boolean trim;
+	
+	private boolean embedHeader; 
 	
 	/**
 	 * Other extra/user-defined properties.
@@ -58,9 +80,8 @@ public class Schema {
 		
 	public Schema(String filePath) {
 		
+		// read in the csv schema file and strip out all comments
 		StringBuilder jsonStrBld = new StringBuilder(1000);
-		
-		// read in the csv schema file and strip out all comments 
 		try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
 		    String line;		    
 		    while ((line = br.readLine()) != null) {
@@ -71,18 +92,73 @@ public class Schema {
 			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();			
 			
 			while(it.hasNext()) {
-				Map.Entry<String, Object> e = (Map.Entry<String, Object>) it.next();			
-
-				switch(e.getKey()) {				
-				case "replaceValueMap":
-					replaceValueMap = new LinkedHashMap<String, String>( (LinkedHashMap<String, String>) e.getValue()); 
+				Map.Entry<String, Object> e = (Map.Entry<String, Object>) it.next();				
+				String key = e.getKey();
+				switch(key) {				
+				case "@delimiter":
+					delimiter = (String) e.getValue();
 					break;
-				case "dataRows":
-					processRows((ArrayList<Map<String, Object>>) e.getValue());
-					break;			
+				case "@lineTerminators":
+					lineTerminators = (ArrayList<String>) e.getValue();
+					break;
+				case "@commentPrefix":
+					commentPrefix = (String) e.getValue();					
+					break;
+				case "@quoteChar":
+					quoteChar = (String) e.getValue();
+					break;
+				case "@header":
+					header = (boolean) e.getValue();
+					// check if headerRowCount is already defined
+					if(headerRowCount == null) {
+						if(header == true) headerRowCount = 1;
+						else headerRowCount = 0;
+					}
+					break;
+				case "@headerRowCount":
+					Integer hrc = (Integer) e.getValue();
+					if(hrc < 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
+					headerRowCount = hrc;
+					break;
+				case "@doubleQuote":
+					doubleQuote = (boolean) e.getValue();
+					break;
+				case "@skipBlankRow":
+					skipBlankRow = (boolean) e.getValue();
+					break;
+				case "@skipColumns":
+					Integer sc = (Integer) e.getValue();
+					if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
+					skipColumns = sc; 
+					break;
+				case "@skipInitialSpace":
+					skipInitialSpace = (boolean) e.getValue();
+					break;
+				case "@skipRows":
+					Integer sr = (Integer) e.getValue();
+					if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
+					skipRows = sr;
+					break;
+				case "@trim":
+					trim = (boolean) e.getValue();
+					break;					
+				case "@embedHeader":
+					embedHeader = (boolean) e.getValue();
+					break;
+				case "@replaceValueMap":
+					replaceValueMap = (LinkedHashMap<String, String>) e.getValue();
+					// IMP check if deepcopy is needed  
+					//replaceValueMap = new LinkedHashMap<String, String>( (LinkedHashMap<String, String>) e.getValue()); 
+					break;					
 				default:
-					// Others are add to extra properties map for later processing. Ex. "datasetTitle"
-					addProperty(e.getKey().toString(), e.getValue());
+					if(key.startsWith("@cell")) {
+						String idx = key.substring(5);
+						processCellIndex(idx, (LinkedHashMap<String, String>) e.getValue());
+						//processRows((ArrayList<Map<String, Object>>) e.getValue());	
+					} else {
+						// Others are add to extra properties map for later processing.
+						addProperty(key, e.getValue());	
+					}
 					break;
 				}
 			}  			
@@ -96,6 +172,11 @@ public class Schema {
 		
 	}
 	
+	private void processCellIndex(String idx, Map<String, String> cellProperty) {
+		
+
+	}
+	
 	/**
 	 * Process each row object until the very last row.
 	 * @param rows
@@ -105,27 +186,27 @@ public class Schema {
 		int rowNum = 0;
 		// For each row
 		for(Map<String, Object> row : rows) {			
-			FieldRow fr = new FieldRow(rowNum);
+			SchemaRow sr = new SchemaRow(rowNum);
 
 			// For each row property
 			for(Map.Entry<String, Object> e : row.entrySet()) {
 				switch(e.getKey()) {
 				case "dataCols" :		
-					processCols((ArrayList<Map<String, Object>>) e.getValue(), fr);
+					processCols((ArrayList<Map<String, Object>>) e.getValue(), sr);
 					break;
 				case "isRepeat" :
-					fr.setRepeat((Boolean) e.getValue()); 
+					sr.setRepeat((Boolean) e.getValue()); 
 					break;
 				case "repeatTime" :
-					fr.setRepeatTimes((Integer) e.getValue()); 
+					sr.setRepeatTimes((Integer) e.getValue()); 
 					break;
 				default:
-					fr.addProperty(e.getKey().toString(), e.getValue());
+					sr.addProperty(e.getKey().toString(), e.getValue());
 					break;
 				}
 			}
 			
-			schemaRows.add(fr);
+			sTable.addRow(sr);
 			rowNum++;
 		}		
 	}
@@ -135,11 +216,11 @@ public class Schema {
 	 * @param cols
 	 * @param row
 	 */
-	private void processCols(List<Map<String, Object>> cols, FieldRow row) {
+	private void processCols(List<Map<String, Object>> cols, SchemaRow row) {
 		int colNum = 0;
 		// For each column within a row, i.e. field
 		for(Map<String, Object> col : cols) {
-			Field f = new Field(row.getRowNum(), colNum);
+			Cell f = new Cell(row.getRowNum(), colNum);
 			// For each field property
 			for(Map.Entry<String, Object> e : col.entrySet()) {
 				switch(e.getKey()) {
@@ -210,7 +291,7 @@ public class Schema {
 			Integer ru = (Integer) col.get("repeatUntil");
 			if(ru != null) {				
 				for(;colNum <= ru; colNum++) {
-					f = new Field(f);
+					f = new Cell(f);
 					f.setCol(colNum);
 					row.addField(f);
 				}
@@ -219,7 +300,7 @@ public class Schema {
 		} // End column iteration loop
 	}
 	
-	void processRelations(List<Map<String, Object>> relations, Field f) {
+	void processRelations(List<Map<String, Object>> relations, Cell f) {
 		// For each relation
 		for(Map<String, Object> relation : relations) {
 			// For each property inside a relation
@@ -263,9 +344,9 @@ public class Schema {
 //	}
 	
 	
-	public void setFieldProperties(int row, int col, String name, Class<? extends Field> type) {		
-		schemaRows.get(row).getCol(col).setName(name);		
-		if(type != null) schemaRows.get(row).getCol(col).setType(type);
+	public void setFieldProperties(int row, int col, String name, Class<? extends Cell> type) {		
+		sTable.getRow(row).getCol(col).setName(name);		
+		if(type != null) sTable.getRow(row).getCol(col).setType(type);
 	}
 
 	/**
@@ -275,27 +356,23 @@ public class Schema {
 	 * @param name
 	 */
 	public void setFieldName(int row, int col, String name) {
-		schemaRows.get(row).getCol(col).setName(name);
+		sTable.getRow(row).getCol(col).setName(name);
 	}
 	
 	public String getFieldName(int row, int col) {
-		return schemaRows.get(row).getCol(col).getName();
+		return sTable.getRow(row).getCol(col).getName();
 	}
 	
 	public String getFieldLabel(int row, int col) {
-		return schemaRows.get(row).getCol(col).getLabel();
+		return sTable.getRow(row).getCol(col).getLabel();
 	}
 	
-	public void setFieldType(int row, int col, Class<? extends Field> type) {
-		if(type != null) schemaRows.get(row).getCol(col).setType(type);
+	public void setFieldType(int row, int col, Class<? extends Cell> type) {
+		if(type != null) sTable.getRow(row).getCol(col).setType(type);
 	}
 	
-	public Class<? extends Field> getFieldType(int row, int col) {
-		return schemaRows.get(row).getCol(col).getType();
-	}
-
-	public int getNumberOfRow() {
-		return schemaRows.size();
+	public Class<? extends Cell> getFieldType(int row, int col) {
+		return sTable.getRow(row).getCol(col).getType();
 	}
 	
 	public Map<String, Object> getProperties() {

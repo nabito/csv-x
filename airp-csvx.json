@@ -15,11 +15,13 @@
 	"@headerRowCount" : 5,
 	"@doubleQuote" : "test doubleQuote",
 	"@skipBlankRows" : true,
-	"@skipColumns" : [1, 3, 5, 7, 9],
+	"@skipColumns" : 1,
 	"@skipInitialSpace" : true,
-	"@skipRows" : [2, 4, 6, 8, 10],
+	"@skipRows" : 2,
 	"@trim" : true,
-	"@hasEmbeddedMetadata" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
+
+	// CSV-X metadata (Con't)
+	"@embedHeader" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
 
 	"@titles" : 
 	{ 
@@ -31,15 +33,13 @@
 		"*****" : ""
 	},
 
-	"@commonProps" : 
-	{
-		"hasMsrMonthYear" : "@cell[0,2]",
-		"hasMsrLocation" : "@cell[1,3]",
-		"hasMsrLocationCode" : "@cell[1,2]",
-		"hasMsrProperty" : "@cell[1,6]",
-		"hasMsrPropertyCode" : "@cell[1,5]",
-		"hasMsrUnit" : "@cell[1,8]"
-	},
+	// User-defined common Datapoint's properties
+	"hasMsrMonthYear" : "@cell[0,2]",
+	"hasMsrLocation" : "@cell[1,3]",
+	"hasMsrLocationCode" : "@cell[1,2]",
+	"hasMsrProperty" : "@cell[1,6]",
+	"hasMsrPropertyCode" : "@cell[1,5]",
+	"hasMsrUnit" : "@cell[1,8]"
 
 	"@cell[0-2,0]" : 
 	{

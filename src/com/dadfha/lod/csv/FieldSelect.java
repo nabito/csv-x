@@ -35,12 +35,12 @@ public class FieldSelect {
 	/**
 	 * Start field.
 	 */
-	private Field start;
+	private Cell start;
 	
 	/**
 	 * End field.
 	 */
-	private Field end;
+	private Cell end;
 	
 	/**
 	 * Mode of selection.
@@ -100,8 +100,8 @@ public class FieldSelect {
 			endCol = col1;
 		}
 		
-		start = new Field(startRow, startCol);
-		end = new Field(endRow, endCol);
+		start = new Cell(startRow, startCol);
+		end = new Cell(endRow, endCol);
 		this.mode = mode;
 	}
 	
@@ -170,19 +170,19 @@ public class FieldSelect {
 		return false;
 	}
 
-	public Field getStart() {
+	public Cell getStart() {
 		return start;
 	}
 
-	public void setStart(Field start) {
+	public void setStart(Cell start) {
 		this.start = start;
 	}
 
-	public Field getEnd() {
+	public Cell getEnd() {
 		return end;
 	}
 
-	public void setEnd(Field end) {
+	public void setEnd(Cell end) {
 		this.end = end;
 	}
 

@@ -14,7 +14,8 @@ public class TokyoAirRowListProcessor extends DatapointRowListProcessor {
 	
 	public TokyoAirRowListProcessor() {
 		// init section
-		schemas.add(new Schema("airpolt-schema.jsonld"));
+		schemas.add(new Schema("airp-csvx.json"));
+		//schemas.add(new Schema("airpolt-schema.jsonld"));
 		
 //	    // Way to parse CSV directly from String
 //		CsvSchemaParser parser = new CsvSchemaParser(new CsvSchemaParserSettings());

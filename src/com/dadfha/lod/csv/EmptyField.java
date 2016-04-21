@@ -1,13 +1,13 @@
 package com.dadfha.lod.csv;
 
-public class EmptyField extends Field {
+public class EmptyField extends Cell {
 	
 	/**
 	 * TODO consider removing this too, but preserving notion of "Empty field regex" in Field class
 	 * Copy constructor for Field.
 	 * @param f
 	 */
-	public EmptyField(Field f) {
+	public EmptyField(Cell f) {
 		super(f);
 	}
 	

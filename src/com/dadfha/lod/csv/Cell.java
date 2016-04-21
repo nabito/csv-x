@@ -6,14 +6,14 @@ import java.util.Map;
 
 import com.dadfha.mimamo.air.Datapoint;
 
-public class Field {
+public class Cell {
 	
 	/**
 	 * Relations the field has with other field(s). 
 	 * This is regarded as a special kind of property. 
 	 * It can be extended to represent relation semantics like in OWL's object property and more.
 	 */
-	private Map<Relation, HashSet<Field>> relations = new HashMap<Relation, HashSet<Field>>();
+	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();
 	
 	/**
 	 * HashMap storing mapping between property's name and its value.
@@ -95,7 +95,7 @@ public class Field {
 	 * Copy constructor.
 	 * @param f
 	 */
-	public Field(Field f) {
+	public Cell(Cell f) {
 		row = f.row;
 		col = f.col;
 		properties = new HashMap<String, Object>(f.getProperties());
@@ -106,7 +106,7 @@ public class Field {
 	 * @param row
 	 * @param col
 	 */
-	public Field(int row, int col) {
+	public Cell(int row, int col) {
 		this.row = row;
 		this.col = col;
 	}
@@ -117,7 +117,7 @@ public class Field {
 	 * @param col
 	 * @param regEx
 	 */
-	public Field(int row, int col, String regEx) {
+	public Cell(int row, int col, String regEx) {
 		this.row = row;
 		this.col = col;
 		setRegEx(regEx);
@@ -131,7 +131,7 @@ public class Field {
 		properties.put("name", name);
 	}
 
-	public Class<? extends Field> getType() {
+	public Class<? extends Cell> getType() {
 		return this.getClass();
 	}
 
@@ -188,12 +188,12 @@ public class Field {
 	 * @param type
 	 * @return
 	 */
-	public Field setType(Class<? extends Field> type) {		
+	public Cell setType(Class<? extends Cell> type) {		
 		if(type == HeaderField.class) {
 			return new HeaderField(this);
 		} else if(type == EmptyField.class) {
 			return new EmptyField(this);
-		} else if(type == Field.class) {
+		} else if(type == Cell.class) {
 			return this;
 		} else {
 			throw new RuntimeException("Conversion attemp for unknown field type.");
@@ -215,28 +215,24 @@ public class Field {
 	public boolean equals(Object o) {
 		if(o == this) return true;
 		
-		if(!(o instanceof Field)) return false;
+		if(!(o instanceof Cell)) return false;
 		
 		// JVM contract: equal object must has same hashcode. The true is NOT vice versa.
 		if(hashCode() != o.hashCode()) return false;
 		
-		Field f = (Field) o;
+		Cell f = (Cell) o;
 		
 		//if(!(id == dp.getId() && label == dp.getLabel() && datatype == dp.getDatatype() && value.equals(dp.getValue()))) return false;
 		
 		return properties.equals(f.getProperties());		
 	}
 
-	public Map<Relation, HashSet<Field>> getRelations() {
+	public Map<Relation, HashSet<Cell>> getRelations() {
 		return relations;
 	}
 
-	public void setRelations(Map<Relation, HashSet<Field>> relations) {
+	public void setRelations(Map<Relation, HashSet<Cell>> relations) {
 		this.relations = relations;
-	}
-	
-	public void addRelation(Relation r, Object val) {
-		relations.put(r, val);
 	}
 	
 	

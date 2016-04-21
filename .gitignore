@@ -65,3 +65,4 @@ local.properties
 
 # Code Recommenders
 .recommenders/
+/target/

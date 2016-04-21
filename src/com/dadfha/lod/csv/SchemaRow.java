@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class FieldRow {
+public class SchemaRow {
 	
 	/**
 	 * Expected number of field per row.
@@ -15,17 +15,12 @@ public class FieldRow {
 	/**
 	 * List of field, i.e. column, containing in the row 
 	 */
-	private List<Field> fields = new ArrayList<Field>(INIT_COL_NUM);
+	private List<Cell> fields = new ArrayList<Cell>(INIT_COL_NUM);
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
 	 */
 	private int rowNum = -1;
-	
-	/**
-	 * Whether or not this row is used to recognized a section.
-	 */
-	private boolean isIdentityRow = false;
 	
 	/**
 	 * Whether or not this row's schema is repeated line by line. 
@@ -47,7 +42,7 @@ public class FieldRow {
 	 * Constructor.
 	 * @param rowNum
 	 */
-	public FieldRow(int rowNum) {
+	public SchemaRow(int rowNum) {
 		this.setRowNum(rowNum);
 	}	
 	
@@ -60,27 +55,27 @@ public class FieldRow {
 	 * @param rowNum
 	 * @param cols The content of each field in a schema is defined to be regular expression for the field.
 	 */
-	public FieldRow(int rowNum, String[] cols) {		
+	public SchemaRow(int rowNum, String[] cols) {		
 		// For each column, populate each field
         for(int colNum = 0; colNum < cols.length; colNum++) {
         	// IMP check all field's properties like field type and init here at the object creation time.
-        	fields.add(new Field(rowNum, colNum, cols[colNum]));	
+        	fields.add(new Cell(rowNum, colNum, cols[colNum]));	
         }
 	}
 	
-	public Field getCol(int col) {
+	public Cell getCol(int col) {
 		return fields.get(col);
 	}
 
-	public List<Field> getFields() {
+	public List<Cell> getFields() {
 		return fields;
 	}
 
-	public void setFields(List<Field> fields) {
+	public void setFields(List<Cell> fields) {
 		this.fields = fields;
 	}
 	
-	public void addField(Field field) {
+	public void addField(Cell field) {
 		fields.add(field);
 	}
 
@@ -90,14 +85,6 @@ public class FieldRow {
 
 	public void setRepeat(boolean isRepeat) {
 		this.isRepeat = isRepeat;
-	}
-
-	public boolean isIdentityRow() {
-		return isIdentityRow;
-	}
-
-	public void setIdentityRow(boolean isIdentityRow) {
-		this.isIdentityRow = isIdentityRow;
 	}
 
 	public int getRepeatTimes() {

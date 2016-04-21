@@ -11,7 +11,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	
 	/**
 	 *  Each schema stores headers (field names) at each CSV's data row, col
-	 *  (both starting from 0 but aren't text's row/col number but rather parsed row/col number) 
+	 *  (both starting from index 0 but aren't text's row/col number but rather parsed row/col number) 
 	 */
 	protected HashSet<Schema> schemas = new HashSet<Schema>();
 
@@ -23,27 +23,12 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 
 	@Override
 	public void rowProcessed(String[] row, ParsingContext context) {
-				
+		
+		// FIXME match each incoming row of CSV against CSV-X schema
+		
 		Datapoint[] datapointRow = new Datapoint[row.length];
 		
-		// check cue for matching pattern in each CSV's section		
-		currSecNum = identifySection(row, context);
-		
-		// check if we've just enter new section
-		if(currSecNum != prevSecNum) {
-			prevSecNum = currSecNum;
-			justEnterSec = true;
-		}
-		
 		for(int i = 0; i < row.length; i++) {
-			
-			if(justEnterSec == true) {
-				currSecRow = 0;
-				justEnterSec = false;
-			} else {
-				currSecRow += 1;
-			}
-			currCol = i;
 			
 			datapointRow[i] = new Datapoint();
 			// IMP context.currentColumn() is always 0, becoz rowProcessed(..) get called when all column of a row are processed!
@@ -54,7 +39,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 			datapointRow[i].setId(context.currentLine() + "," + currCol);
 			datapointRow[i].setValue(row[i]);
 			datapointRow[i].setDatatype(LodHelper.identifyDatatype(row[i]));
-			datapointRow[i].setLabel(schemas[currSecNum].getFieldLabel(currSecRow, currCol));
+			//datapointRow[i].setLabel(.getFieldLabel(currSecRow, currCol));
 			
 			// hand over to custom process in subclass for each datapoint 
 			processDatapoint(datapointRow[i], row[i], context);
@@ -62,26 +47,6 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 		
 		// hand over to any subclass wanting to do some after processing on Datapoint[]
 		rowProcessed(datapointRow, context);						
-	}
-	
-	/**
-	 * Check cue for matching pattern in each CSV's section.
-	 * Note that the function will validate in the order of how section is declared in the implementation.
-	 * It returns immediately when it's found first match.
-	 * @param row
-	 * @param context
-	 * @return section number starting from 0. -1 means sections[] is null. 
-	 */
-	public int identifySection(String[] row, ParsingContext context) {		
-		int secNum = -1;
-		if(schemas == null) return secNum;
-		for(int i = 0; i < schemas.length; i++) {
-			if(schemas[i].validate(row)) {
-				secNum = i;
-				break;
-			}
-		}
-		return secNum;
 	}
 	
 	/**

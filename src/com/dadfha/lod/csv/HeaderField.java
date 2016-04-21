@@ -1,6 +1,6 @@
 package com.dadfha.lod.csv;
 
-public class HeaderField extends Field {
+public class HeaderField extends Cell {
 		
 	/**
 	 * The scope in which the header field is applied.
@@ -35,7 +35,7 @@ public class HeaderField extends Field {
 	 * Copy constructor for Field.
 	 * @param f
 	 */
-	public HeaderField(Field f) {
+	public HeaderField(Cell f) {
 		super(f);
 	}
 	
