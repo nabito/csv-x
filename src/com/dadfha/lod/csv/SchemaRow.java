@@ -8,14 +8,24 @@ import java.util.Map;
 public class SchemaRow {
 	
 	/**
-	 * Expected number of field per row.
+	 * Expected number of cell per row.
 	 */
 	private static final int INIT_COL_NUM = 100;
 	
 	/**
-	 * List of field, i.e. column, containing in the row 
+	 * List of cell, i.e. column, containing in the row 
 	 */
-	private List<Cell> fields = new ArrayList<Cell>(INIT_COL_NUM);
+	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM);
+	
+	/**
+	 * Subrows accommodate different schema definitions within repeating rows.
+	 * 
+	 * FIXME there's no way to store infinite subrow definitions, therefore must store by range selection  
+	 * 
+	 */
+	private List<SchemaRow> subRows = new ArrayList<SchemaRow>(SchemaTable.INIT_ROW_NUM);
+	
+	private Map<CellSelection, Property> subRows = new HashMap<CellSelection, Cell>();
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
@@ -23,15 +33,10 @@ public class SchemaRow {
 	private int rowNum = -1;
 	
 	/**
-	 * Whether or not this row's schema is repeated line by line. 
-	 */
-	private boolean isRepeat = false;
-	
-	/**
 	 * The exact number of times this row is repeated.
 	 * Minus value indicates indefinite.
 	 */
-	private int repeatTimes = -1;
+	private int repeatTimes = 0;
 	
 	/**
 	 * Other extra/user-defined properties.
@@ -44,47 +49,20 @@ public class SchemaRow {
 	 */
 	public SchemaRow(int rowNum) {
 		this.setRowNum(rowNum);
-	}	
-	
-	/**
-	 * FIXME each column is not only defined by its regex anymore!!!
-	 * 
-	 * Construct a row of fields from its contents.
-	 *  
-	 *  
-	 * @param rowNum
-	 * @param cols The content of each field in a schema is defined to be regular expression for the field.
-	 */
-	public SchemaRow(int rowNum, String[] cols) {		
-		// For each column, populate each field
-        for(int colNum = 0; colNum < cols.length; colNum++) {
-        	// IMP check all field's properties like field type and init here at the object creation time.
-        	fields.add(new Cell(rowNum, colNum, cols[colNum]));	
-        }
 	}
 	
 	public Cell getCol(int col) {
-		return fields.get(col);
-	}
-
-	public List<Cell> getFields() {
-		return fields;
-	}
-
-	public void setFields(List<Cell> fields) {
-		this.fields = fields;
+		return cells.get(col);
 	}
 	
-	public void addField(Cell field) {
-		fields.add(field);
+	public void addCell(Cell cell) {
+		// FIXME the cell col number should be checked and add at certain index to preserve index-colNum mapping
+		// also must check size of the list as in SchemaTable for SchemaRow
+		cells.add(cell);
 	}
 
 	public boolean isRepeat() {
-		return isRepeat;
-	}
-
-	public void setRepeat(boolean isRepeat) {
-		this.isRepeat = isRepeat;
+		return (repeatTimes != 0);
 	}
 
 	public int getRepeatTimes() {

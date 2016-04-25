@@ -12,11 +12,14 @@ public class SchemaTable {
 	public static final int INIT_ROW_NUM = 100;	
 	
 	/**
-	 * List of CellRow for the schema
+	 * List of CellRow for the schema.
+	 * 
+	 * IMP this could also be stored using Map<Integer, SchemaRow> where inside SchemaRow should has Map<Integer, Cell>
+	 * which eliminates the counter measure for out of order list insertion. 
+	 * 
 	 */	
 	private List<SchemaRow> schemaRows = new ArrayList<SchemaRow>(INIT_ROW_NUM);
-	
-	
+
 	public SchemaTable() {
 		// initialization
 		schemaRows.addAll(Collections.nCopies(INIT_ROW_NUM, (SchemaRow) null));
@@ -41,6 +44,17 @@ public class SchemaTable {
 	
 	public SchemaRow getRow(int rowNum) {
 		return schemaRows.get(rowNum);
+	}
+	
+	public void addCell(Cell cell) {
+		SchemaRow sr;		
+		if(cell.getRow() >= schemaRows.size()) { // if there is no row in the schema just yet
+			sr = new SchemaRow(cell.getRow());
+			this.addRow(sr);
+		} else {
+			sr = schemaRows.get(cell.getRow());	
+		}		
+		sr.addCell(cell);
 	}
 
 }

@@ -2,6 +2,7 @@ package com.dadfha.lod.csv;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 import com.dadfha.mimamo.air.Datapoint;
@@ -9,11 +10,10 @@ import com.dadfha.mimamo.air.Datapoint;
 public class Cell {
 	
 	/**
-	 * Relations the field has with other field(s). 
+	 * Relations the cell has with other cell(s). 
 	 * This is regarded as a special kind of property. 
-	 * It can be extended to represent relation semantics like in OWL's object property and more.
 	 */
-	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();
+	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();	
 	
 	/**
 	 * HashMap storing mapping between property's name and its value.
@@ -48,6 +48,8 @@ public class Cell {
 	 * 
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();
+	
+	private Map<String, String> plainProperties;
 	
 	/**
 	 * 
@@ -92,6 +94,11 @@ public class Cell {
 	private int col;
 	
 	/**
+	 * The unique id for this cell both in local and world-wide scope.
+	 */
+	private String uuid;
+	
+	/**
 	 * Copy constructor.
 	 * @param f
 	 */
@@ -109,6 +116,11 @@ public class Cell {
 	public Cell(int row, int col) {
 		this.row = row;
 		this.col = col;
+	}
+	
+	public Cell(int row, int col, Map<String, String> properties) {
+		this(row, col);
+		plainProperties = properties;
 	}
 	
 	/**
@@ -200,17 +212,34 @@ public class Cell {
 		}
 	}
 	
-	
-	public int hashCode() {
-		// TODO find a better hashcode
-		return 0;
+	/**
+	 * Hashcode = row's lower 16bits from 17th position and row's higher 16bits entering left-to-right 
+	 * LSB first from 16th position (position count from 1, LSB from left-side).
+	 * Then XOR everything with col.
+	 * 
+	 * This biased bits arrangement is designed to minimize hash value collision given high correlation 
+	 * between row and col value, each are better placed at different bit position.
+	 * Moreover, it's more common to have higher number of row than col, thus row's bits greater than 16th 
+	 * are padded to the right from center of bits string.
+	 * 
+	 */
+	public int hashCode() {		
+	    int rowTopBits = row &= 0xFF00; 
+	    int distance = Math.abs(16 - Integer.numberOfLeadingZeros(rowTopBits));
+	    int hash = ( (rowTopBits >>> distance) | (row << 16) ) ^ col;
+	    return hash;
 	}
 	
 	/**
 	 * A pair of field is considered equal if and only if:
-	 * 1. It represents the same field's coordinate [row, col] for the same schema.
-	 * 2. It is exactly the same Java object for 1. 
-	 * TODO complete me pls!!!!
+	 * 1. It represents the same field's coordinate [row, col] with the same UUID.
+	 * 2. It is exactly the same Java object for 1.
+	 * 3. It has the same hash code.
+	 * 4. It is of the same type 'Cell'.
+	 * 
+	 * Note: The schema properties of both cells may not be the same which regarded as conflict in properties 
+	 * but still considered equal objects.    
+	 * 
 	 */
 	public boolean equals(Object o) {
 		if(o == this) return true;
@@ -220,11 +249,11 @@ public class Cell {
 		// JVM contract: equal object must has same hashcode. The true is NOT vice versa.
 		if(hashCode() != o.hashCode()) return false;
 		
-		Cell f = (Cell) o;
+		Cell c = (Cell) o;
 		
-		//if(!(id == dp.getId() && label == dp.getLabel() && datatype == dp.getDatatype() && value.equals(dp.getValue()))) return false;
-		
-		return properties.equals(f.getProperties());		
+		if(row != c.row || col != c.col || (uuid.compareTo(c.uuid) != 0)) return false; 
+
+		return true;
 	}
 
 	public Map<Relation, HashSet<Cell>> getRelations() {

@@ -1,6 +1,11 @@
 package com.dadfha.mimamo.air;
 
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+
+import com.dadfha.lod.csv.Cell;
+import com.dadfha.lod.csv.Relation;
 
 /**
  * Each Datapoint instance hold at least a unique property-value pair that distinguishes it from other Datapoint.
@@ -9,8 +14,7 @@ import java.util.HashMap;
  */
 public class Datapoint {
 	
-	// IMP move all these attributes into hashmap for consistency?
-	// TODO having RDF as backend for relation between datapoint i.e. data structure 
+	// IMP move all these attributes into hashmap for consistency?	
 	
 	/**
 	 * handle name used to refer to this datapoint, for CSV this is "row,col" in the grid 

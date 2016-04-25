@@ -27,6 +27,18 @@ import com.github.jsonldjava.utils.JsonUtils;
  */
 public class Schema {
 	
+	public class CellIndex {
+		// Integer.MAX_VALUE represents the last index a.k.a. '*' symbol
+		// -1 indicates uninited state which can be used to determine is there is subIndex or not.
+		int index; 
+		int subIndex;
+	}
+	
+	public class CellIndexRange {
+		CellIndex floor = new CellIndex();
+		CellIndex ceiling = new CellIndex(); // should be set to null when not using.
+	}	
+	
 	/**
 	 * ID of the schema with the same definition as in JSON-LD.
 	 */
@@ -152,8 +164,8 @@ public class Schema {
 					break;					
 				default:
 					if(key.startsWith("@cell")) {
-						String idx = key.substring(5);
-						processCellIndex(idx, (LinkedHashMap<String, String>) e.getValue());
+						String marker = key.substring(5);
+						processCellMarker(marker, (LinkedHashMap<String, String>) e.getValue());
 						//processRows((ArrayList<Map<String, Object>>) e.getValue());	
 					} else {
 						// Others are add to extra properties map for later processing.
@@ -172,10 +184,100 @@ public class Schema {
 		
 	}
 	
-	private void processCellIndex(String idx, Map<String, String> cellProperty) {
-		
+	/**
+	 * Recognize \@cell syntax and create cell schema based on its properties.  
+	 * @param marker
+	 * @param cellProperty
+	 */
+	private void processCellMarker(String marker, Map<String, String> cellProperty) {	
+				
+		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		s = s.replaceAll("\\s+", ""); // remove whitespaces
+		String[] pos = s.split(","); // split value by ','
+		if(pos.length != 2) throw new RuntimeException("Illegal format for @cell[RowRange,ColRange].");
+		else {
+
+			CellIndexRange rowRange = processCellIndexRange(pos[0]);
+			CellIndexRange colRange = processCellIndexRange(pos[1]);
+									
+			// create cell representation with its properties for every intersection of row and col
+			// and put into schema table!
+			forEveryRowAndCol(rowRange, colRange, cellProperty);
+						
+			
+		}
 
 	}
+	
+	private void forEveryRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, Map<String, String> cellProperty) {
+		
+		int rowLimit = 0, colLimit = 0;
+		if(rowRange.ceiling != null) rowLimit = rowRange.ceiling.index;  
+		else rowLimit = rowRange.floor.index;
+		
+		for(int i = rowRange.floor.index; i <= rowLimit; i++) {
+
+			if(colRange.ceiling != null) colLimit = colRange.ceiling.index;  
+			else colLimit = colRange.floor.index;			
+			
+			for(int j = colRange.floor.index; j <= colLimit; j++) {
+				sTable.addCell(new Cell(i, j, cellProperty));
+			}
+			
+		}
+		
+		// TODO check for subindex at every cases and store in its SchemaRow		
+		
+		if(rowRange.floor.subIndex != -1) sTable.getRow(rowRange.floor.index);
+		if(rowRange.ceiling.subIndex != -1);
+		if(colRange.floor.subIndex != -1);
+		if(colRange.ceiling.subIndex != -1);		
+		
+		
+	}
+	
+	private CellIndexRange processCellIndexRange(String rangeEx) {
+		
+		CellIndexRange cir = new CellIndexRange();
+		
+		if(rangeEx.indexOf("-") != -1) { // check if there is range span symbol '-'
+			String[] range = rangeEx.split("-"); // then split range by '-'				
+			if(range.length != 2) throw new RuntimeException("Illegal format for Range: must be in Floor-Ceiling format.");
+			
+			processCellIndex(range[0], cir.floor);
+			processCellIndex(range[1], cir.ceiling);			
+			
+			assert(cir.floor.index != -1 && cir.ceiling.index != -1);
+			if(cir.floor.index == Integer.MAX_VALUE) throw new RuntimeException("Illegal Floor value: * is not allowed.");
+			if(cir.floor.index > cir.ceiling.index) throw new RuntimeException("Illegal format for Range: Floor value >= Ceiling value.");
+			if(cir.floor.index == cir.ceiling.index) {
+				if(cir.floor.subIndex > cir.ceiling.subIndex) throw new RuntimeException("Illegal format for Range: Floor subindex value >= Ceiling subindex value.");
+			}
+		} else { // if there is no range span symbol '-'
+			processCellIndex(rangeEx, cir.floor);
+			assert(cir.floor.index != -1);
+			cir.ceiling = null; // to ensure no one use ceiling value for this range.
+		}
+		
+		return cir;
+	}
+	
+	private void processCellIndex(String indexEx, CellIndex ci) {
+		// check if the index is '*'
+		if(indexEx.compareTo("*") == 0) {
+			ci.index = Integer.MAX_VALUE;
+		} else if(indexEx.indexOf(".") != -1) { // check if there is a subindex '.' trailing
+			String[] subIdx = indexEx.split("\\."); 
+			// FIXME recheck the abstract syntax notation in RuntimeException msg. 
+			if(subIdx.length != 2) throw new RuntimeException("Illegal format for SubIndex: must be Int.[Int(*) | *].");
+			ci.index = Integer.parseInt(subIdx[0]);
+			if(subIdx[1].compareTo("*") == 0) ci.subIndex = Integer.MAX_VALUE;
+			else ci.subIndex = Integer.parseInt(subIdx[1]);
+		} else { // in case there is no subindex a.k.a. '.' and is not '*'
+			ci.index = Integer.parseInt(indexEx);
+		}
+	}
+
 	
 	/**
 	 * Process each row object until the very last row.
@@ -194,10 +296,7 @@ public class Schema {
 				case "dataCols" :		
 					processCols((ArrayList<Map<String, Object>>) e.getValue(), sr);
 					break;
-				case "isRepeat" :
-					sr.setRepeat((Boolean) e.getValue()); 
-					break;
-				case "repeatTime" :
+				case "repeatTimes" :
 					sr.setRepeatTimes((Integer) e.getValue()); 
 					break;
 				default:
@@ -284,7 +383,7 @@ public class Schema {
 				}
 			} // End field property loop
 			
-			row.addField(f);
+			row.addCell(f);
 			colNum++;			
 			
 			// Before moving on to the next field, check if it has repeat flag
@@ -293,7 +392,7 @@ public class Schema {
 				for(;colNum <= ru; colNum++) {
 					f = new Cell(f);
 					f.setCol(colNum);
-					row.addField(f);
+					row.addCell(f);
 				}
 			}
 

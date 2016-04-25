@@ -5,7 +5,7 @@ import com.univocity.parsers.common.ParsingContext;
 
 public class TokyoAirRowListProcessor extends DatapointRowListProcessor {	
 	
-	private String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespaces except newline	
+	private String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespace characters except newline	
 	
 	// IMP better representation of schema would be to have an array of JSON objects each representing a Field and its metadata like regEx, assign variable, name, label, type, datatype and so on.
 	// The field must be described in order from row, col [0,0] then [0, 1] and [0, 2] so on until new line which start [1, 0] then [1, 1] until the end of schema.
