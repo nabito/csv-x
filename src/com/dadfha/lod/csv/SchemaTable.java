@@ -38,7 +38,7 @@ public class SchemaTable {
 			}
 			schemaRows.add(sr);
 		} else {
-			schemaRows.set(sr.getRowNum(), sr);
+			schemaRows.set(sr.getRowNum(), sr);			
 		}
 	}
 	
@@ -52,7 +52,19 @@ public class SchemaTable {
 			sr = new SchemaRow(cell.getRow());
 			this.addRow(sr);
 		} else {
-			sr = schemaRows.get(cell.getRow());	
+			sr = schemaRows.get(cell.getRow());
+			if(sr == null)  // or if there is but not yet inited? Screw it!, List is not good for unordered insertion!
+				
+				SchemaRow origSr = schemaRows.get(sr.getRowNum()); 
+				// check if the row is already available
+				if(origSr != null) {
+					origSr
+				} else {
+						
+				}				
+				
+				
+				
 		}		
 		sr.addCell(cell);
 	}

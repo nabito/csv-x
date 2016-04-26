@@ -27,16 +27,10 @@ import com.github.jsonldjava.utils.JsonUtils;
  */
 public class Schema {
 	
-	public class CellIndex {
-		// Integer.MAX_VALUE represents the last index a.k.a. '*' symbol
-		// -1 indicates uninited state which can be used to determine is there is subIndex or not.
-		int index; 
-		int subIndex;
-	}
-	
 	public class CellIndexRange {
-		CellIndex floor = new CellIndex();
-		CellIndex ceiling = new CellIndex(); // should be set to null when not using.
+		// -1 indicates uninitialized state or not available.
+		int floor = -1;
+		int ceiling = -1;
 	}	
 	
 	/**
@@ -207,33 +201,6 @@ public class Schema {
 
 	}
 	
-	private void forEveryRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, Map<String, String> cellProperty) {
-		
-		int rowLimit = 0, colLimit = 0;
-		if(rowRange.ceiling != null) rowLimit = rowRange.ceiling.index;  
-		else rowLimit = rowRange.floor.index;
-		
-		for(int i = rowRange.floor.index; i <= rowLimit; i++) {
-
-			if(colRange.ceiling != null) colLimit = colRange.ceiling.index;  
-			else colLimit = colRange.floor.index;			
-			
-			for(int j = colRange.floor.index; j <= colLimit; j++) {
-				sTable.addCell(new Cell(i, j, cellProperty));
-			}
-			
-		}
-		
-		// FIXME check for subindex at every cases and store in its SchemaRow		
-		// what about *, what about the row in between?
-		if(rowRange.floor.subIndex != -1) sTable.getRow(rowRange.floor.index).addSubRow(rowRange, cellProperty);
-		if(rowRange.ceiling.subIndex != -1) sTable.getRow(rowRange.ceiling.index).addSubRow(rowRange, cellProperty);
-		if(colRange.floor.subIndex != -1) sTable.getRow(colRange.floor.index).addSubRow(colRange, cellProperty);
-		if(colRange.ceiling.subIndex != -1) sTable.getRow(colRange.ceiling.index).addSubRow(colRange, cellProperty);
-		
-		
-	}
-	
 	private CellIndexRange processCellIndexRange(String rangeEx) {
 		
 		CellIndexRange cir = new CellIndexRange();
@@ -242,40 +209,34 @@ public class Schema {
 			String[] range = rangeEx.split("-"); // then split range by '-'				
 			if(range.length != 2) throw new RuntimeException("Illegal format for Range: must be in Floor-Ceiling format.");
 			
-			processCellIndex(range[0], cir.floor);
-			processCellIndex(range[1], cir.ceiling);			
+			cir.floor = Integer.parseInt(range[0]);
+			cir.ceiling = Integer.parseInt(range[1]);
 			
-			assert(cir.floor.index != -1 && cir.ceiling.index != -1);
-			if(cir.floor.index == Integer.MAX_VALUE) throw new RuntimeException("Illegal Floor value: * is not allowed.");
-			if(cir.floor.index > cir.ceiling.index) throw new RuntimeException("Illegal format for Range: Floor value >= Ceiling value.");
-			if(cir.floor.index == cir.ceiling.index) {
-				if(cir.floor.subIndex > cir.ceiling.subIndex) throw new RuntimeException("Illegal format for Range: Floor subindex value >= Ceiling subindex value.");
-			}
+			if(cir.floor < 0 || cir.ceiling < 0) throw new RuntimeException("Illegal format for Range: Floor value and Ceiling value cannot be negative.");
+			if(cir.floor >= cir.ceiling) throw new RuntimeException("Illegal format for Range: Floor value >= Ceiling value.");
 		} else { // if there is no range span symbol '-'
-			processCellIndex(rangeEx, cir.floor);
-			assert(cir.floor.index != -1);
-			cir.ceiling = null; // to ensure no one use ceiling value for this range.
+			cir.floor = Integer.parseInt(rangeEx);
+			if(cir.floor < 0 || cir.ceiling < 0) throw new RuntimeException("Illegal format for Range: Floor value cannot be negative.");
+			cir.ceiling = -1; // to ensure no one use ceiling value for this range.
 		}
 		
 		return cir;
 	}
 	
-	private void processCellIndex(String indexEx, CellIndex ci) {
-		// check if the index is '*'
-		if(indexEx.compareTo("*") == 0) {
-			ci.index = Integer.MAX_VALUE;
-		} else if(indexEx.indexOf(".") != -1) { // check if there is a subindex '.' trailing
-			String[] subIdx = indexEx.split("\\."); 
-			// FIXME recheck the abstract syntax notation in RuntimeException msg. 
-			if(subIdx.length != 2) throw new RuntimeException("Illegal format for SubIndex: must be Int.[Int(*) | *].");
-			ci.index = Integer.parseInt(subIdx[0]);
-			if(subIdx[1].compareTo("*") == 0) ci.subIndex = Integer.MAX_VALUE;
-			else ci.subIndex = Integer.parseInt(subIdx[1]);
-		} else { // in case there is no subindex a.k.a. '.' and is not '*'
-			ci.index = Integer.parseInt(indexEx);
+	private void forEveryRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, Map<String, String> cellProperty) {
+		int rowLimit = 0, colLimit = 0;
+		if(rowRange.ceiling != -1) rowLimit = rowRange.ceiling;  
+		else rowLimit = rowRange.floor;
+		
+		for(int i = rowRange.floor; i <= rowLimit; i++) {
+			if(colRange.ceiling != -1) colLimit = colRange.ceiling;  
+			else colLimit = colRange.floor;			
+			
+			for(int j = colRange.floor; j <= colLimit; j++) {
+				sTable.addCell(new Cell(i, j, cellProperty));
+			}			
 		}
-	}
-
+	}	
 	
 	/**
 	 * Process each row object until the very last row.

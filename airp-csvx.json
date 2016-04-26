@@ -246,21 +246,6 @@
 	{
 		"repeatTimes" : -1
 	},
-	
-	// IMP there can be more fine granular of index addressing expression as shown:
-	//    
-	// @cell[3-5, xxx] means for all repeating rows 3 to 4th row until 5th row. 
-	// @cell[3-3.2, xxx] means from the 1st repeating row 3.1 to repeating row 3.2.
-	// @cell[3.1, xxx] means exactly just the 1st row in repeating row 3.
-	// @cell[3.2-3.*, xxx] means select the sub-2nd row to the last row of repeating row 3.
-	// @cell[3.*-4, xxx] means the last row of repeating row 3 to 4th row. 
-	// @cell[3-*, xxx] means from 3rd row to the last row.
-	// @cell[*, xxx] means the last row.
-	// 
-	// Rethink! If a subrow inside a repeating row deserves to has different schema, then 
-	// shouldn't it be treated as a unique row instead? (and may be the same repeating row again after it).
-	// The point is: is there need for subrow addressing scheme? or our unique way of addressing cell at all?
-	// Can we just use IETF memo of cell=1,2-3,4; 5,0-7,0;
 
 	"@cell[3,1-24]" : 	// TODO define way to describe property name for the value of cell, may be "@name"? or just "hasValue"?
 	{

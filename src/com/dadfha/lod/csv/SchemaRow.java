@@ -17,13 +17,7 @@ public class SchemaRow {
 	 * List of cell, i.e. column, containing in the row 
 	 * IMP could be changed to Map<Integer, Cell> for unordered insertion
 	 */
-	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM); 
-	
-	/**
-	 * Subrows accommodate different schema definitions within repeating rows.
-	 * There's no way to store infinite subrow definitions, therefore must store by range selection.
-	 */	
-	private Map<Schema.CellIndexRange, Map<String, String>> subRows = new HashMap<Schema.CellIndexRange, Map<String, String>>();
+	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM);
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
@@ -93,10 +87,6 @@ public class SchemaRow {
 	
 	public void addProperty(String key, Object val) {
 		properties.put(key, val);
-	}
-	
-	public void addSubRow(Schema.CellIndexRange range, Map<String, String> property) {
-		subRows.put(range, property);
 	}
 
 }
