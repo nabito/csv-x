@@ -91,8 +91,7 @@ public class Datapoint {
 	}
 	
 	public int hashCode() {
-		// TODO find a better hashcode
-		return 0;
+		return id.hashCode();
 	}
 	
 	public boolean equals(Object o) {

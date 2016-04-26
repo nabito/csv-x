@@ -183,21 +183,11 @@ public class Cell {
 		properties.put(key, val);
 	}
 	
-	/**
-	 * Cloning as new type via deep copy and return ref to new Obj
-	 * @param type
-	 * @return
-	 */
-	public Cell setType(Class<? extends Cell> type) {		
-		if(type == HeaderField.class) {
-			return new HeaderField(this);
-		} else if(type == EmptyField.class) {
-			return new EmptyField(this);
-		} else if(type == Cell.class) {
-			return this;
-		} else {
-			throw new RuntimeException("Conversion attemp for unknown field type.");
-		}
+	public void merge(Cell cell) {
+		row = cell.row;
+		col = cell.col;
+		uuid = cell.uuid;
+		properties.putAll(cell.properties);
 	}
 	
 	/**

@@ -201,6 +201,11 @@ public class Schema {
 
 	}
 	
+	/**
+	 * Parse cell index range String into CellIndexRange object. 
+	 * @param rangeEx
+	 * @return CellIndexRange
+	 */
 	private CellIndexRange processCellIndexRange(String rangeEx) {
 		
 		CellIndexRange cir = new CellIndexRange();
@@ -223,6 +228,12 @@ public class Schema {
 		return cir;
 	}
 	
+	/**
+	 * Loop through all rows and columns specified in rowRange and colRange and assign each cell cellProperty.
+	 * @param rowRange
+	 * @param colRange
+	 * @param cellProperty
+	 */
 	private void forEveryRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, Map<String, String> cellProperty) {
 		int rowLimit = 0, colLimit = 0;
 		if(rowRange.ceiling != -1) rowLimit = rowRange.ceiling;  
@@ -284,12 +295,6 @@ public class Schema {
 				switch(e.getKey()) {
 				case "type":
 					switch((String) e.getValue()) {
-					case "Empty":
-						f = f.setType(EmptyField.class);
-						break;
-					case "Header":
-						f = f.setType(HeaderField.class);
-						break;
 					case "Datapoint":
 						// do nothing here coz' default type is Datapoint
 						break;
@@ -367,12 +372,6 @@ public class Schema {
 //		}
 //		return res;
 //	}
-	
-	
-	public void setFieldProperties(int row, int col, String name, Class<? extends Cell> type) {		
-		sTable.getRow(row).getCol(col).setName(name);		
-		if(type != null) sTable.getRow(row).getCol(col).setType(type);
-	}
 
 	/**
 	 * Set field name for each [row, col] coordinate in a section.
@@ -381,23 +380,19 @@ public class Schema {
 	 * @param name
 	 */
 	public void setFieldName(int row, int col, String name) {
-		sTable.getRow(row).getCol(col).setName(name);
+		sTable.getRow(row).getCell(col).setName(name);
 	}
 	
 	public String getFieldName(int row, int col) {
-		return sTable.getRow(row).getCol(col).getName();
+		return sTable.getRow(row).getCell(col).getName();
 	}
 	
 	public String getFieldLabel(int row, int col) {
-		return sTable.getRow(row).getCol(col).getLabel();
-	}
-	
-	public void setFieldType(int row, int col, Class<? extends Cell> type) {
-		if(type != null) sTable.getRow(row).getCol(col).setType(type);
+		return sTable.getRow(row).getCell(col).getLabel();
 	}
 	
 	public Class<? extends Cell> getFieldType(int row, int col) {
-		return sTable.getRow(row).getCol(col).getType();
+		return sTable.getRow(row).getCell(col).getType();
 	}
 	
 	public Map<String, Object> getProperties() {

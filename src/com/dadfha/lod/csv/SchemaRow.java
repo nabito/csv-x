@@ -1,9 +1,6 @@
 package com.dadfha.lod.csv;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class SchemaRow {
@@ -15,9 +12,8 @@ public class SchemaRow {
 	
 	/**
 	 * List of cell, i.e. column, containing in the row 
-	 * IMP could be changed to Map<Integer, Cell> for unordered insertion
 	 */
-	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM);
+	private Map<Integer, Cell> cells = new HashMap<Integer, Cell>(INIT_COL_NUM);
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
@@ -41,24 +37,15 @@ public class SchemaRow {
 	 */
 	public SchemaRow(int rowNum) {
 		// initialization
-		cells.addAll(Collections.nCopies(INIT_COL_NUM, (Cell) null));
 		this.setRowNum(rowNum);
 	}
 	
-	public Cell getCol(int col) {
+	public Cell getCell(int col) {
 		return cells.get(col);
 	}
 	
 	public void addCell(Cell cell) {
-		if(cells.size() <= cell.getCol()) {
-			int count = cell.getCol() - cells.size();
-			for(int i = 0; i < count; i++) {
-				cells.add(null);
-			}
-			cells.add(cell);
-		} else {
-			cells.set(cell.getCol(), cell);	
-		}
+		cells.put(cell.getCol(), cell);
 	}
 
 	public boolean isRepeat() {

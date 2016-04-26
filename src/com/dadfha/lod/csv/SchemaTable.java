@@ -1,8 +1,7 @@
 package com.dadfha.lod.csv;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SchemaTable {
 	
@@ -12,61 +11,44 @@ public class SchemaTable {
 	public static final int INIT_ROW_NUM = 200;	
 	
 	/**
-	 * List of CellRow for the schema.
-	 * 
-	 * IMP this could also be stored using Map<Integer, SchemaRow> where inside SchemaRow should has Map<Integer, Cell>
-	 * which eliminates the counter measure for out of order list insertion. 
-	 * 
+	 * Map between row number and its schema.
 	 */	
-	private List<SchemaRow> schemaRows = new ArrayList<SchemaRow>(INIT_ROW_NUM);
+	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
 
-	public SchemaTable() {
-		// initialization
-		schemaRows.addAll(Collections.nCopies(INIT_ROW_NUM, (SchemaRow) null));
-
-		// stream way of init object 
-//		List<Person> persons = Stream.generate(Person::new)
-//                .limit(60)
-//                .collect(Collectors.toList());
-	}
+	public SchemaTable() {}
 	
+	/**
+	 * Add schema row. If there are existing SchemaRow object it will be overwritten.
+	 * @param sr
+	 */
 	public void addRow(SchemaRow sr) {
-		if(schemaRows.size() <= sr.getRowNum()) {
-			int count = sr.getRowNum() - schemaRows.size();
-			for(int i = 0; i < count; i++) {
-				schemaRows.add(null);
-			}
-			schemaRows.add(sr);
-		} else {
-			schemaRows.set(sr.getRowNum(), sr);			
-		}
+		schemaRows.put(sr.getRowNum(), sr);
 	}
 	
 	public SchemaRow getRow(int rowNum) {
 		return schemaRows.get(rowNum);
 	}
 	
+	/**
+	 * This method will check for already available row and cell schema and properly update their properties.
+	 * It will create row and cell schema object as needed if there is none before.
+	 * The prior cell's schema properties will be overwritten if there are duplicate properties.
+	 * @param cell
+	 */
 	public void addCell(Cell cell) {
-		SchemaRow sr;		
-		if(cell.getRow() >= schemaRows.size()) { // if there is no row in the schema just yet
+		SchemaRow sr = schemaRows.get(cell.getRow());
+		if(sr != null) { // if schema object for the row is already there
+			Cell c = sr.getCell(cell.getCol()); // check if there is already schema for the cell
+			if(c != null) { // update schema info
+				c.merge(cell);
+			} else { // create new cell schema!
+				sr.addCell(cell);
+			}
+		} else { // if there is no schema object for the row yet, create one
 			sr = new SchemaRow(cell.getRow());
-			this.addRow(sr);
-		} else {
-			sr = schemaRows.get(cell.getRow());
-			if(sr == null)  // or if there is but not yet inited? Screw it!, List is not good for unordered insertion!
-				
-				SchemaRow origSr = schemaRows.get(sr.getRowNum()); 
-				// check if the row is already available
-				if(origSr != null) {
-					origSr
-				} else {
-						
-				}				
-				
-				
-				
-		}		
-		sr.addCell(cell);
+			sr.addCell(cell);
+			schemaRows.put(cell.getRow(), sr);
+		}
 	}
 
 }
