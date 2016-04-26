@@ -256,6 +256,11 @@
 	// @cell[3.*-4, xxx] means the last row of repeating row 3 to 4th row. 
 	// @cell[3-*, xxx] means from 3rd row to the last row.
 	// @cell[*, xxx] means the last row.
+	// 
+	// Rethink! If a subrow inside a repeating row deserves to has different schema, then 
+	// shouldn't it be treated as a unique row instead? (and may be the same repeating row again after it).
+	// The point is: is there need for subrow addressing scheme? or our unique way of addressing cell at all?
+	// Can we just use IETF memo of cell=1,2-3,4; 5,0-7,0;
 
 	"@cell[3,1-24]" : 	// TODO define way to describe property name for the value of cell, may be "@name"? or just "hasValue"?
 	{

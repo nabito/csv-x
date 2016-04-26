@@ -14,6 +14,14 @@ import com.dadfha.lod.csv.Relation;
  */
 public class Datapoint {
 	
+	/**
+	 * TODO rethink if this is necessary...
+	 * Relations the cell has with other cell(s). 
+	 * This is regarded as a special kind of property. 
+	 */
+	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();	
+	
+	
 	// IMP move all these attributes into hashmap for consistency?	
 	
 	/**

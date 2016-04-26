@@ -1,6 +1,7 @@
 package com.dadfha.lod.csv;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -14,18 +15,15 @@ public class SchemaRow {
 	
 	/**
 	 * List of cell, i.e. column, containing in the row 
+	 * IMP could be changed to Map<Integer, Cell> for unordered insertion
 	 */
-	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM);
+	private List<Cell> cells = new ArrayList<Cell>(INIT_COL_NUM); 
 	
 	/**
 	 * Subrows accommodate different schema definitions within repeating rows.
-	 * 
-	 * FIXME there's no way to store infinite subrow definitions, therefore must store by range selection  
-	 * 
-	 */
-	private List<SchemaRow> subRows = new ArrayList<SchemaRow>(SchemaTable.INIT_ROW_NUM);
-	
-	private Map<CellSelection, Property> subRows = new HashMap<CellSelection, Cell>();
+	 * There's no way to store infinite subrow definitions, therefore must store by range selection.
+	 */	
+	private Map<Schema.CellIndexRange, Map<String, String>> subRows = new HashMap<Schema.CellIndexRange, Map<String, String>>();
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
@@ -48,6 +46,8 @@ public class SchemaRow {
 	 * @param rowNum
 	 */
 	public SchemaRow(int rowNum) {
+		// initialization
+		cells.addAll(Collections.nCopies(INIT_COL_NUM, (Cell) null));
 		this.setRowNum(rowNum);
 	}
 	
@@ -56,9 +56,15 @@ public class SchemaRow {
 	}
 	
 	public void addCell(Cell cell) {
-		// FIXME the cell col number should be checked and add at certain index to preserve index-colNum mapping
-		// also must check size of the list as in SchemaTable for SchemaRow
-		cells.add(cell);
+		if(cells.size() <= cell.getCol()) {
+			int count = cell.getCol() - cells.size();
+			for(int i = 0; i < count; i++) {
+				cells.add(null);
+			}
+			cells.add(cell);
+		} else {
+			cells.set(cell.getCol(), cell);	
+		}
 	}
 
 	public boolean isRepeat() {
@@ -87,6 +93,10 @@ public class SchemaRow {
 	
 	public void addProperty(String key, Object val) {
 		properties.put(key, val);
-	}	
+	}
+	
+	public void addSubRow(Schema.CellIndexRange range, Map<String, String> property) {
+		subRows.put(range, property);
+	}
 
 }

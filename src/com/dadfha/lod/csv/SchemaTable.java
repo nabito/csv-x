@@ -9,7 +9,7 @@ public class SchemaTable {
 	/**
 	 * Set this to two times the expected number of row per section. 
 	 */
-	public static final int INIT_ROW_NUM = 100;	
+	public static final int INIT_ROW_NUM = 200;	
 	
 	/**
 	 * List of CellRow for the schema.

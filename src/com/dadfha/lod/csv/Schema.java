@@ -203,8 +203,6 @@ public class Schema {
 			// create cell representation with its properties for every intersection of row and col
 			// and put into schema table!
 			forEveryRowAndCol(rowRange, colRange, cellProperty);
-						
-			
 		}
 
 	}
@@ -226,12 +224,12 @@ public class Schema {
 			
 		}
 		
-		// TODO check for subindex at every cases and store in its SchemaRow		
-		
-		if(rowRange.floor.subIndex != -1) sTable.getRow(rowRange.floor.index);
-		if(rowRange.ceiling.subIndex != -1);
-		if(colRange.floor.subIndex != -1);
-		if(colRange.ceiling.subIndex != -1);		
+		// FIXME check for subindex at every cases and store in its SchemaRow		
+		// what about *, what about the row in between?
+		if(rowRange.floor.subIndex != -1) sTable.getRow(rowRange.floor.index).addSubRow(rowRange, cellProperty);
+		if(rowRange.ceiling.subIndex != -1) sTable.getRow(rowRange.ceiling.index).addSubRow(rowRange, cellProperty);
+		if(colRange.floor.subIndex != -1) sTable.getRow(colRange.floor.index).addSubRow(colRange, cellProperty);
+		if(colRange.ceiling.subIndex != -1) sTable.getRow(colRange.ceiling.index).addSubRow(colRange, cellProperty);
 		
 		
 	}
@@ -338,47 +336,14 @@ public class Schema {
 						throw new RuntimeException("Unknown field type! " + e.getKey());
 					}					
 					break;
-				case "applyScope":
-					if(f instanceof HeaderField) {
-						HeaderField hf = (HeaderField) f;
-						ApplyScope scope = ApplyScope.valueOf((String) e.getValue());
-						hf.setApplyScope(scope);
-					} else { // if the field is not header type, just regard this as user's defined property
-						f.addProperty(e.getKey().toString(), e.getValue());
-					}
-					break;
-				case "effectiveRange":
-					if(f instanceof HeaderField) {
-						HeaderField hf = (HeaderField) f;
-						hf.setEffectiveRange((Integer) e.getValue());
-					} else { // if the field is not header type, just regard this as user's defined property
-						f.addProperty(e.getKey().toString(), e.getValue());
-					}
-					break;
 				case "relations":
 					processRelations((ArrayList) e.getValue(), f);
-					break;
-				case "inwardRelation":
-					if(f instanceof HeaderField) {
-						HeaderField hf = (HeaderField) f;
-						hf.setInwardRelation((String) e.getValue());
-					} else { // if the field is not header type, just regard this as user's defined property
-						f.addProperty(e.getKey().toString(), e.getValue());
-					}
-					break;
-				case "outwardRelation":
-					if(f instanceof HeaderField) {
-						HeaderField hf = (HeaderField) f;
-						hf.setOutwardRelation((String) e.getValue());
-					} else { // if the field is not header type, just regard this as user's defined property
-						f.addProperty(e.getKey().toString(), e.getValue());
-					}
-					break;					
+					break;			
 				case "regex":
 					f.setRegEx((String) e.getValue());
 					break;					
 				default:
-					f.addProperty(e.getKey().toString(), e.getValue());
+					f.addProperty(e.getKey().toString(), (String) e.getValue());
 					break;
 				}
 			} // End field property loop

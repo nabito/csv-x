@@ -7,13 +7,7 @@ import java.util.Map;
 
 import com.dadfha.mimamo.air.Datapoint;
 
-public class Cell {
-	
-	/**
-	 * Relations the cell has with other cell(s). 
-	 * This is regarded as a special kind of property. 
-	 */
-	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();	
+public class Cell {	
 	
 	/**
 	 * HashMap storing mapping between property's name and its value.
@@ -39,21 +33,15 @@ public class Cell {
 	 * future there may be some data model that want to include such schema information in there model too (says, field's 
 	 * header information for a tabular oriented data model). 
 	 * 
-	 * Except for some really fundamental properties to field's concept like row and column which are not up to schema's 
+	 * Except for some really fundamental properties to cell's concept like row and column which are not up to schema's 
 	 * definition and won't be changed. This slightly increases performance too.
 	 * 
-	 * Note: This is similar to Data Property in OWL.
-	 * FIXME Should the Map<String be replaced with Map<Property --> Yes, to store its mapped object's type and so on...
-	 * Therefore, this should be merged with above map where Relation is a subclass of Property??
-	 * 
 	 */
-	private Map<String, Object> properties = new HashMap<String, Object>();
-	
-	private Map<String, String> plainProperties;
+	private Map<String, String> properties = new HashMap<String, String>();
 	
 	/**
 	 * 
-	 * In addition to fundamental properties, row and column, below are other field property definitions:
+	 * In addition to fundamental properties, row and column, below are other cell property definitions:
 	 * 
 	 * 1. String name
 	 * 
@@ -62,15 +50,14 @@ public class Cell {
 	 * 
 	 * 2. String label
 	 * 
-	 * Human readable lable of the field. This is an extra attribute and never is a content of the field.
+	 * Human readable lable of the cell. This is an extra attribute and never is a content of the cell.
 	 * 
-	 * 3. Class<? extends Field> type
+	 * 3. Class<? extends Cell> type
 	 * 
-	 * Type of the field as defined by our CSV schema. This information is reflected in Java type system.
+	 * Type of the cell as defined by our CSV schema. This information is reflected in Java type system.
 	 * 
-	 * 		Field is a field containing a value.
-	 * 		HeaderField is a subclass of Field representing field which role is to be header for data.
-	 * 		EmptyField 	as its name states, it holds no data thus empty. 
+	 * 		Cell is a cell containing a value.
+	 * 		EmptyCell 	as its name states, it holds no data thus empty. 
 	 * 					It'll be validated against [^\\S\r\n]*? regEx for whitespace characters except newline.
 	 * 
 	 * 4. String regEx
@@ -100,12 +87,13 @@ public class Cell {
 	
 	/**
 	 * Copy constructor.
-	 * @param f
+	 * @param c
 	 */
-	public Cell(Cell f) {
-		row = f.row;
-		col = f.col;
-		properties = new HashMap<String, Object>(f.getProperties());
+	public Cell(Cell c) {
+		row = c.row;
+		col = c.col;
+		// Collection default copy constructor is deepcopy as long as the object type inside is immutable.
+		properties = new HashMap<String, String>(c.getProperties()); 
 	}
 	
 	/**
@@ -120,7 +108,7 @@ public class Cell {
 	
 	public Cell(int row, int col, Map<String, String> properties) {
 		this(row, col);
-		plainProperties = properties;
+		this.properties.putAll(properties);
 	}
 	
 	/**
@@ -187,11 +175,11 @@ public class Cell {
 		this.col = col;
 	}
 	
-	public Map<String, Object> getProperties() {
+	public Map<String, String> getProperties() {
 		return properties;
 	}	
 	
-	public void addProperty(String key, Object val) {
+	public void addProperty(String key, String val) {
 		properties.put(key, val);
 	}
 	
@@ -255,15 +243,5 @@ public class Cell {
 
 		return true;
 	}
-
-	public Map<Relation, HashSet<Cell>> getRelations() {
-		return relations;
-	}
-
-	public void setRelations(Map<Relation, HashSet<Cell>> relations) {
-		this.relations = relations;
-	}
-	
-	
 
 }
