@@ -7,9 +7,14 @@ import java.util.Map;
 
 import com.dadfha.mimamo.air.Datapoint;
 
-public class Cell {	
+public class Cell implements SchemaEntity {	
 	
 	/**
+	 * 
+	 * FIXME any properties inside { "key" : "val" } map in JSON schema file should all be stored in this map 
+	 * for lean and consistency in processing a chunk of properties.
+	 * (Or else coder will have to remember what properties should be excluded from this map).
+	 * 
 	 * HashMap storing mapping between property's name and its value.
 	 * 
 	 * Storing field's properties in a collection rather than class's attributes has many merits.
@@ -33,8 +38,8 @@ public class Cell {
 	 * future there may be some data model that want to include such schema information in there model too (says, field's 
 	 * header information for a tabular oriented data model). 
 	 * 
-	 * Except for some really fundamental properties to cell's concept like row and column which are not up to schema's 
-	 * definition and won't be changed. This slightly increases performance too.
+	 * Except for some really fundamental properties to cell's concept like row, column, and uuid which are not up to 
+	 * schema's definition and won't be changed. This slightly increases performance too.
 	 * 
 	 */
 	private Map<String, String> properties = new HashMap<String, String>();
@@ -60,13 +65,6 @@ public class Cell {
 	 * 		EmptyCell 	as its name states, it holds no data thus empty. 
 	 * 					It'll be validated against [^\\S\r\n]*? regEx for whitespace characters except newline.
 	 * 
-	 * 4. String regEx
-	 * 
-	 * 5. datatype
-	 * 
-	 * 6. comment
-	 * 
-	 * 7. value
 	 * 
 	 */
 	
@@ -81,9 +79,19 @@ public class Cell {
 	private int col;
 	
 	/**
-	 * The unique id for this cell both in local and world-wide scope.
+	 * The unique id for this cell within a processing context. Can be UUID for world-wide scope.
 	 */
-	private String uuid;
+	private String id;
+	
+	private String type;
+	
+	private String regEx;
+	
+	private String datatype;
+	
+	private String lang;
+	
+	private String value;
 	
 	/**
 	 * Copy constructor.
@@ -123,41 +131,53 @@ public class Cell {
 		setRegEx(regEx);
 	}
 
-	public String getName() {
-		return (String) properties.get("name");
+	public String getId() {
+		return id;
 	}
 
-	public void setName(String name) {
-		properties.put("name", name);
+	public void setId(String id) {
+		this.id = id;
 	}
+	
+	public void setType(String type) {
+		this.type = type;
+	}	
 
-	public Class<? extends Cell> getType() {
-		return this.getClass();
-	}
-
-	public String getLabel() {
-		return (String) properties.get("label");
-	}
-
-	public void setLabel(String label) {
-		properties.put("label", label);
+	public String getType() {
+		return type;
 	}
 	
 	public String getRegEx() {
-		return (String) properties.get("regEx");
+		return regEx;
 	}
 	
 	public void setRegEx(String regEx) {
-		properties.put("regEx", regEx);
+		this.regEx = regEx;
 	}
 	
-	public String getDataType() {
-		return (String) properties.get("dataType");
+	public String getDatatype() {
+		return datatype;
 	}
 	
-	public void setDataType(String dataType) {
-		properties.put("dataType", dataType);
+	public void setDatatype(String datatype) {
+		this.datatype = datatype;
 	}
+	
+	public String getLang() {
+		return lang;
+	}
+
+	public void setLang(String lang) {
+		this.lang = lang;
+	}
+
+	public String getValue() {
+		return value;
+	}
+
+	public void setValue(String value) {
+		this.value = value;
+	}	
 
 	public int getRow() {
 		return row;
@@ -179,14 +199,33 @@ public class Cell {
 		return properties;
 	}	
 	
+	/**
+	 * Add property in key-value map.
+	 * Already existing key will be overwritten.
+	 * @param key
+	 * @param val
+	 */
 	public void addProperty(String key, String val) {
 		properties.put(key, val);
 	}
 	
+	/**
+	 * Add properties to the Cell. 
+	 * Any existing properties with the same name will be overwritten. 
+	 * @param properties
+	 */
+	public void addProperties(Map<String, String> properties) {
+		this.properties.putAll(properties);
+	}	
+	
+	/**
+	 * Merge cells content. Any duplicate properties will be overwritten.
+	 * @param cell
+	 */
 	public void merge(Cell cell) {
 		row = cell.row;
 		col = cell.col;
-		uuid = cell.uuid;
+		id = cell.id;
 		properties.putAll(cell.properties);
 	}
 	
@@ -200,6 +239,7 @@ public class Cell {
 	 * Moreover, it's more common to have higher number of row than col, thus row's bits greater than 16th 
 	 * are padded to the right from center of bits string.
 	 * 
+	 * OPT may be compare performance (e.g. collision %) of this hash vs. eclipse auto-generated
 	 */
 	public int hashCode() {		
 	    int rowTopBits = row &= 0xFF00; 
@@ -229,7 +269,7 @@ public class Cell {
 		
 		Cell c = (Cell) o;
 		
-		if(row != c.row || col != c.col || (uuid.compareTo(c.uuid) != 0)) return false; 
+		if(row != c.row || col != c.col || (id.compareTo(c.id) != 0)) return false; 
 
 		return true;
 	}

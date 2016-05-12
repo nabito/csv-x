@@ -5,27 +5,37 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.dadfha.lod.JSONMinify;
-import com.dadfha.lod.csv.HeaderField.ApplyScope;
 import com.github.jsonldjava.utils.JsonUtils;
 
 /**
  * A CSV-X schema are metadata describing unique syntactic, structural, contextual, and semantic information 
  * for contents described in a CSV file. A data parsed w.r.t. a schema is regarded as a dataset. 
- * A CSV file may contain more than one dataset of the same schema, or more than one schema for multiple dataset.   
+ * A CSV file may contain more than one dataset of the same or different schema.   
+ * 
+ * There can only be one CSV-X file per one CSV file, but a CSV-X may have more than one pattern (schema table).
+ * By giving each table a name via '@name' meta property one can give parser a hint through CSV comment annotation 
+ * to reduce trial-n-errors, hence increase parsing performance.
  *     
  * @author Wirawit
  */
 public class Schema {
+	
+	// IMP move some methods to SchemaProcessor where it handles all parsing/controller logics for both schema and csv 
+	// and it should allow for retrieval of Schema of a CSV-X file separately.
+	
+	public interface CellProcess {
+		public void process(int row, int col, Object obj);
+	}
 	
 	public class CellIndexRange {
 		// -1 indicates uninitialized state or not available.
@@ -42,20 +52,35 @@ public class Schema {
 	 * SchemaTable stores metadata for tabular structure.
 	 */
 	private SchemaTable sTable = new SchemaTable();
+	// TODO private Map<String, SchemaTable> sTables = new HashMap<String, SchemaTable>();
+	// map between table name and schema table
 	
 	/**
 	 * Associate the dataset with an RDF-based schema via context as in JSON-LD
 	 */
-	List<Object> context; // TODO just use JSON-LD Java object!	
+	private List<Object> context; // TODO just use JSON-LD Java object!	
 	
 	/**
-	 * Map of the value(s) to replace. It'll be used by the parser.
+	 * Map of the value(s) to replace.
+	 * Note that empty value has key of empty string ("").
 	 */
-	Map<String, String> replaceValueMap;
+	private Map<String, String> replaceValueMap;
+	
+	/**
+	 * The value to substitute when the reading is missing. 
+	 * Note that empty value ("") is not equal to missing value.
+	 */
+	private String missingValueFill;
+	
+	private List<String> targetCsvs;
+	
+	private String encoding;
+	
+	private String lang;
 	
 	private String delimiter;
 	
-	private List<String> lineTerminators; 
+	private String lineSeparator; 
 	
 	private String commentPrefix;
 	
@@ -83,7 +108,52 @@ public class Schema {
 	 * Other extra/user-defined properties.
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();	
-		
+	
+	/**
+	 * we want to store a collection of referenced cells, which can be searched
+	 * based on <row,col> index instantly, coz' during each csv cell iteration,
+	 * we need to check if that cell is being referred in the schema so that we
+	 * can selectively save the cell value for later use (e.g. variable-value
+	 * substitution). if we're to preserve all csv value for later use, it may
+	 * cause out-of-memory problem. if we're to re-parse the value in referred
+	 * position, it may be well too expensive operation.
+	 * 
+	 * private Map<Integer, Map<Integer, String>> refCells; is good construct to
+	 * store mapping of cell's <row, col> index with its value. However, nested
+	 * collection may need a class wrapper to be able to smoothly operated.
+	 * 
+	 * Rather, using Map<IntPair, String> where IntPair is a class representing
+	 * just <row, col> index with proper hashvalue may serves as more memory
+	 * efficient option with less hassles in coding.
+	 */
+	private Map<CellIndex, String> refCells = new HashMap<CellIndex, String>();
+	
+	/**
+	 * Mapping between variable name and schema entity. 
+	 * IMP add var-value mapping as well..
+	 */
+	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();	
+	
+	/**
+	 * Check if a cell is referenced in the schema.
+	 * @param row
+	 * @param col
+	 * @return
+	 */
+	public boolean isCellRef(int row, int col) {
+		return refCells.containsKey(new CellIndex(row, col));
+	}
+	
+	/**
+	 * This method won't save unreferenced cell.
+	 * @param row
+	 * @param col
+	 * @param val
+	 */
+	public void saveRefCellVal(int row, int col, String val) {
+		refCells.replace(new CellIndex(row,col), val);
+	}
+
 	public Schema(String filePath) {
 		
 		// read in the csv schema file and strip out all comments
@@ -94,23 +164,35 @@ public class Schema {
 		    	jsonStrBld.append(JSONMinify.minify(line));
 		    }
 		    
-			Map csvSchemaMap = (LinkedHashMap) JsonUtils.fromString(jsonStrBld.toString());
+			Map<String, Object> csvSchemaMap = (LinkedHashMap) JsonUtils.fromString(jsonStrBld.toString());
 			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();			
 			
 			while(it.hasNext()) {
 				Map.Entry<String, Object> e = (Map.Entry<String, Object>) it.next();				
 				String key = e.getKey();
-				switch(key) {				
+				switch(key.toLowerCase()) {		
+				case "@id":
+					id = (String) e.getValue();
+					break;
+				case "@targetcsvs":
+					targetCsvs = new ArrayList<String>(); 
+					break;
+				case "@encoding":
+					encoding = (String) e.getValue();
+					break;
+				case "@lang":
+					lang = (String) e.getValue();
+					break;
 				case "@delimiter":
 					delimiter = (String) e.getValue();
 					break;
-				case "@lineTerminators":
-					lineTerminators = (ArrayList<String>) e.getValue();
+				case "@lineseparator":
+					lineSeparator = (String) e.getValue();
 					break;
-				case "@commentPrefix":
+				case "@commentprefix":
 					commentPrefix = (String) e.getValue();					
 					break;
-				case "@quoteChar":
+				case "@quotechar":
 					quoteChar = (String) e.getValue();
 					break;
 				case "@header":
@@ -121,26 +203,26 @@ public class Schema {
 						else headerRowCount = 0;
 					}
 					break;
-				case "@headerRowCount":
+				case "@headerrowcount":
 					Integer hrc = (Integer) e.getValue();
 					if(hrc < 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
 					headerRowCount = hrc;
 					break;
-				case "@doubleQuote":
+				case "@doublequote":
 					doubleQuote = (boolean) e.getValue();
 					break;
-				case "@skipBlankRow":
+				case "@skipblankrow":
 					skipBlankRow = (boolean) e.getValue();
 					break;
-				case "@skipColumns":
+				case "@skipcolumns":
 					Integer sc = (Integer) e.getValue();
 					if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
 					skipColumns = sc; 
 					break;
-				case "@skipInitialSpace":
+				case "@skipinitialspace":
 					skipInitialSpace = (boolean) e.getValue();
 					break;
-				case "@skipRows":
+				case "@skiprows":
 					Integer sr = (Integer) e.getValue();
 					if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
 					skipRows = sr;
@@ -148,21 +230,30 @@ public class Schema {
 				case "@trim":
 					trim = (boolean) e.getValue();
 					break;					
-				case "@embedHeader":
+				case "@embedheader":
 					embedHeader = (boolean) e.getValue();
 					break;
-				case "@replaceValueMap":
+				case "@replacevaluemap":
 					replaceValueMap = (LinkedHashMap<String, String>) e.getValue();
 					// IMP check if deepcopy is needed  
 					//replaceValueMap = new LinkedHashMap<String, String>( (LinkedHashMap<String, String>) e.getValue()); 
-					break;					
+					break;
+				case "@data":
+					// TODO finish me! (and below)
+					break;
+				case "@property":
+					break;
 				default:
 					if(key.startsWith("@cell")) {
 						String marker = key.substring(5);
 						processCellMarker(marker, (LinkedHashMap<String, String>) e.getValue());
 						//processRows((ArrayList<Map<String, Object>>) e.getValue());	
+					} else if(key.startsWith("@row")) {
+						processRowMarker(key.substring(4), (LinkedHashMap<String, String>) e.getValue());
+					} else if(key.startsWith("@")) {
+						throw new RuntimeException("Unrecognized meta property: " + key);
 					} else {
-						// Others are add to extra properties map for later processing.
+						// Others are add to extra properties map for later processing.						
 						addProperty(key, e.getValue());	
 					}
 					break;
@@ -183,7 +274,7 @@ public class Schema {
 	 * @param marker
 	 * @param cellProperty
 	 */
-	private void processCellMarker(String marker, Map<String, String> cellProperty) {	
+	private void processCellMarker(String marker, Map<String, String> cellProperties) {	
 				
 		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		s = s.replaceAll("\\s+", ""); // remove whitespaces
@@ -195,10 +286,27 @@ public class Schema {
 			CellIndexRange colRange = processCellIndexRange(pos[1]);
 									
 			// create cell representation with its properties for every intersection of row and col
-			// and put into schema table!
-			forEveryRowAndCol(rowRange, colRange, cellProperty);
+			// and put into schema table!			
+			forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o) -> cellCreation(i, j, (Map<String, String>) o) , cellProperties);
 		}
 
+	}
+	
+	/**
+	 * Recognize \@row syntax and create row schema based on its properties
+	 * @param marker
+	 * @param rowProperties
+	 */
+	private void processRowMarker(String marker, Map<String, String> rowProperties) {
+		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		s = s.replaceAll("\\s+", ""); // remove whitespaces
+		int rowNum = Integer.parseInt(s);
+		SchemaRow sr = sTable.getRow(rowNum);
+		if(sr == null) {
+			sr = new SchemaRow(rowNum);
+			sTable.addRow(sr);
+		}
+		processRowProps(sr, rowProperties);
 	}
 	
 	/**
@@ -208,6 +316,7 @@ public class Schema {
 	 */
 	private CellIndexRange processCellIndexRange(String rangeEx) {
 		
+		rangeEx = rangeEx.replaceAll("\\s+", ""); // remove whitespaces just in case unprocessed string is passed		
 		CellIndexRange cir = new CellIndexRange();
 		
 		if(rangeEx.indexOf("-") != -1) { // check if there is range span symbol '-'
@@ -229,12 +338,25 @@ public class Schema {
 	}
 	
 	/**
-	 * Loop through all rows and columns specified in rowRange and colRange and assign each cell cellProperty.
+	 * Create cell schema for [row, col], assign each cell cellProperty, and add to the schema table.
+	 * @param row
+	 * @param col
+	 * @param cellProps
+	 */
+	private void cellCreation(int row, int col, Map<String, String> cellProps) {		
+		Cell c = new Cell(row, col);
+		processCellProps(c, cellProps);
+		sTable.addCell(c);	
+	}
+	
+	/**
+	 * Loop through rows and columns specified in rowRange and colRange and perform cell process.
 	 * @param rowRange
 	 * @param colRange
-	 * @param cellProperty
+	 * @param cp
+	 * @param obj
 	 */
-	private void forEveryRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, Map<String, String> cellProperty) {
+	private void forMarkedRowAndCol(CellIndexRange rowRange, CellIndexRange colRange, CellProcess cp, Object obj) {
 		int rowLimit = 0, colLimit = 0;
 		if(rowRange.ceiling != -1) rowLimit = rowRange.ceiling;  
 		else rowLimit = rowRange.floor;
@@ -243,156 +365,226 @@ public class Schema {
 			if(colRange.ceiling != -1) colLimit = colRange.ceiling;  
 			else colLimit = colRange.floor;			
 			
-			for(int j = colRange.floor; j <= colLimit; j++) {
-				sTable.addCell(new Cell(i, j, cellProperty));
+			for(int j = colRange.floor; j <= colLimit; j++) {				
+				cp.process(i, j, obj);
 			}			
-		}
-	}	
-	
-	/**
-	 * Process each row object until the very last row.
-	 * @param rows
-	 * @param it
-	 */
-	private void processRows(List<Map<String, Object>> rows) {
-		int rowNum = 0;
-		// For each row
-		for(Map<String, Object> row : rows) {			
-			SchemaRow sr = new SchemaRow(rowNum);
-
-			// For each row property
-			for(Map.Entry<String, Object> e : row.entrySet()) {
-				switch(e.getKey()) {
-				case "dataCols" :		
-					processCols((ArrayList<Map<String, Object>>) e.getValue(), sr);
-					break;
-				case "repeatTimes" :
-					sr.setRepeatTimes((Integer) e.getValue()); 
-					break;
-				default:
-					sr.addProperty(e.getKey().toString(), e.getValue());
-					break;
-				}
-			}
-			
-			sTable.addRow(sr);
-			rowNum++;
 		}		
 	}
 	
 	/**
-	 * Process all column objects of a row. 
-	 * @param cols
-	 * @param row
+	 * Process special properties inside cell.
+	 * @param cell
+	 * @param cellProps
 	 */
-	private void processCols(List<Map<String, Object>> cols, SchemaRow row) {
-		int colNum = 0;
-		// For each column within a row, i.e. field
-		for(Map<String, Object> col : cols) {
-			Cell f = new Cell(row.getRowNum(), colNum);
-			// For each field property
-			for(Map.Entry<String, Object> e : col.entrySet()) {
-				switch(e.getKey()) {
-				case "type":
-					switch((String) e.getValue()) {
-					case "Datapoint":
-						// do nothing here coz' default type is Datapoint
-						break;
-					default:
-						throw new RuntimeException("Unknown field type! " + e.getKey());
-					}					
-					break;
-				case "relations":
-					processRelations((ArrayList) e.getValue(), f);
-					break;			
-				case "regex":
-					f.setRegEx((String) e.getValue());
-					break;					
-				default:
-					f.addProperty(e.getKey().toString(), (String) e.getValue());
-					break;
-				}
-			} // End field property loop
-			
-			row.addCell(f);
-			colNum++;			
-			
-			// Before moving on to the next field, check if it has repeat flag
-			Integer ru = (Integer) col.get("repeatUntil");
-			if(ru != null) {				
-				for(;colNum <= ru; colNum++) {
-					f = new Cell(f);
-					f.setCol(colNum);
-					row.addCell(f);
-				}
+	private void processCellProps(Cell cell, Map<String, String> cellProps) {
+		for(Entry<String, String> e : cellProps.entrySet()) {
+			switch(e.getKey().toLowerCase()) {
+			case "@name":
+				// save variable name-value mapping
+				varMap.put(e.getValue(), cell);
+				break;		
+			case "@regex":
+				cell.setRegEx(e.getValue());
+				break;
+			case "@type":
+				String type = e.getValue();
+				// TODO check if it's a recognized type (Datapoint or user-defined)
+				cell.setType(type);
+				break;
+			case "@datatype":				
+				String datatype = e.getValue();
+				// TODO check if it's a recognized XML datatype.
+				cell.setDatatype(datatype);
+				break;
+			case "@lang":
+				cell.setLang(e.getValue());
+				break;
+			case "@value":
+				cell.setValue(e.getValue());
+				break;
+			default:
+				// process the value
+				String newLit = processLiteral(e.getValue());
+				// add to user-defined properties
+				cell.addProperty(e.getKey(), newLit);
+				break;
 			}
-
-		} // End column iteration loop
+		}
+		
 	}
 	
-	void processRelations(List<Map<String, Object>> relations, Cell f) {
-		// For each relation
-		for(Map<String, Object> relation : relations) {
-			// For each property inside a relation
-			for(Map.Entry<String, Object> e : relation.entrySet()) {
-				switch(e.getKey()) {
-				case "name":
-					break;
-				case "label":
-					break;
-				case "direction":
-					break;
-				case "fieldSelect":
-					break;
-				case "field":
-					break;
-				default:
-				
-					break;
-				}
+	private void processRowProps(SchemaRow sRow, Map<String, String> rowProps) {
+		for(Entry<String, String> e : rowProps.entrySet()) {
+			switch(e.getKey().toLowerCase()) {
+			case "@repeattimes":
+				sRow.setRepeatTimes(Integer.parseInt(e.getValue()));
+				break;
+			default:
+				// process the value
+				String newLit = processLiteral(e.getValue());
+				// add to user-defined properties
+				sRow.addProperty(e.getKey(), newLit);
+				break;
 			}
 		}
 	}
 	
-	
-	
-//	/**
-//	 * Validate each parsed CSV column in a row against CSV schema's regular expression(s)
-//	 * @param row a row from CSV parser
-//	 * @return boolean
-//	 */
-//	public boolean validate(String[] row) {
-//		boolean res = true;
-//		for(int i = 0; i < schema.length; i++) {		    
-//		    Pattern p = Pattern.compile(schema[i], Pattern.CASE_INSENSITIVE);
-//		    String colVal = row[i];
-//		    if(colVal == null) colVal = "";
-//		    Matcher m = p.matcher(colVal);
-//		    if(!m.find()) return false;
-//		}
-//		return res;
-//	}
-
 	/**
-	 * Set field name for each [row, col] coordinate in a section.
+	 * To validate a CSV cell against schema at its corresponding row, col.
 	 * @param row
 	 * @param col
-	 * @param name
+	 * @param val
+	 * @return boolean
 	 */
-	public void setFieldName(int row, int col, String name) {
-		sTable.getRow(row).getCell(col).setName(name);
+	public boolean validate(int row, int col, String val) {
+		
+		Cell c = sTable.getCell(row, col);
+		
+		if(c == null) {
+			System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + row + "," + col + "]"); 
+			return false;
+		}
+		
+		// TODO check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
+		// also the syntax for constraints must be referred from CSVW specs
+		String datatype = c.getDatatype();
+		if(datatype != null) {			
+			switch(datatype) {
+			// mapping between XML datatype and Java datatype in defined in JAXB standard (http://docs.oracle.com/javaee/5/tutorial/doc/bnazq.html)
+			case "string":
+				break;			
+			case "integer":
+				break;
+			case "int":
+				break;
+			case "long":
+				break;
+			case "short":
+				break;
+			case "decimal":
+				break;
+			case "float":
+				break;
+			case "double":
+				break;
+			case "boolean":
+				break;
+			case "byte":
+				break;
+			case "QName":
+				break;
+			case "dateTime":
+				break;
+			case "base64Binary":
+				break;
+			case "hexBinary":
+				break;
+			case "unsignedInt":
+				break;
+			case "unsignedShort":
+				break;
+			case "unsignedByte":
+				break;
+			case "time":
+				break;
+			case "date":
+				break;
+			case "g":
+				break;
+			case "anySimpleType":
+				break;
+			case "duration":
+				break;
+			case "NOTATION":
+				break;				
+			default:
+				throw new RuntimeException("Unsupported datatype: " + datatype);
+			}
+			// TODO later import XML datatype API and do the validation..
+			// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
+			// then translate that into XML model for native-XML validation.
+			
+		}
+		
+		//String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespace characters except newline
+		
+		// validate parsed CSV record against CSV-X cell schema's regular expression.
+		String regEx = c.getRegEx();
+		if(regEx != null) {
+		    Pattern p = Pattern.compile(regEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+		    Matcher m = p.matcher(val);
+		    if(!m.find()) {
+		    	System.err.println("Error: Regular Expression Mismatched at: [" + row + "," + col + "]");
+		    	return false;			
+		    }
+		}
+		
+		return true;
 	}
 	
-	public String getFieldName(int row, int col) {
-		return sTable.getRow(row).getCell(col).getName();
+	/**
+	 * In CSV-X the support for i18n and alternative string literal have been dropped. By allowing an expression of 
+	 * any literal to have multiple language and possibly alternative terms requires that the data model accommodating
+	 * them must has such a unique structure to hold i18n/alternative values as in RDF. 
+	 * 
+	 * Since one of CSV-X's objective is to be able to describe relations between cells in non-uniform CSV, in a generic 
+	 * way, so it can be easily and flexibly mapped to an arbitrary data model. Therefore, making support for i18n and 
+	 * alternative string literal by default (as in RDF literal) will impose such structure onto target data model or 
+	 * making it less generic, hence more difficult, to convert it to other structure.
+	 * 
+	 * On the contrary, the support for i18n literal is still possible via '@lang' meta property where alternative string
+	 * may be explicitly defined as another property like 'altTitle'.  
+	 *    
+	 * @param literal
+	 * @return
+	 */
+	public String processLiteral(String literal) {		
+		
+		// identify referenced by parsing all occurrences of @cell[row, col] and save it for the time of CSV parsing
+		String regEx = "(@cell)(\\[)([^,]+?)(,)([^,]+?)(\\])";
+		
+	    Pattern p = Pattern.compile(regEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+	    Matcher m = p.matcher(literal);
+	    while(m.find()) {
+	        String rowEx = m.group(3);
+	        String colEx = m.group(5);
+	        
+	        CellIndexRange rowRange = processCellIndexRange(rowEx);
+	        CellIndexRange colRange = processCellIndexRange(colEx);
+	        
+	        forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o) -> saveRefCell(i, j), null);
+	    }
+	    	    
+	    return literal;
+	    
+		// OPT do the same for {var.xx} but keep separated map of {var.xx} and cell's schema ID that 
+	    // couldn't complete value replacement at the time. Then after the whole schema is processed
+	    // we go though that list again to fill up value for referred variable(s).
+		// This is done at CSV-X schema parsing stage.
+		
 	}
 	
-	public String getFieldLabel(int row, int col) {
-		return sTable.getRow(row).getCell(col).getLabel();
+	/**
+	 * Record a reference to cell.
+	 * @param row
+	 * @param col
+	 */
+	private void saveRefCell(int row, int col) {
+		// since the actual value of cell is not known at this time, null is added.
+		refCells.put(new CellIndex(row, col), null);
 	}
 	
-	public Class<? extends Cell> getFieldType(int row, int col) {
-		return sTable.getRow(row).getCell(col).getType();
+	/**
+	 * Replace cell's value if it's targeted in replace value map.
+	 * @param val the original cell's value.
+	 * @return String of the mapped value.
+	 */
+	public String replaceValue(String val) {		
+		return replaceValueMap.get(val); 
+	}
+
+	Cell getCell(int row, int col) {
+		return sTable.getCell(row, col);
 	}
 	
 	public Map<String, Object> getProperties() {
@@ -409,6 +601,38 @@ public class Schema {
 
 	public void setId(String id) {
 		this.id = id;
-	}	
+	}
+
+	public boolean isRepeatingRow(int row) {
+		return sTable.getRow(row).isRepeat();
+	}
+	
+	public String getLineSeparator() {
+		return lineSeparator;
+	}
+	
+	/**
+	 * Get empty value filling.
+	 * @return the String value meant to replace empty value ("") or null if not specified.
+	 */
+	public String getEmptyValueFill() {
+		return replaceValueMap.get("");
+	}
+	
+	/**
+	 * Missing value filling.
+	 * @return String to replace missing value or null if not specified.
+	 */
+	public String getMissingValueFill() {
+		return missingValueFill;
+	}
+	
+	/**
+	 * Get target CSV(s)
+	 * @return list of target CSV(s) or null if none defined.
+	 */
+	public List<String> getTargetCsvs() {
+		return targetCsvs;
+	}
 
 }

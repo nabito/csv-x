@@ -33,10 +33,10 @@ public class Datapoint {
 	private String id; 
 	
 	/**
-	 * human readable label of this datapoint. rdfs:label for RDF.
-	 * For CSV, field's name can be used, if it make sense to human or it has to be annotated in a comment somewhere.
+	 * human readable title of this datapoint. 
+	 * This property is mapped to rdfs:label for RDF.
 	 */
-	private String label;
+	private String title;
 	
 	/**
 	 * simple types from XML schema datatype 1.1. 
@@ -66,11 +66,11 @@ public class Datapoint {
 	public void setValue(String value) {
 		this.value = value;
 	}
-	public String getLabel() {
-		return label;
+	public String getTitle() {
+		return title;
 	}
-	public void setLabel(String label) {
-		this.label = label;
+	public void setTitle(String title) {
+		this.title = title;
 	}
 	public String getDatatype() {
 		return datatype;
@@ -104,7 +104,7 @@ public class Datapoint {
 		
 		Datapoint dp = (Datapoint) o;
 		
-		if(!(id == dp.getId() && label == dp.getLabel() && datatype == dp.getDatatype() && value.equals(dp.getValue()))) return false;
+		if(!(id == dp.getId() && title == dp.getTitle() && datatype == dp.getDatatype() && value.equals(dp.getValue()))) return false;
 		
 		return properties.equals(dp.getProperties());		
 	}

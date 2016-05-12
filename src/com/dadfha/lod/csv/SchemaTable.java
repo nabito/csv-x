@@ -3,7 +3,7 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SchemaTable {
+public class SchemaTable implements SchemaEntity {
 	
 	/**
 	 * Set this to two times the expected number of row per section. 
@@ -12,6 +12,16 @@ public class SchemaTable {
 	
 	/**
 	 * Map between row number and its schema.
+	 * 
+	 * To guarantee validation of CSV dimension, the golden rule for CSV-X schema is that for every existing cell 
+	 * in CSV there must be corresponding schema definition even when the cell is meant to be empty.
+	 *  
+	 * The same is true in reverse direction wherever there is a schema definition for a cell, there must be actual 
+	 * cell in CSV data that matches the schema properties.
+	 * 
+	 * This way there is no need to describe schema dimension as strict rectangular of rowNum x colNum nor to keep 
+	 * tracking of size for each row and column.
+	 * 
 	 */	
 	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
 
@@ -25,12 +35,29 @@ public class SchemaTable {
 		schemaRows.put(sr.getRowNum(), sr);
 	}
 	
+	/**
+	 * Get schema row. 
+	 * @param rowNum
+	 * @return SchemaRow or null if not available.
+	 */
 	public SchemaRow getRow(int rowNum) {
 		return schemaRows.get(rowNum);
 	}
 	
 	/**
-	 * This method will check for already available row and cell schema and properly update their properties.
+	 * Get cell.
+	 * @param row
+	 * @param col
+	 * @return Cell or null if not available.
+	 */
+	public Cell getCell(int row, int col) {
+		SchemaRow sr = schemaRows.get(row);
+		if(sr != null) return sr.getCell(col);
+		else return null;
+	}
+	
+	/**
+	 * This method will check for already existing row and cell schema and properly update their properties.
 	 * It will create row and cell schema object as needed if there is none before.
 	 * The prior cell's schema properties will be overwritten if there are duplicate properties.
 	 * @param cell

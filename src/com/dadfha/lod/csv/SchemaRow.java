@@ -3,7 +3,7 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SchemaRow {
+public class SchemaRow implements SchemaEntity {
 	
 	/**
 	 * Expected number of cell per row.
@@ -11,7 +11,7 @@ public class SchemaRow {
 	private static final int INIT_COL_NUM = 100;
 	
 	/**
-	 * List of cell, i.e. column, containing in the row 
+	 * List of cell, i.e. column, containing in the row.
 	 */
 	private Map<Integer, Cell> cells = new HashMap<Integer, Cell>(INIT_COL_NUM);
 	
@@ -21,15 +21,14 @@ public class SchemaRow {
 	private int rowNum = -1;
 	
 	/**
-	 * The exact number of times this row is repeated.
-	 * Minus value indicates indefinite.
+	 * Row repeating times. Minus value indicates indefinite.
 	 */
 	private int repeatTimes = 0;
 	
 	/**
 	 * Other extra/user-defined properties.
 	 */
-	private Map<String, Object> properties = new HashMap<String, Object>();
+	private Map<String, String> properties = new HashMap<String, String>();
 	
 	/**
 	 * Constructor.
@@ -48,16 +47,29 @@ public class SchemaRow {
 		cells.put(cell.getCol(), cell);
 	}
 
+	/**
+	 * Check whether this row's schema is repeating.
+	 * @return
+	 */
 	public boolean isRepeat() {
-		return (repeatTimes != 0);
+		return (getRepeatTimes() != 0);
 	}
 
+	/**
+	 * The exact number of times this row is repeated.
+	 * Minus value indicates indefinite.
+	 * @return int repeating times.
+	 */
 	public int getRepeatTimes() {
 		return repeatTimes;
 	}
 
+	/**
+	 * Set row's repeating times.
+	 * @param repeatTimes
+	 */
 	public void setRepeatTimes(int repeatTimes) {
-		this.repeatTimes = repeatTimes;
+		this.repeatTimes = repeatTimes;		
 	}
 
 	public int getRowNum() {
@@ -68,12 +80,31 @@ public class SchemaRow {
 		this.rowNum = rowNum;
 	}
 	
-	public Map<String, Object> getProperties() {
+	public Map<String, String> getProperties() {
 		return properties;
 	}	
 	
-	public void addProperty(String key, Object val) {
+	/**
+	 * Add property to the SchemaRow.
+	 * Any existing property with the same name will be overwritten.
+	 * @param key
+	 * @param val
+	 */
+	public void addProperty(String key, String val) {
 		properties.put(key, val);
+	}
+	
+	/**
+	 * Add properties to the SchemaRow. 
+	 * Any existing properties with the same name will be overwritten. 
+	 * @param properties
+	 */
+	public void addProperties(Map<String, String> properties) {
+		this.properties.putAll(properties);
+	}
+	
+	public boolean isEmpty() {
+		return (cells.size() == 0);
 	}
 
 }

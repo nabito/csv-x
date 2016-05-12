@@ -5,8 +5,8 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.dadfha.lod.csv.CsvSchemaParser;
@@ -18,8 +18,9 @@ public class DataSet {
 	
 	/**
 	 * Datapoints within the dataset. 
+	 * Represented by HashMap having id as key and datapoint as value.
 	 */
-	private HashSet<Datapoint> datapoints = new HashSet<Datapoint>();
+	private Map<String, Datapoint> datapoints = new HashMap<String, Datapoint>();
 	
 	/**
 	 * Common properties of all datapoints in this dataset
@@ -33,28 +34,10 @@ public class DataSet {
 	
 	/**
 	 * Get all datapoints inside the dataset.
-	 * @return Set<Datapoint>
+	 * @return HashMap having id as key and datapoint as value.
 	 */
-	public Set<Datapoint> getDatapoints() {
+	public Map<String, Datapoint> getDatapoints() {
 		return datapoints;
-	}
-	
-	public static List<DataSet> loadCsvData(String filePath, CsvParser parser, DatapointRowListProcessor rowProc) { 
-	    
-	    // the 'parse' method will parse the file and delegate each parsed row to the RowProcessor you defined
-	    try {
-			parser.parse(new BufferedReader(new FileReader(filePath), CsvSchemaParser.BUFFER_SIZE));
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-	    
-//	    List<Datapoint[]> rows = (List<Datapoint[]>) rowProc.getRows();		    	    
-//	    
-//		for(Datapoint[] d : rows) {
-//			System.out.println(Arrays.toString(d));
-//		}	    
-	    		
-		return rowProc.getDataSets();		
 	}
 	
 	/**

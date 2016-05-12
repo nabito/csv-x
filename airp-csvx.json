@@ -1,19 +1,19 @@
 {
 
 	// TODO research all fundamental properties in needed for parsing a CSV file
-	"@id" : "http://dadfha.com/csv/ex1.csvx", // ID of this csv-x file which can be IRI. (Optional)
-	"@targetCSV" : [ "http://dadfha.com/csv/ex1.csv", "http://dadfha.com/csv/ex2.csv" ], // (optional) CSV file(s) this schema is describing
+	"@id" : "http://dadfha.com/csv/ex1.csvx", // ID of this csv-x schema file which can be IRI. (Required)
+	"@targetCSVs" : [ "http://dadfha.com/csv/ex1.csv", "http://dadfha.com/csv/ex2.csv" ], // (Optional) ID of CSV file(s) this schema is describing
 	"@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
-	"@lang" : "jp",	// The main language of string literals inside the file. Default to "en" if not specified. (Optional)
+	"@lang" : "ja",	// The main language of string literals inside the file. Default to "en" if not specified. (Optional)
 	
 	// CSV dialects. TODO derive from parser customizable parameters & CSVW
 	"@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
-	"@lineTerminators" : ["\n\r"], // End of line character. If not specified, the system default new line character should be used. (Optional)
+	"@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
 	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
 	"@quoteChar" : "\"",
-	"@header" : "test header",
+	"@header" : "test header", // TODO check what this means
 	"@headerRowCount" : 5,
-	"@doubleQuote" : "test doubleQuote",
+	"@doubleQuote" : "test doubleQuote", // TODO check what this means
 	"@skipBlankRows" : true,
 	"@skipColumns" : 1,
 	"@skipInitialSpace" : true,
@@ -23,27 +23,32 @@
 	// CSV-X metadata (Con't)
 	"@embedHeader" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
 
-	"@titles" : 
-	{ 
-		"en" : "Tokyo Air Pollutions Report", 
-		"ja" : "@cell[0,1]"
-	},
-
-	"@replaceValueMap" : {
+	"@replaceValueMap" : 
+	{
 		"*****" : ""
 	},
 
-	// User-defined common Datapoint's properties
-	"hasMsrMonthYear" : "@cell[0,2]",
-	"hasMsrLocation" : "@cell[1,3]",
-	"hasMsrLocationCode" : "@cell[1,2]",
-	"hasMsrProperty" : "@cell[1,6]",
-	"hasMsrPropertyCode" : "@cell[1,5]",
-	"hasMsrUnit" : "@cell[1,8]"
+	"@dataset" : 
+	{
+	
+		"title" : // CSV-X supports i18n literals via key-value map of language code-text as in JSON-LD   
+		{ 
+			"en" : "Tokyo Air Pollutions Report", 
+			"ja" : "@cell[0,1]"
+		},
+	
+		// User-defined common Datapoint's properties
+		"hasMsrMonthYear" : "{MsrYrMTh_Jp}", // TODO fill up variable when parsing
+		"hasMsrLocation" : "@cell[1,3]",
+		"hasMsrLocationCode" : "@cell[1,2]",
+		"hasMsrProperty" : "@cell[1,6]",
+		"hasMsrPropertyCode" : "@cell[1,5]",
+		"hasMsrUnit" : "@cell[1,8]"	
+	},
 
 	"@cell[0-2,0]" : 
 	{
-		"@cellltype" : "empty" // Empty cell indicates it's a part of the schema but is expected to contain "empty" value
+		// Empty cell indicates it's a part of the schema but is expected to contain "empty" value
 	},
 
 	"@cell[0,1]" : 
@@ -53,6 +58,7 @@
 
 	"@cell[0,2]" : 
 	{
+		"@name" : "MsrYrMth_Jp", // (variable) name of the entity (cell), should conform to QNAME  
 		"@regex" : "(平成)(\\d+)(年)(\\d+)(月)"  // Japanese year month format. Ex.平成27年1月
 	},
 
@@ -244,125 +250,172 @@
 
 	"@row[3]" : 
 	{
-		"repeatTimes" : -1
+		"@repeatTimes" : -1
 	},
 
-	"@cell[3,1-24]" : 	// TODO define way to describe property name for the value of cell, may be "@name"? or just "hasValue"?
+	"@cell[3,1-24]" :
 	{
-		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement value at date/time: @cell[0,2]@cell[3.., 0]/@cell[2,1-24] at location: @cell[1,3]",
+		"@type" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
+		"title" : "@cell[1,6] property measurement value at date/time: @cell[0,2]@cell[3,0]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]",
+		"hasMsrDay" : "@cell[3,0]",
 		"hasMsrHour" : "@cell[2,1-24]",
-		"hasMsrVal" : "@cell[this]"
+		"hasMsrVal" : "@cell[this]" // this is the way to associate this cell's value with a property of datapoint.
 	},
 
 	"@cell[3,25]" :
 	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement DAILY AVERAGE value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
-		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]"
-	},
+		"title" : "@cell[1,6] property measurement DAILY AVERAGE value at date: @cell[0,2]@cell[3,0] at location: @cell[1,3]",
+		"@datatype" : "integer",		
+		"@value" : "@cell[this]", // by default cell's value is associated with '@value' property but this can be overridden
+		"hasMsrDay" : "@cell[3,0]"   
+	},	
 
 	"@cell[3,26]" :
 	{		
-		"@type" : "Datapoint",		
-		"@title" : "@cell[1,6] property measurement DAILY MAXIMUM value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
-		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]"
+		"@datatype" : "integer"		
 	},
+	
+	"@data" : // an alternative way to declare a data instance of a model (Datapoint). 
+	{
+		"@type" : "Datapoint",
+		"@id" : "ex:@cell[0,2]/@cell[3,0]/@cell[1,6]dailyMax/", // << should giveup @cell and use var name instead..
+		"title" : "@cell[1,6] property measurement DAILY MAXIMUM value at date: @cell[0,2]@cell[3,0] at location: @cell[1,3]",
+		"hasMsrDay" : "@cell[3,0]",
+		"hasMsrVal" : "@cell[3,26]" // by referring to a cell within a repeating row, this data model will also be applied to all the cells within that column. 
+	},	
+	
+	"@property" : { // a user-defined data property
+		"@name" : "hasMsrDay",   
+		"@id" : "ex:hasMsrDay",
+		"@datatype" : "dayOfMonth",
+		"title" : "has measurement day",
+		"description" : "a property describing the day observation was made." 
+	},
+	
+	"@property" : {
+		"@name" : "title",
+		"@id" : "ex:title",
+		"@datatype" : "string",
+		"@lang" : "en", // all literal values being described by this property is in the specified language
+		"title" : "has title", // isn't it interesting? the property is used to describe itself
+		"description" : "a property naming title for anything."
+	}
 
 	"@cell[3,27]" : 
 	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement DAILY MINIMUM value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement DAILY MINIMUM value at date: @cell[0,2]@cell[3,0] at location: @cell[1,3]",
 		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]"
+		"hasMsrDay" : "@cell[3,0]"
 	},
 
 	"@cell[3,28]" :
 	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement DAILY MEASUREMENT TIMES value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement DAILY MEASUREMENT TIMES value at date: @cell[0,2]@cell[3,0] at location: @cell[1,3]",
 		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]"
+		"hasMsrDay" : "@cell[3,0]"
 	},
 
 	"@cell[3,29]" : 
 	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement DAILY TOTAL value at date: @cell[0,2]@cell[3.., 0] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement DAILY TOTAL value at date: @cell[0,2]@cell[3,0] at location: @cell[1,3]",
 		"@datatype" : "integer",
-		"hasMsrDay" : "@cell[3.., 0]"
+		"hasMsrDay" : "@cell[3,0]"
 	},
 
 	"@cell[4,1-24]" :
 	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY AVERAGE PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY AVERAGE PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
 		"hasMsrHour" : "@cell[2,1-24]"
 	},
 
-	"@cell[5,1-24]" : {
+	"@cell[5,1-24]" : 
+	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MAXIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MAXIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
 		"hasMsrHour" : "@cell[2,1-24]"
 	},
 
-	"@cell[6,1-24]" : {
+	"@cell[6,1-24]" : 
+	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MINIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MINIMUM PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
 		"hasMsrHour" : "@cell[2,1-24]"
 	},	
 
 
-	"@cell[7,1-24]" : {
+	"@cell[7,1-24]" : 
+	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
 		"hasMsrHour" : "@cell[2,1-24]"
 	},
 
-	"@cell[8,1-24]" : {
+	"@cell[8,1-24]" : 
+	{
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY TOTAL PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY TOTAL PER HOUR value at month-year/time: @cell[0,2]/@cell[2,1-24] at location: @cell[1,3]",
 		"@datatype" : "integer",
 		"hasMsrHour" : "@cell[2,1-24]"
 	},		
 
-	"@cell[4,25]" : { 
+	"@cell[4,25]" : 
+	{ 
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY AVERAGE value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY AVERAGE value at month-year: @cell[0,2] at location: @cell[1,3]",
 		"@datatype" : "integer"
 	},
 
-	"@cell[5,26]" : { 
+	"@cell[5,26]" : 
+	{ 
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MAXIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MAXIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
 		"@datatype" : "integer"
 	},
 
-	"@cell[6,27]" : { 
+	"@cell[6,27]" : 
+	{ 
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MINIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MINIMUM value at month-year: @cell[0,2] at location: @cell[1,3]",
 		"@datatype" : "integer"
 	},	
 	
-	"@cell[7,28]" : { 
+	"@cell[7,28]" : 
+	{ 
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY MEASUREMENT TIMES value at month-year: @cell[0,2] at location: @cell[1,3]",
 		"@datatype" : "integer"
 	},
 
-	"@cell[8,29]" : { 
+	"@cell[8,29]" : 
+	{ 
 		"@type" : "Datapoint",
-		"@title" : "@cell[1,6] property measurement MONTHLY TOTAL value at month-year: @cell[0,2] at location: @cell[1,3]",
+		"title" : "@cell[1,6] property measurement MONTHLY TOTAL value at month-year: @cell[0,2] at location: @cell[1,3]",
 		"@datatype" : "integer"
-	}
+	},
+	
+	"@table" : 
+	{
+		"@name" : "WindMsrTbl",
+				
+		"@cell[0-2,0]" : {},
+		
+		"@cell[8,29]" : 
+		{ 
+			"@type" : "Datapoint",
+			"title" : "@cell[1,6] property measurement MONTHLY TOTAL value at month-year: @cell[0,2] at location: @cell[1,3]",
+			"@datatype" : "integer"
+		}
+	}	
 
 
 }
