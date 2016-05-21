@@ -22,6 +22,8 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	 * - @cell[x,y] value replacement.
 	 */
 	protected List<String> postProcDps = new ArrayList<String>(); 
+	
+	protected String currTable = "default";
 
 	protected int currRow = -1;
 	
@@ -60,7 +62,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 			currVal = row[currCol];
 			
 			// check if the cell's value is being referred, if yes, save the value
-			if(schema.isCellRef(currRow, currCol)) schema.saveRefCellVal(currRow, currCol, currVal);
+			if(schema.isCellRef(currRow, currCol)) schema.updateRefCellVal(currRow, currCol, currVal);
 				
 			// IMP context.currentColumn() is always 0, becoz rowProcessed(..) get called when all column of a row are processed!
 			// but in this for_loop we "could" call to columnProcessed() for each column.

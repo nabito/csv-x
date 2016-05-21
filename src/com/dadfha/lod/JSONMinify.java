@@ -1,5 +1,8 @@
 package com.dadfha.lod;
 
+// Original concept of JSON Minifier: http://www.crockford.com/javascript/jsmin.html
+// Father of JSON: https://en.wikipedia.org/wiki/Douglas_Crockford allows comments in JSON but not when transferring.
+
 // JSONMinify - JSON Minifier (removes comments and whitespace from JSON/JSON+C) that JUST WORKS.
 //
 // Made by Stefan Reich because all the other minifiers just didn't work.

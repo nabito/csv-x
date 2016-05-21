@@ -83,6 +83,9 @@ public class Cell implements SchemaEntity {
 	 */
 	private String id;
 	
+	/**
+	 * The data type in which the cell will be mapped to.
+	 */
 	private String type;
 	
 	private String regEx;
