@@ -9,6 +9,11 @@ import com.dadfha.lod.csv.Relation;
 
 /**
  * Each Datapoint instance hold at least a unique property-value pair that distinguishes it from other Datapoint.
+ * 
+ * Let's transfer every property to the mapped object including meta-property (@) because in the 
+ * future there may be some data model that want to include such schema information in there model too (says, field's 
+ * header information for a tabular oriented data model).
+ * 
  * @author Wirawit
  *
  */

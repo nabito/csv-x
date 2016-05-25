@@ -1,11 +1,22 @@
 package com.dadfha.lod.csv;
 
+/**
+ * It's a cell that has relations to many other cells in a direction.
+ * There is other type of header notion which is more common in RDB and tabular data model
+ * in which the header cell serves as a property name between a primary key of a row to its value.
+ * 
+ * @deprecated
+ * 
+ * CSV-X Schema Model is more generic way of seeing a cell as just a cell that holds value, and the value
+ * could be referenced and interpreted freely.
+ * 
+ * @author Wirawit
+ *
+ */
 public class HeaderField extends Cell {
 		
 	/**
 	 * The scope in which the header field is applied.
-	 * 
-	 * TODO consider removing this class altogether, as we're not using Header metaphor anymore....
 	 */
 	public enum ApplyScope {
 		ABOVE, BELOW, LEFT, RIGHT, DATASET;
@@ -51,12 +62,12 @@ public class HeaderField extends Cell {
 		inwardRelation = f.inwardRelation;
 	}
 	
-	public HeaderField(int row, int col) {
-		super(row, col);
+	public HeaderField(int row, int col, SchemaTable st) {
+		super(row, col, st);
 	}
 	
-	public HeaderField(int row, int col, ApplyScope scope, int effectiveRange) {
-		super(row, col);
+	public HeaderField(int row, int col, ApplyScope scope, int effectiveRange, SchemaTable st) {
+		super(row, col, st);
 		this.scope = scope;
 		this.effectiveRange = effectiveRange;
 	}

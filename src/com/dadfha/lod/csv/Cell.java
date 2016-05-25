@@ -1,72 +1,14 @@
 package com.dadfha.lod.csv;
 
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 
-import com.dadfha.mimamo.air.Datapoint;
-
-public class Cell implements SchemaEntity {	
+public class Cell extends SchemaEntity {	
 	
 	/**
-	 * 
-	 * FIXME any properties inside { "key" : "val" } map in JSON schema file should all be stored in this map 
-	 * for lean and consistency in processing a chunk of properties.
-	 * (Or else coder will have to remember what properties should be excluded from this map).
-	 * 
-	 * HashMap storing mapping between property's name and its value.
-	 * 
-	 * Storing field's properties in a collection rather than class's attributes has many merits.
-	 * 
-	 * It avoids code change whenever there is a new property introduced, either from schema's syntax
-	 * update or user's defined annotation. By default, all these new properties should automatically 
-	 * be reflected in each datapoint when a schema is applied to a CSV.
-	 * 
-	 * Imagine doesn't have to do:
-	 * 
-	 *     datapoint.setNewProp(section.getNewPropAtField(row, col));
-	 *     
-	 * Which involves creating new attributes, methods in both Field, Schema, and Datapoint classes!
-	 * 
-	 * IMP Most but not all properties will eventually be applied to each datapoint (schema's field<->datapoint).
-	 * Therefore, we should maintain a mapping table of what properties get/not get transferred to datapoint when 
-	 * a CSV is parsed against a schema.
-	 * 
-	 * Rather than pertaining those properties that won't be included in a datapoint as attributes and avoid creating 
-	 * above mapping, it's better to keep everything in generic fashion (all properties in a collection) because in the 
-	 * future there may be some data model that want to include such schema information in there model too (says, field's 
-	 * header information for a tabular oriented data model). 
-	 * 
-	 * Except for some really fundamental properties to cell's concept like row, column, and uuid which are not up to 
-	 * schema's definition and won't be changed. This slightly increases performance too.
-	 * 
+	 * Parent schema table this cell is contained in.
 	 */
-	private Map<String, String> properties = new HashMap<String, String>();
-	
-	/**
-	 * 
-	 * In addition to fundamental properties, row and column, below are other cell property definitions:
-	 * 
-	 * 1. String name
-	 * 
-	 * Name of the datapoint which must be unique within the scope of CSV schema.
-	 * This must be xml QNAME so it can suffix an IRI to create UUID for each cell.
-	 * 
-	 * 2. String label
-	 * 
-	 * Human readable lable of the cell. This is an extra attribute and never is a content of the cell.
-	 * 
-	 * 3. Class<? extends Cell> type
-	 * 
-	 * Type of the cell as defined by our CSV schema. This information is reflected in Java type system.
-	 * 
-	 * 		Cell is a cell containing a value.
-	 * 		EmptyCell 	as its name states, it holds no data thus empty. 
-	 * 					It'll be validated against [^\\S\r\n]*? regEx for whitespace characters except newline.
-	 * 
-	 * 
-	 */
+	private SchemaTable parentTable;
 	
 	/**
 	 * relative row in a schema.
@@ -84,7 +26,7 @@ public class Cell implements SchemaEntity {
 	private String id;
 	
 	/**
-	 * The data type in which the cell will be mapped to.
+	 * The data model type in which the cell is mapped to.
 	 */
 	private String type;
 	
@@ -103,35 +45,39 @@ public class Cell implements SchemaEntity {
 	public Cell(Cell c) {
 		row = c.row;
 		col = c.col;
+		id = c.id;
+		type = c.type;
+		regEx = c.regEx;
+		datatype = c.datatype;
+		lang = c.lang;
+		value = c.value;
+		parentTable = c.parentTable;
 		// Collection default copy constructor is deepcopy as long as the object type inside is immutable.
 		properties = new HashMap<String, String>(c.getProperties()); 
 	}
 	
 	/**
-	 * Constructor.
+	 * Create cell.
 	 * @param row
 	 * @param col
+	 * @param sTable
 	 */
-	public Cell(int row, int col) {
+	public Cell(int row, int col, SchemaTable sTable) {
 		this.row = row;
 		this.col = col;
-	}
-	
-	public Cell(int row, int col, Map<String, String> properties) {
-		this(row, col);
-		this.properties.putAll(properties);
+		parentTable = sTable;
 	}
 	
 	/**
-	 * Constructor.
+	 * Create cell with properties.
 	 * @param row
 	 * @param col
-	 * @param regEx
+	 * @param properties
+	 * @param sTable
 	 */
-	public Cell(int row, int col, String regEx) {
-		this.row = row;
-		this.col = col;
-		setRegEx(regEx);
+	public Cell(int row, int col, Map<String, String> properties, SchemaTable sTable) {
+		this(row, col, sTable);
+		this.properties.putAll(properties);
 	}
 
 	public String getId() {
@@ -198,27 +144,67 @@ public class Cell implements SchemaEntity {
 		this.col = col;
 	}
 	
-	public Map<String, String> getProperties() {
-		return properties;
-	}	
-	
 	/**
-	 * Add property in key-value map.
-	 * Already existing key will be overwritten.
-	 * @param key
-	 * @param val
+	 * Check if this is an Empty Cell Schema.
+	 * 
+	 * Empty Cell Schema is defined as a cell that holds Empty Value but contains no other schema property. 
+	 * Therefore, a cell holding Empty Value with at least a single schema property is NOT considered an Empty Cell.    
+	 * Depending on schema table definition, an Empty Value may be represented by a string, e.g. "n/a".
+	 * If a schema has replace value map defined, it will happen before the validation of the cell schema.   
+	 * By default, an Empty Cell has empty string value "" and is validated by "[^\\S\r\n]*?" regular expression.
+	 * 
+	 * TODO refactor empty value & replace value map to be at schema table level? or support at both level!!
+	 * 
+	 * @return true if this cell is 
 	 */
-	public void addProperty(String key, String val) {
-		properties.put(key, val);
+	public boolean isEmpty() {
+		return (id == null && type == null && regEx == null && datatype == null && lang == null && value.equals(parentTable.getEmptyValue()))? true : false;
 	}
 	
-	/**
-	 * Add properties to the Cell. 
-	 * Any existing properties with the same name will be overwritten. 
-	 * @param properties
-	 */
-	public void addProperties(Map<String, String> properties) {
-		this.properties.putAll(properties);
+	@Override
+	public String getProperty(String propertyName) {		
+		String retVal = super.getProperty(propertyName);
+		if(retVal == null) {
+			switch(propertyName.toLowerCase()) {
+			case "row":
+				retVal = Integer.toString(row);
+				break;
+			case "col":
+				retVal = Integer.toString(col);
+				break;
+			case "id":
+				retVal = id;
+				break;
+			case "regex":
+				retVal = regEx;
+				break;
+			case "datatype":
+				retVal = datatype;
+				break;
+			case "lang": // TODO move some of this to SchemaEntity class & do the same in SchemaRow
+				retVal = lang;
+				break;				
+			case "type":
+				retVal = type;
+				break;
+			case "value":
+				retVal = value;
+				break;
+			default:
+				throw new RuntimeException("Unrecognized property name: " + propertyName + " in cell: " + name);
+			}						
+		}
+		return retVal;
+	}	
+	
+	@Override
+	public SchemaTable getSchemaTable() {
+		return parentTable;
+	}
+
+	@Override
+	public Schema getParentSchema() {
+		return parentTable.getParentSchema();
 	}	
 	
 	/**
@@ -253,7 +239,7 @@ public class Cell implements SchemaEntity {
 	
 	/**
 	 * A pair of field is considered equal if and only if:
-	 * 1. It represents the same field's coordinate [row, col] with the same UUID.
+	 * 1. It represents the same cell coordinate [row, col] with the same ID.
 	 * 2. It is exactly the same Java object for 1.
 	 * 3. It has the same hash code.
 	 * 4. It is of the same type 'Cell'.
@@ -275,6 +261,11 @@ public class Cell implements SchemaEntity {
 		if(row != c.row || col != c.col || (id.compareTo(c.id) != 0)) return false; 
 
 		return true;
+	}
+
+	@Override
+	public String getRefEx() {
+		return parentTable.getRefEx() + ".@cell[" + row + "," + col + "]";
 	}
 
 }

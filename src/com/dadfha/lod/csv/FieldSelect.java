@@ -5,8 +5,11 @@ public class FieldSelect {
 	/**
 	 * Selection mode.
 	 * 
+	 * This class represents selection of cells. It may be useful in the future to represent cell selection from 
+	 * GUI tool. 
+	 * 
 	 * SINGLE		select only a single field 
-	 * TODO MULTIPLE
+	 * IMP MULTIPLE
 	 * DATASET		select all field in a dataset
 	 * ROW_SPAN		span selection from start field to end field by row (Max(row) = end field's row)
 	 * 				this is a common form of field selection as it follows natural order of csv format
@@ -52,8 +55,8 @@ public class FieldSelect {
 	 * @param row
 	 * @param col
 	 */
-	public FieldSelect(int row, int col) {
-		this(row, col, row, col, Mode.SINGLE);
+	public FieldSelect(int row, int col, SchemaTable sTable) {
+		this(row, col, sTable, row, col, sTable, Mode.SINGLE);
 	}
 	
 	/**
@@ -62,8 +65,8 @@ public class FieldSelect {
 	 * @param col
 	 * @param mode
 	 */
-	public FieldSelect(int row, int col, Mode mode) {
-		this(row, col, row, col, mode);
+	public FieldSelect(int row, int col, SchemaTable sTable, Mode mode) {
+		this(row, col, sTable, row, col, sTable, mode);
 	}
 	
 	/**
@@ -74,7 +77,7 @@ public class FieldSelect {
 	 * @param col2
 	 * @param mode
 	 */
-	public FieldSelect(int row1, int col1, int row2, int col2, Mode mode) {
+	public FieldSelect(int row1, int col1, SchemaTable sTable1, int row2, int col2, SchemaTable sTable2, Mode mode) {
 		
 		if(mode == null) mode = Mode.SINGLE;
 		
@@ -100,8 +103,8 @@ public class FieldSelect {
 			endCol = col1;
 		}
 		
-		start = new Cell(startRow, startCol);
-		end = new Cell(endRow, endCol);
+		start = new Cell(startRow, startCol, sTable1);
+		end = new Cell(endRow, endCol, sTable2);
 		this.mode = mode;
 	}
 	

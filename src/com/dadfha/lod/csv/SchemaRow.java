@@ -3,7 +3,12 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SchemaRow implements SchemaEntity {
+public class SchemaRow extends SchemaEntity {
+	
+	/**
+	 * Parent schema table.
+	 */
+	private SchemaTable parentTable;
 	
 	/**
 	 * Expected number of cell per row.
@@ -24,19 +29,16 @@ public class SchemaRow implements SchemaEntity {
 	 * Row repeating times. Minus value indicates indefinite.
 	 */
 	private int repeatTimes = 0;
-	
-	/**
-	 * Other extra/user-defined properties.
-	 */
-	private Map<String, String> properties = new HashMap<String, String>();
-	
+
 	/**
 	 * Constructor.
 	 * @param rowNum
+	 * @param sTable
 	 */
-	public SchemaRow(int rowNum) {
+	public SchemaRow(int rowNum, SchemaTable sTable) {
 		// initialization
 		this.setRowNum(rowNum);
+		parentTable = sTable;
 	}
 	
 	public Cell getCell(int col) {
@@ -80,31 +82,23 @@ public class SchemaRow implements SchemaEntity {
 		this.rowNum = rowNum;
 	}
 	
-	public Map<String, String> getProperties() {
-		return properties;
-	}	
-	
-	/**
-	 * Add property to the SchemaRow.
-	 * Any existing property with the same name will be overwritten.
-	 * @param key
-	 * @param val
-	 */
-	public void addProperty(String key, String val) {
-		properties.put(key, val);
-	}
-	
-	/**
-	 * Add properties to the SchemaRow. 
-	 * Any existing properties with the same name will be overwritten. 
-	 * @param properties
-	 */
-	public void addProperties(Map<String, String> properties) {
-		this.properties.putAll(properties);
-	}
-	
 	public boolean isEmpty() {
 		return (cells.size() == 0);
+	}
+
+	@Override
+	public Schema getParentSchema() {
+		return parentTable.getParentSchema();
+	}
+
+	@Override
+	public SchemaTable getSchemaTable() {
+		return parentTable;
+	}
+
+	@Override
+	public String getRefEx() {
+		return parentTable.getRefEx() + ".@row[" + rowNum + "]";
 	}
 
 }

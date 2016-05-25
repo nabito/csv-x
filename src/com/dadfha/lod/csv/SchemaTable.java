@@ -6,20 +6,37 @@ import java.util.UUID;
 
 /**
  * SchemaTable stores metadata for CSV's tabular structure.
+ * 
+ * String 'name' of schema table will never be null and always initialized by constructor
+ * in case user hasn't define one.
+ * 
  * @author Wirawit
  */
-public class SchemaTable implements SchemaEntity {
+public class SchemaTable extends SchemaEntity {
 	
 	/**
 	 * Set this to two times the expected number of row per section. 
 	 */
 	public static final int INIT_ROW_NUM = 200;	
 	
-	private String name;
+	/**
+	 * Parent schema of this schema table.
+	 */
+	private Schema parent;
 	
+	/**
+	 * Map type.
+	 */
 	private String type;
 	
 	/**
+	 * Empty value definition for this schema table.
+	 */
+	private String emptyValue; 
+	
+	/**
+	 * TODO This is not needed anymore. Considering remove this.  
+	 * 
 	 * Collection of cell indexes being referenced in each schema table.
 	 * 
 	 * we want to store a collection of referenced cells, which can be searched
@@ -44,11 +61,6 @@ public class SchemaTable implements SchemaEntity {
 	 * Common properties among all cells within this schema table.
 	 */
 	private Map<String, String> commonProps = new HashMap<String, String>();
-	
-	/**
-	 * Extra/user-defined properties.
-	 */
-	private Map<String, String> properties = new HashMap<String, String>();
 
 	/**
 	 * Map between row number and its schema.
@@ -66,31 +78,34 @@ public class SchemaTable implements SchemaEntity {
 	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
 
 	/**
-	 * SchemaTable's name will be populated with randomly generated string to be used internally. 
-	 * The string will start with '@' to prevent naming collision of variable declared by user.   
+	 * Create SchemaTable. If name is not provided (i.e. null) schemaTable's name will be populated with randomly 
+	 * generated string to be used internally. The string will start with '@' to prevent naming collision of 
+	 * variable declared by user.   
+	 * 
 	 * The table name can be later replaced by user-defined value in the parsing process. 
+	 * 
+	 * @param name
+	 * @param s
 	 */
-	public SchemaTable() {
-		this.name = "@" + UUID.randomUUID().toString();
-	}
-	
-	public SchemaTable(String name) {
+	public SchemaTable(String name, Schema s) {
+		if(name == null) {			
+			do { // random name that must be unique within the schema
+				name = "@" + UUID.randomUUID().toString();	
+			} while(s.getSchemaTable(name) != null);						
+		} else {
+			if(s.getSchemaTable(name) != null) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
+		}
 		this.name = name;
+		parent = s;
 	}
 	
 	/**
-	 * @return the name
+	 * Get parent schema that has this schema table as a member.
+	 * @return Schema parent schema
 	 */
-	public String getName() {
-		return name;
+	public Schema getParentSchema() {
+		return parent;
 	}
-
-	/**
-	 * @param name the name to set
-	 */
-	public void setName(String name) {
-		this.name = name;
-	}	
 	
 	/**
 	 * @return the type
@@ -104,6 +119,14 @@ public class SchemaTable implements SchemaEntity {
 	 */
 	public void setType(String type) {
 		this.type = type;
+	}
+	
+	/**
+	 * Get table's empty value.
+	 * @return
+	 */
+	public String getEmptyValue() {
+		return emptyValue;
 	}
 	
 	public String getCommonProp(String propName) {
@@ -163,19 +186,28 @@ public class SchemaTable implements SchemaEntity {
 				sr.addCell(cell);
 			}
 		} else { // if there is no schema object for the row yet, create one
-			sr = new SchemaRow(cell.getRow());
+			sr = new SchemaRow(cell.getRow(), this);
 			sr.addCell(cell);
 			schemaRows.put(cell.getRow(), sr);
 		}
 	}
 	
-	/**
-	 * Add an extra property.
-	 * @param prop
-	 * @param val
-	 */
-	public void addProperty(String prop, String val) {
-		properties.put(prop, val);
+	@Override
+	public String getProperty(String propertyName) {		
+		String retVal = super.getProperty(propertyName);
+		if(retVal == null) {
+			switch(propertyName) {
+			case "type":
+				retVal = type;
+				break;
+			case "emptyValue":
+				retVal = emptyValue;
+				break;			
+			default:
+				throw new RuntimeException("Unrecognized property name: " + propertyName + " in schema table: " + name);
+			}						
+		}
+		return retVal;
 	}
 	
 	/**
@@ -194,7 +226,7 @@ public class SchemaTable implements SchemaEntity {
 	 * @param col
 	 * @param value the value of cell being referenced. Accept null if not known at the time.
 	 */
-	private void saveRefCell(int row, int col, String value) {		
+	public void saveRefCell(int row, int col, String value) {		
 		refCells.put(new CellIndex(row, col), value);
 	}	
 	
@@ -206,6 +238,16 @@ public class SchemaTable implements SchemaEntity {
 	 */
 	public void updateRefCellVal(int row, int col, String val) {
 		refCells.replace(new CellIndex(row,col), val);
-	}	
+	}
+
+	@Override
+	public SchemaTable getSchemaTable() {
+		return this;
+	}
+
+	@Override
+	public String getRefEx() {
+		return "@table[" + name + "]";
+	}
 
 }

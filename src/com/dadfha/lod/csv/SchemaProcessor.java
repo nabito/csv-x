@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -81,18 +82,8 @@ public class SchemaProcessor {
 	 * Each processor holds a set of schemas in memory for processing.
 	 * IMP this could be scaled to a persistent repository. 
 	 */
-	private Map<String, Schema> schemas = new HashMap<String, Schema>();	
-	
-	/**
-	 * Mapping between variable name and schema entity. 
-	 * TODO should keep this (and below) separated by schema file, as vars are scoped within only schema file. 
-	 * 
-	 * Var in a schema should have global scope so that diff schema teable can cross ref local entity w/o 
-	 * introducing prefix namespace or the like.
-	 */
-	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();	
-	private Map<String, String> varValMap = new HashMap<String, String>();
-	
+	private Map<String, Schema> schemas = new HashMap<String, Schema>();
+
 	/**
 	 * @return the tryAllSchemas
 	 */
@@ -251,7 +242,6 @@ public class SchemaProcessor {
 	public Schema parseCsvXSchema(String schemaPath) {
 		
 		Schema s = new Schema();
-		context.currSchema = s;
 		
 		// read in the csv schema file and strip out all comments
 		StringBuilder jsonStrBld = new StringBuilder(1000);
@@ -262,9 +252,7 @@ public class SchemaProcessor {
 		    }
 		    
 			Map<String, Object> csvSchemaMap = (LinkedHashMap) JsonUtils.fromString(jsonStrBld.toString());
-			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();
-			
-			SchemaTable sTable;			
+			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();		
 			
 			while(it.hasNext()) {
 				Map.Entry<String, Object> e = (Map.Entry<String, Object>) it.next();				
@@ -345,7 +333,8 @@ public class SchemaProcessor {
 					break;
 				case "@table":
 					// process table internal structure.. e.g. cell, row, etc.
-					sTable = processTableContent((Map<String, Object>) e.getValue());
+					SchemaTable sTable = new SchemaTable(null, s);
+					processTableContent((Map<String, Object>) e.getValue(), sTable);
 					s.addSchemaTable(sTable);					
 					break;
 				default:
@@ -376,15 +365,14 @@ public class SchemaProcessor {
 		return s;
 		
 	}
-	
+
 	/**
-	 * Process schema table.
+	 * Process schema table contents and update the table. 
 	 * @param map
-	 * @return SchemaTable object.
+	 * @param st
 	 */
-	private SchemaTable processTableContent(Map<String, Object> map) {		
-		SchemaTable st = new SchemaTable();
-		context.currSchemaTable = st;
+	private void processTableContent(Map<String, Object> map, SchemaTable st) {		
+		Schema s = st.getParentSchema();
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key = e.getKey().toLowerCase();
 			switch(key) {
@@ -395,12 +383,12 @@ public class SchemaProcessor {
 			case "@name":
 				String tableName = (String) e.getValue();
 				st.setName(tableName);
-				varMap.put(tableName, st);
+				s.addVar(tableName, st);
 				break;
 			case "@commonprops":
 				Map<String, String> commonProps = (Map<String, String>) e.getValue();
 				for(Entry<String, String> prop : commonProps.entrySet()) {		
-					st.addCommonProp(prop.getKey(), processLiteral(prop.getValue()));
+					st.addCommonProp(prop.getKey(), processLiteral(prop.getValue(), st));
 				}				
 				break;
 			default:
@@ -417,8 +405,7 @@ public class SchemaProcessor {
 				}			
 				break;
 			} // end switch
-		} // end foreach entry inside @table		
-		return st;
+		} // end foreach entry inside @table
 	}
 	
 	/**
@@ -456,7 +443,7 @@ public class SchemaProcessor {
 		int rowNum = Integer.parseInt(s);
 		SchemaRow sr = sTable.getRow(rowNum);
 		if(sr == null) {
-			sr = new SchemaRow(rowNum);
+			sr = new SchemaRow(rowNum, sTable);
 			sTable.addRow(sr);
 		}
 		processRowProps(sr, rowProperties);
@@ -470,7 +457,7 @@ public class SchemaProcessor {
 	 * @param sTable
 	 */
 	private void cellCreation(int row, int col, Map<String, String> cellProps, SchemaTable sTable) {		
-		Cell c = new Cell(row, col);
+		Cell c = new Cell(row, col, sTable);
 		processCellProps(c, cellProps);
 		sTable.addCell(c);	
 	}	
@@ -481,11 +468,12 @@ public class SchemaProcessor {
 	 * @param cellProps
 	 */
 	private void processCellProps(Cell cell, Map<String, String> cellProps) {
+		Schema s = cell.getParentSchema();
 		for(Entry<String, String> e : cellProps.entrySet()) {
 			switch(e.getKey().toLowerCase()) {
 			case "@name":
 				// save variable name-value mapping
-				varMap.put(e.getValue(), cell);
+				s.addVar(e.getValue(), cell);
 				break;		
 			case "@regex":
 				cell.setRegEx(e.getValue());
@@ -507,9 +495,8 @@ public class SchemaProcessor {
 				cell.setValue(e.getValue());
 				break;
 			default:
-				// process the value
-				String newLit = processLiteral(e.getValue());
-				// add to user-defined properties
+				// process the value then add to user-defined properties
+				String newLit = processLiteral(e.getValue(), cell);
 				cell.addProperty(e.getKey(), newLit);
 				break;
 			}
@@ -523,9 +510,8 @@ public class SchemaProcessor {
 				sRow.setRepeatTimes(Integer.parseInt(e.getValue()));
 				break;
 			default:
-				// process the value
-				String newLit = processLiteral(e.getValue());
-				// add to user-defined properties
+				// process the value then add to user-defined properties
+				String newLit = processLiteral(e.getValue(), sRow);
 				sRow.addProperty(e.getKey(), newLit);
 				break;
 			}
@@ -533,9 +519,11 @@ public class SchemaProcessor {
 	}
 	
 	/**
+	 * On i18n literal:
+	 * 
 	 * In CSV-X the native support for expression of i18n and alternative string literal have been dropped. 
 	 * 
-	 * 	i.e. "key" : { "en" : "test", "ja" : "テスト" }, { "en" : "Alt val", "ja" : "代わり" } ]
+	 * 	i.e. "key" : [ { "en" : "test", "ja" : "テスト" }, { "en" : "Alt val", "ja" : "代わり" } ]
 	 * 
 	 * By allowing an expression of any literal to have multiple language and possibly alternative terms 
 	 * requires that the data model accommodating them must has such a unique structure to hold i18n/alternative 
@@ -546,49 +534,22 @@ public class SchemaProcessor {
 	 * alternative string literal by default (as in RDF literal) will impose such structure onto target data model or 
 	 * making it less generic, hence more difficult, to convert it to other structure.
 	 * 
-	 * On the contrary, the explicit declaration for i18n value is still support via '@lang' meta property where 
+	 * On the contrary, the explicit declaration for i18n value is still supported via '@lang' meta-property where 
 	 * alternative string may be specifically defined as another property like 'altTitle'.  
 	 *    
 	 * @param literal
-	 * @return
+	 * @param se
+	 * @return String
 	 */
-	public String processLiteral(String literal, Schema s, SchemaTable sTable) {	// TODO add Schema and SchemaEntity (i.e. SchemaTable, etc.) as params for context
-		
-		// TODO do the same for {var.xx} but keep separated map of {var.xx} and cell's schema ID that 
-	    // couldn't complete value replacement at the time. Then after the whole schema is processed
-	    // we go through that list again to fill up value for referred variable(s).
-		// This is done at CSV-X schema parsing stage.
-	    
-		// var replacement/symbolic link must always precede @cell ref processing. 
+	public String processLiteral(String literal, SchemaEntity se) {
 
-	    // detect {var.prop} 
-	    String varRegEx = "(\\{)([a-zA-Z_]+[a-zA-Z0-9_]*)(?:(\\.)([a-zA-Z_]+[a-zA-Z0-9_]*))?(\\})";
-	    Pattern p = Pattern.compile(varRegEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-	    
-	    Matcher m = p.matcher(literal);
-	    while(m.find()) {
-	    	String varName = m.group(2);
-	    	String dot = m.group(3);
-	    	String varProperty = m.group(4);
-	    	
-	    	if(dot == null || dot.equals("")) { // if there is no 'dot', just process variable name
-	    		// replace this {var} with value now, if possible
-	    		String currVarRegex = "(\\{)(" + varName + ")(\\})";
-	    		if(varValMap.containsKey(varName)) literal = literal.replaceFirst(currVarRegex, varValMap.get(varName));
-	    		else { // keep this in processing waiting list
-	    			
-	    		}
-	    	} else {  
-	    		
-	    	}
-	    	
-	    }		
+		Schema s = se.getParentSchema();
 		
 		// identify referenced by parsing all occurrences of @cell[row, col] and save it for the time of CSV parsing
-		String cellRegEx = "(@cell)(\\[)([^,]+?)(,)([^,]+?)(\\])";
-		
-	    p = Pattern.compile(cellRegEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-	    m = p.matcher(literal);
+	    SchemaTable st = se.getSchemaTable();
+	    String cellRegEx = "(@cell)(\\[)([^,]+?)(,)([^,]+?)(\\])";
+	    Pattern p = Pattern.compile(cellRegEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+	    Matcher m = p.matcher(literal);
 	    while(m.find()) {
 	        String rowEx = m.group(3);
 	        String colEx = m.group(5);
@@ -597,11 +558,155 @@ public class SchemaProcessor {
 	        CellIndexRange colRange = processCellIndexRange(colEx);
 	        
 	        // since the actual value of cell is not known at this time, null is passed for value to saveRefCell()
-	        forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o, SchemaTable st) -> saveRefCell(i, j, null), null);
+	        forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o, SchemaTable sTable) -> st.saveRefCell(i, j, null), null, st);
 	    }
 	    	    
 	    return literal;
 		
+	}
+	
+	/**
+	 * Replace any variable expression {var} and {var.prop} in literal with expanded form of Schema Entity 
+	 * Reference Expression (SERE) e.g. (@table[name].@cell[x,y]). 
+	 * 
+	 * This method is supposed to be called during CSV parsing phase where all variable declarations has 
+	 * been registered in memory. It must be called before processing of SERE since a variable itself 
+	 * represents a schema entity and will be translated to SERE.
+	 * Note that {var} will be interpreted as {var.@value} within a literal.
+	 * 
+	 * @param exp literal containing {var} expression
+	 * @param se schema entity being processed.
+	 * @return String of {var} substituted by SERE.
+	 */
+	public String processVarEx(String exp, SchemaEntity se) {
+		String retVal = exp;
+		Schema s = se.getParentSchema();
+	    // detect {var} and {var.prop} expression
+	    String varRegEx = "(\\{)([a-zA-Z_]+[a-zA-Z0-9_]*)(?:(\\.)([a-zA-Z_]+[a-zA-Z0-9_]*))?(\\})";
+	    Pattern p = Pattern.compile(varRegEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+	    Matcher m = p.matcher(exp);
+	    StringBuffer sb = new StringBuffer();
+	    while(m.find()) {
+	    	String varName = m.group(2);
+	    	String dot = m.group(3);
+	    	String varProperty = m.group(4);
+	    	
+    		// check if there is var definition declared or it's a special context var
+	    	switch(varName) {
+	    	case "row":
+	    		// TODO replace with context row/col
+	    		// this has to do with type of SchemaEntity
+	    		break;
+	    	case "subrow":
+	    		break;
+	    	case "col":
+	    		break;
+	    	default:
+	    		if(!s.hasVar(varName)) { // if the var is not recognized, throw an error
+	    			throw new RuntimeException("Reference to unknown variable: " + varName);
+	    		}	    		
+	    		break;
+	    	}
+    		
+    		SchemaEntity varSe = s.getVarSchemaEntity(varName);
+			assert (varSe != null) : "Variable must always mapped with a Schema Entity.";
+	    	
+	    	if(dot == null || dot.equals("")) { // if there is no 'dot', just process variable name {var}
+	    		// replace this {var} with Schema Entity Reference Expression (SERE)    			
+    			m.appendReplacement(sb, varSe.getRefEx() + ".@value");
+	    	} else { // {var.prop} processing
+	    		
+	    		
+	    		// get variable property value	    		
+	    		//String propVal = varSe.getProperty(varProperty);	    		
+	    		// Check only 1st level circular reference A->B->A though higher level circular reference is also
+	    		// prohibited, says A->B->C->A, but it's become costly to check in a recursive chain.
+	    		// ...This should be done at SERE processing step after all var<->SERE substitution is done.
+//	    		String referrerVarName = se.getName();
+//	    		
+//	    		if((propName.equals("@value") && propVal.contains("{" + referrerVarName + "}")) || 
+//	    				(propVal.contains("{" + referrerVarName + "." + propName + "}")) ) {
+//	    			throw new RuntimeException("The literal value of the referenced property MUST NOT contain {var} reference to the referrer property to prevent infinite loop.");
+//	    		}	    		
+	    		
+	    		
+	    		// replace {var.prop} with SERE
+	    		m.appendReplacement(sb, varSe.getRefEx() + "." + varProperty);
+	    	}	    	
+	    	
+	    	m.appendTail(sb);
+	    	retVal = sb.toString();
+	    	m = p.matcher(retVal);
+	    	sb.setLength(0);	    	
+	    }
+	    return retVal;
+	}
+	
+	/**
+	 * Process Schema Entity Reference Expression (SERE) e.g. (@table[name].@cell[x,y]).
+	 * 
+	 * Note that \@SchemaEntity without explicit property specified will be interpreted as 
+	 * \@SchemaEntity.@value within a literal.
+	 * 
+	 * @param exp SERE.
+	 * @param se schema entity being processed.
+	 * @param propName property name holding {var} expression. 
+	 * @return String
+	 */
+	public String processSerEx(String exp, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {
+	
+		String retVal = null;
+		if(rrs == null) rrs = new LinkedHashSet<String>();
+
+		// there is no need to dereference SERE, which will "destroy the link" between values, until there's need
+		// to serialize schema data model into an output. If not, an update to a referenced property in a schema entity
+		// in a model won't be reflected anymore to dereferenced expression.
+		
+		// therefore, in CSV parsing stage, we only need to parse in CSV value. But in translation to other data model
+		// or serializing to a data format, the SERE should be resolved using below algorithm.
+		
+		// Steps to resolve all SEREs to actual value
+			// add calling schema property to the Recursive Ref Stack (RRS) of LinkedHashSet<String> where String = SERE
+			// identify SERE (@table, @cell, etc.) from literal, foreach SERE:
+				// make it a literal-ready form (expanded SERE with specific property)
+				// check RRS for circular ref, throw error if found
+				// if not, dereference schema entity property value
+					// check if dereferenced value contains SERE,
+						// if yes, then do recursive call of this fn, pass on RRS
+						// if no, replace SERE with val
+						// go on process other SERE, if any
+			// after all SERE is deref, remove the calling SERE from RRS
+			// return substituted literal.
+		
+		// add calling schema property to the Recursive Ref Stack (RRS) of LinkedHashSet<String> where String = SERE
+		rrs.add(se.getRefEx() + "." + propName);
+		
+		// identify SERE (@table, @row, @cell, and @property) from literal, foreach SERE:
+	    SchemaTable st = se.getSchemaTable();
+	    String sereRegEx = "(?:@table\\[)([a-zA-Z_]+[a-zA-Z0-9_]*)(?:\\])|(?:@row\\[)(\\d+)(?:-(\\d+))?(?:\\])|(?:@cell\\[)(\\d+)(?:-(\\d+))?,(\\d+)(?:-(\\d+))?(?:\\])|(?:@property\\[)([a-zA-Z_]+[a-zA-Z0-9_]*)(?:\\])";
+	    Pattern p = Pattern.compile(sereRegEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+	    Matcher m = p.matcher(exp);
+	    while(m.find()) {
+	    	String tableName = m.group(1);
+	    	String rowIdxStart = m.group(2);
+	    	String rowIdxEnd = m.group(3);
+	    	String cellRowIdxStart = m.group(4);
+	    	String cellRowIdxEnd = m.group(5);
+	    	String cellColIdxStart = m.group(6);
+	    	String cellColIdxEnd = m.group(7);
+	    	String schemaPropName = m.group(8);
+	    	
+	        
+	        CellIndexRange rowRange = processCellIndexRange(rowEx);
+	        CellIndexRange colRange = processCellIndexRange(colEx);
+	        
+	        // since the actual value of cell is not known at this time, null is passed for value to saveRefCell()
+	        forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o, SchemaTable sTable) -> st.saveRefCell(i, j, null), null, st);
+	    }   
+	    
+		
+		
+		return retVal;
 	}
 	
 	/**
@@ -737,6 +842,8 @@ public class SchemaProcessor {
 		}
 		
 		//String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespace characters except newline
+		
+		// TODO check empty cell too.. back to creation of empty cell.
 		
 		// validate parsed CSV record against CSV-X cell schema's regular expression.
 		String regEx = c.getRegEx();

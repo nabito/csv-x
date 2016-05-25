@@ -30,7 +30,7 @@
 	
 	"@property" : // a user-defined data property 
 	{ 
-		"@name" : "hasMsrDay",   
+		"@name" : "hasMsrDay",  // (Required) 
 		"@id" : "ex:hasMsrDay",
 		"@datatype" : "dayOfMonth",
 		"title" : "has measurement day",
@@ -51,13 +51,13 @@
 	"@table" :  
 	{
 		"@type" : "Dataset",
-		"@name" : "defaultTable", // (Optional) even without this attribute, unnamed table(s) will be assigned uniquely addressable name 
+		"@name" : "myTable", // (Optional) even without this attribute, unnamed table(s) will be assigned uniquely addressable name 
 		"title" : "@cell[0,1]", 
 		"title_en" : "Tokyo Air Pollutions Report",
 		
 		"@commonProps" :
 		{
-			"hasMsrMonthYear" : "{MsrYrMTh_Jp}", // TODO fill up variable when parsing
+			"hasMsrMonthYear" : "{MsrYrMTh_Jp}",
 			"hasMsrLocation" : "@cell[1,3]",
 			"hasMsrLocationCode" : "@cell[1,2]",
 			"hasMsrProperty" : "@cell[1,6]",
@@ -67,7 +67,7 @@
 		
 		"@cell[0-2,0]" : 
 		{
-			// Empty cell indicates it's a part of the schema but is expected to contain "empty" value
+			// Empty cell indicates it's a part of the schema but is expected to contain "empty value"
 		},
 	
 		"@cell[0,1]" : 
