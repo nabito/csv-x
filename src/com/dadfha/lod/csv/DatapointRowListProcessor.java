@@ -9,6 +9,11 @@ import com.univocity.parsers.common.ParsingContext;
 
 public class DatapointRowListProcessor extends DatapointRowProcessor {
 	
+	public DatapointRowListProcessor(Schema schema) {
+		super(schema);
+		// TODO Auto-generated constructor stub
+	}
+
 	protected List<Datapoint[]> datapointRows;
 	protected List<DataSet> dataSets;
 
@@ -36,6 +41,11 @@ public class DatapointRowListProcessor extends DatapointRowProcessor {
 	
 	public List<DataSet> getDataSets() {
 		return dataSets;
+	}
+
+	@Override
+	public Object getData() {
+		return null;
 	}
 
 }

@@ -87,16 +87,6 @@ public class Schema {
 	private Map<String, Object> properties = new HashMap<String, Object>();	
 	
 	/**
-	 * Mapping between variable name and schema entity. 
-	 * Variable has global scope within a schema file. 
-	 * 
-	 * It can be used to cross reference schema entity from different schema table 
-	 * without directly using full schema entity reference expression e.g. \@table[name].@cell[x,y].
-	 * 
-	 */
-	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();	
-	
-	/**
 	 * Get replacing value from the map.
 	 * @param key the original cell's value.
 	 * @return String of replacing value.
@@ -296,39 +286,20 @@ public class Schema {
 	}
 	
 	/**
+	 * Get the map collection between table's name and schema table object.
+	 * @return Map<String, SchemaTable>
+	 */
+	public Map<String, SchemaTable> getSchemaTables() {
+		return sTables;
+	}
+	
+	/**
 	 * Add input schema table to the map. 
 	 * Replacing existing schema table with the same name.  
 	 * @param table
 	 */
 	public void addSchemaTable(SchemaTable table) {
 		sTables.put(table.getName(), table);
-	}
-
-	/**
-	 * Get schema entity pointed by variable name.
-	 * @param name
-	 * @return SchemaEntity or null if variable with the name is not found/mapped with null.
-	 */
-	public SchemaEntity getVarSchemaEntity(String varName) {
-		return varMap.get(varName);
-	}
-	
-	/**
-	 * Add a variable-schema entity map to the schema.
-	 * @param varName
-	 * @param se
-	 */
-	public void addVar(String varName, SchemaEntity se) {
-		varMap.put(varName, se);
-	}
-	
-	/**
-	 * Check if there is this variable name declared in the schema.
-	 * @param name
-	 * @return
-	 */
-	public boolean hasVar(String name) {
-		return varMap.containsKey(name);
 	}
 
 }

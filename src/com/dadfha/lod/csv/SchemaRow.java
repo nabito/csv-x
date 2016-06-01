@@ -74,6 +74,10 @@ public class SchemaRow extends SchemaEntity {
 		this.repeatTimes = repeatTimes;		
 	}
 
+	/**
+	 * Return row number this schema row represents.
+	 * @return
+	 */
 	public int getRowNum() {
 		return rowNum;
 	}

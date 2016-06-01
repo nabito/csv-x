@@ -70,7 +70,8 @@ public class ExposureDose {
 		ExposureDose ed = new ExposureDose();
 		
 		SchemaProcessor sp = new SchemaProcessor();
-		String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
+		//String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
+		String[] schemaPaths = {"airp-csvx-var-only.json"};
 		dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
 		
 		ed.dumpDatasets();

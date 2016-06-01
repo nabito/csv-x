@@ -1,21 +1,29 @@
 package com.dadfha.lod.csv;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map.Entry;
 
 import com.dadfha.mimamo.air.Datapoint;
 import com.univocity.parsers.common.ParsingContext;
 import com.univocity.parsers.common.processor.RowProcessor;
 
-public abstract class DatapointRowProcessor implements RowProcessor {	
+
+/**
+ * 
+ * IMP context.currentColumn() is always 0, becoz rowProcessed(..) get called when all column of a row are processed!
+ * but in this for_loop we "could" call to columnProcessed() for each column.
+ * Add a flag option to parser whether should it call columnProcessed(..) or not
+ * Or we can modify AbstractParser so that it supports col by col parsing to increase granularity, 
+ * with may be performance trade-off.
+ * 
+ * @author Wirawit
+ *
+ */
+public class DatapointRowProcessor implements RowProcessor {
 	
-	/**
-	 *  Each schema stores metadata at each CSV's data row, col
-	 *  (both starting from index 0 but aren't text's row/col number but rather parsed row/col number) 
-	 */
-	protected Schema schema;
+	protected final Schema schema;
+	
+	protected final SchemaProcessor sp;
 	
 	/**
 	 * Waiting list for post-processing Datapoints, including:
@@ -23,7 +31,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	 */
 	protected List<String> postProcDps = new ArrayList<String>(); 
 	
-	protected String currTable = "default";
+	//protected String currTable = "default";
 
 	protected int currRow = -1;
 	
@@ -43,8 +51,11 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	 * Constructor needs a CSV-X schema. 
 	 * @param schema
 	 */
-	public DatapointRowProcessor(Schema schema) {
+	public DatapointRowProcessor(Schema schema, SchemaProcessor sp) {
 		this.schema = schema;
+		this.sp = sp;
+		
+		
 	}
 
 	@Override
@@ -58,21 +69,12 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	
 		// match each incoming row of CSV against CSV-X schema
 		for(currCol = 0; currCol < row.length; currCol++) {
-				
+			// get current cell value	
 			currVal = row[currCol];
 			
-			// check if the cell's value is being referred, if yes, save the value
-			if(schema.isCellRef(currRow, currCol)) schema.updateRefCellVal(currRow, currCol, currVal);
-				
-			// IMP context.currentColumn() is always 0, becoz rowProcessed(..) get called when all column of a row are processed!
-			// but in this for_loop we "could" call to columnProcessed() for each column.
-			// Add a flag option to parser whether should it call columnProcessed(..) or not
-			//
-			// or we can modify AbstractParser so that it supports col by col parsing to increase granularity, 
-			// with may be performance trade-off
 								
 			// validate parsed CSV record against CSV-X schema properties				
-			if(schema.validate(currRow, currCol, currVal)) {
+			if(st.validate(currRow, currCol, currVal)) {
 				
 				SchemaRow sRow = schema.getRow(currRow);
 				
@@ -87,22 +89,8 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 					
 				// value replacement 
 				currVal = schema.replaceValue(currVal);
-					
-				// for each cell's schema property
-				for(Entry<String, String> e : c.getProperties().entrySet()) {
-						
-						
-						
-					// KIM that saved Ref Val is not yet substituted!
-					// property value processing e.g. referencing cell value.
-					//String txt = s.processLiteral(e.getValue());
+				
 
-				}					
-					
-					
-					
-					// TODO at CSV parsing time, if the parser cannot fill all the variable yet, it will make a note of datapoint ID to later come back and complete it.
-					// By doing like this, it will prevent O(2n)~ performance hit.					 
 					
 					// create datapoint if specified so by schema					
 					if(c.getType().compareToIgnoreCase("Datapoint") == 0) {
@@ -114,11 +102,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 						
 						//dp.setId(context.currentLine() + "," + currCol); // should follow IETF addressing for Provenance!?? 
 						
-						
 
-						
-
-						
 						
 						
 						dp.setProperties(c.getProperties()); 
@@ -177,7 +161,7 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	 * @param val
 	 * @param context
 	 */
-	abstract public void processDatapoint(Datapoint dp, String val, ParsingContext context);
+	public void processDatapoint(Datapoint dp, String val, ParsingContext context) {}
 	
 	// TODO add some data conversion here, or else everything will be stored as String
 	// This can be automatically detected from value or explicitly declared in schema file.
@@ -190,13 +174,21 @@ public abstract class DatapointRowProcessor implements RowProcessor {
 	 * @param row
 	 * @param context
 	 */
-	abstract public void rowProcessed(Datapoint[] row, ParsingContext context);
+	public void rowProcessed(Datapoint[] row, ParsingContext context) {}
 	
 	/**
 	 * to get some data out of this parsing.
 	 * @return some data form or null is the parse bear no fruit.
 	 */
-	abstract public Object getData();
+	public Object getData() { return null; }
+
+	@Override
+	public void processStarted(ParsingContext context) {
+	}
+
+	@Override
+	public void processEnded(ParsingContext context) {
+	}
 	
 
 }

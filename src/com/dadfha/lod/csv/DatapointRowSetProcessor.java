@@ -16,7 +16,7 @@ public class DatapointRowSetProcessor extends DatapointRowProcessor {
 	protected Set<DataSet> dataSets;	
 	
 	public DatapointRowSetProcessor(Schema schema) {
-		super(schema);
+		//super(schema);
 		datapoints = new HashSet<Datapoint>(INIT_DP_SET_SIZE);
 	}
 

@@ -3,6 +3,8 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SchemaTable stores metadata for CSV's tabular structure.
@@ -35,7 +37,7 @@ public class SchemaTable extends SchemaEntity {
 	private String emptyValue; 
 	
 	/**
-	 * TODO This is not needed anymore. Considering remove this.  
+	 * @deprecated This is not needed anymore. Considering remove this.  
 	 * 
 	 * Collection of cell indexes being referenced in each schema table.
 	 * 
@@ -56,6 +58,16 @@ public class SchemaTable extends SchemaEntity {
 	 * efficient option with less hassles in coding.
 	 */
 	private Map<CellIndex, String> refCells = new HashMap<CellIndex, String>();	
+	
+	/**
+	 * Mapping between variable name and schema entity. 
+	 * Variable has global scope within a schema file. 
+	 * 
+	 * It can be used to cross reference schema entity from different schema table 
+	 * without directly using full schema entity reference expression e.g. \@table[name].@cell[x,y].
+	 * 
+	 */
+	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();		
 	
 	/**
 	 * Common properties among all cells within this schema table.
@@ -221,6 +233,7 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
+	 * @deprecated
 	 * Record a reference to cell.
 	 * @param row
 	 * @param col
@@ -231,6 +244,7 @@ public class SchemaTable extends SchemaEntity {
 	}	
 	
 	/**
+	 * @deprecated
 	 * This method won't save unreferenced cell.
 	 * @param row
 	 * @param col
@@ -239,6 +253,134 @@ public class SchemaTable extends SchemaEntity {
 	public void updateRefCellVal(int row, int col, String val) {
 		refCells.replace(new CellIndex(row,col), val);
 	}
+	
+	/**
+	 * Check if there is this variable name declared in the schema.
+	 * @param name
+	 * @return
+	 */
+	public boolean hasVar(String name) {
+		return varMap.containsKey(name);
+	}	
+	
+	/**
+	 * Get schema entity pointed by variable name.
+	 * @param name
+	 * @return SchemaEntity or null if variable with the name is not found/mapped with null.
+	 */
+	public SchemaEntity getVarSchemaEntity(String varName) {
+		return varMap.get(varName);
+	}
+	
+	/**
+	 * Add a variable-schema entity map to the schema.
+	 * If variable of the same name already exists, it will throw an error. 
+	 * @param varName
+	 * @param se
+	 */
+	public void addVar(String varName, SchemaEntity se) {
+		if(varMap.containsKey(varName)) throw new RuntimeException("Variable name '" + varName + "' already exists and is pointed to schema entity: " + se.toString() + "");
+		varMap.put(varName, se);
+	}
+	
+	/**
+	 * To validate a CSV cell against this schema table at its corresponding row, col.
+	 * @param row
+	 * @param col
+	 * @param val
+	 * @return boolean
+	 */
+	public boolean validate(int row, int col, String val) {
+		
+		// check inputs
+		if(row < 0 || col < 0) throw new IllegalArgumentException("Row and Col value must NOT be negative.");
+		if(val == null) throw new IllegalArgumentException("Cell's value must not be null.");
+		
+		Cell c = getCell(row, col);
+		
+		if(c == null) {
+			System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + row + "," + col + "]"); 
+			return false;
+		}
+		
+		// TODO check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
+		// also the syntax for constraints must be referred from CSVW specs
+		String datatype = c.getDatatype();
+		if(datatype != null) {			
+			switch(datatype) {
+			// mapping between XML datatype and Java datatype in defined in JAXB standard (http://docs.oracle.com/javaee/5/tutorial/doc/bnazq.html)
+			case "string":
+				break;			
+			case "integer":
+				break;
+			case "int":
+				break;
+			case "long":
+				break;
+			case "short":
+				break;
+			case "decimal":
+				break;
+			case "float":
+				break;
+			case "double":
+				break;
+			case "boolean":
+				break;
+			case "byte":
+				break;
+			case "QName":
+				break;
+			case "dateTime":
+				break;
+			case "base64Binary":
+				break;
+			case "hexBinary":
+				break;
+			case "unsignedInt":
+				break;
+			case "unsignedShort":
+				break;
+			case "unsignedByte":
+				break;
+			case "time":
+				break;
+			case "date":
+				break;
+			case "g":
+				break;
+			case "anySimpleType":
+				break;
+			case "duration":
+				break;
+			case "NOTATION":
+				break;				
+			default:
+				throw new RuntimeException("Unsupported datatype: " + datatype);
+			}
+			// TODO later import XML datatype API and do the validation..
+			// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
+			// then translate that into XML model for native-XML validation.
+			
+		}
+		
+		//String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespace characters except newline
+		
+		// TODO check empty cell too.. back to creation of empty cell.
+		
+		// validate parsed CSV record against CSV-X cell schema's regular expression.
+		String regEx = c.getRegEx();
+		if(regEx != null) {
+		    Pattern p = Pattern.compile(regEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+		    Matcher m = p.matcher(val);
+		    if(!m.find()) {
+		    	System.err.println("Error: Regular Expression Mismatched at: [" + row + "," + col + "]");
+		    	return false;			
+		    }
+		}
+		
+		return true;
+	}	
 
 	@Override
 	public SchemaTable getSchemaTable() {

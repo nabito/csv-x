@@ -11,12 +11,18 @@ public class Cell extends SchemaEntity {
 	private SchemaTable parentTable;
 	
 	/**
-	 * relative row in a schema.
+	 * Relative row in a schema starting from 0.
 	 */
 	private int row;
 	
 	/**
-	 * relative column in a schema.
+	 * An index of subrow inside a repeating row starting from 0.
+	 * -1 indicates uninitialized state.
+	 */
+	private int subRow = -1;
+	
+	/**
+	 * Relative column in a schema starting from 0.
 	 */
 	private int col;
 	
@@ -135,6 +141,14 @@ public class Cell extends SchemaEntity {
 	public void setRow(int row) {
 		this.row = row;
 	}
+	
+	public int getSubRow() {
+		return subRow;
+	}
+
+	public void setSubRow(int subRow) {		
+		this.subRow = subRow;
+	}	
 
 	public int getCol() {
 		return col;
@@ -159,6 +173,14 @@ public class Cell extends SchemaEntity {
 	 */
 	public boolean isEmpty() {
 		return (id == null && type == null && regEx == null && datatype == null && lang == null && value.equals(parentTable.getEmptyValue()))? true : false;
+	}
+	
+	/**
+	 * Check if this cell is in a repeating row.
+	 * @return boolean
+	 */
+	public boolean isInRepeatingRow() {
+		return parentTable.getRow(row).isRepeat();
 	}
 	
 	@Override

@@ -13,6 +13,12 @@ public abstract class SchemaEntity {
 	 * in Linked Data according to RDF model.
 	 */
 	String name; 
+	
+	/**
+	 * The value defined by '@value' property for each schema entity. 
+	 * By default, this is the property to store parsed CSV value for each cell.
+	 */
+	String value;
 
 	/**
 	 * Extra/user-defined properties.
@@ -67,6 +73,9 @@ public abstract class SchemaEntity {
 		case "name":
 			retVal = name;
 			break;
+		case "value":
+			retVal = value;
+			break;
 		default:
 			retVal = properties.get(propertyName);
 			break;
@@ -115,5 +124,29 @@ public abstract class SchemaEntity {
 	public void setName(String name) {
 		this.name = name;
 	}	
+	
+	/**
+	 * Get value of this schema entity.
+	 * @return
+	 */
+	public String getValue() {
+		return value;
+	}
+	
+	/**
+	 * Set value of this schema entity.
+	 * @param value
+	 */
+	public void setValue(String value) {
+		this.value = value;
+	}
+	
+	/**
+	 * Give SERE output to identify itself.
+	 * @return String
+	 */
+	public String toString() {
+		return getRefEx();
+	}
 
 }
