@@ -4,15 +4,30 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-import com.dadfha.lod.csv.Cell;
 import com.dadfha.lod.csv.Relation;
 
 /**
- * Each Datapoint instance hold at least a unique property-value pair that distinguishes it from other Datapoint.
+ * The idea of "Datapoint" is that it must represent exactly one nominal value which means one thing 
+ * and can be referred through 'hasValue' property making it possible to utilize data without 
+ * knowing application specific name for the property.
  * 
- * Let's transfer every property to the mapped object including meta-property (@) because in the 
- * future there may be some data model that want to include such schema information in there model too (says, field's 
- * header information for a tabular oriented data model).
+ * There can be other peripheral/context properties describing the datapoint, which cannot avoid 
+ * using domain specific name. In this case, the extensible property definition can provide useful hint 
+ * for software agent to recognize its structure and meaning, a.k.a. knowing how to consume it, 
+ * using URI, title, description, or any other form of semantic representation.
+ * 
+ * TODO This dataset and datapoint model leverage conventions and patterns in LinkedDataPlatform specification 
+ * to represent a list of data...2B Continue..
+ * 
+ * As a default, let's transfer every property to the mapped object including meta-property (@) because in the 
+ * future there may be some data model that want to include such schema information in there model too (says, regEx
+ * to validate any future change in value).
+ * 
+ * For some property, 1-1 mapping with field is not desired, rather a special treatment is needed, therefore, mapping
+ * with "transformation method" using lambda expression is needed. 
+ * 
+ * 		Ex. '@datatype' of cell's value should be converted to just a datatype of property(ies) 
+ * 			referring to the value. Without data conversion value will be stored as String.
  * 
  * @author Wirawit
  *
@@ -24,7 +39,7 @@ public class Datapoint {
 	 * Relations the cell has with other cell(s). 
 	 * This is regarded as a special kind of property. 
 	 */
-	private Map<Relation, HashSet<Cell>> relations = new HashMap<Relation, HashSet<Cell>>();	
+	private Map<Relation, HashSet<Datapoint>> relations = new HashMap<Relation, HashSet<Datapoint>>();	
 	
 	
 	// IMP move all these attributes into hashmap for consistency?	
@@ -57,7 +72,7 @@ public class Datapoint {
 	/**
 	 * other properties.
 	 */
-	private HashMap<String, String> properties = new HashMap<String, String>();
+	private Map<String, String> properties = new HashMap<String, String>();
 	
 	public String getId() {
 		return id;
@@ -83,10 +98,10 @@ public class Datapoint {
 	public void setDatatype(String datatype) {
 		this.datatype = datatype;
 	}	
-	public HashMap<String, String> getProperties() {
+	public Map<String, String> getProperties() {
 		return properties;
 	}
-	public void setProperties(HashMap<String, String> properties) {
+	public void setProperties(Map<String, String> properties) {
 		this.properties = properties;
 	}
 	

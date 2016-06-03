@@ -16,9 +16,9 @@ public class SchemaRow extends SchemaEntity {
 	private static final int INIT_COL_NUM = 100;
 	
 	/**
-	 * List of cell, i.e. column, containing in the row.
+	 * Collection of cells containing in the row indexed by column number.
 	 */
-	private Map<Integer, Cell> cells = new HashMap<Integer, Cell>(INIT_COL_NUM);
+	private Map<Integer, SchemaCell> cells = new HashMap<Integer, SchemaCell>(INIT_COL_NUM);
 	
 	/**
 	 * Row number. -1 indicates uninitialized state.
@@ -41,11 +41,11 @@ public class SchemaRow extends SchemaEntity {
 		parentTable = sTable;
 	}
 	
-	public Cell getCell(int col) {
+	public SchemaCell getCell(int col) {
 		return cells.get(col);
 	}
 	
-	public void addCell(Cell cell) {
+	public void addCell(SchemaCell cell) {
 		cells.put(cell.getCol(), cell);
 	}
 

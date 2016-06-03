@@ -38,12 +38,12 @@ public class FieldSelect {
 	/**
 	 * Start field.
 	 */
-	private Cell start;
+	private SchemaCell start;
 	
 	/**
 	 * End field.
 	 */
-	private Cell end;
+	private SchemaCell end;
 	
 	/**
 	 * Mode of selection.
@@ -103,8 +103,8 @@ public class FieldSelect {
 			endCol = col1;
 		}
 		
-		start = new Cell(startRow, startCol, sTable1);
-		end = new Cell(endRow, endCol, sTable2);
+		start = new SchemaCell(startRow, startCol, sTable1);
+		end = new SchemaCell(endRow, endCol, sTable2);
 		this.mode = mode;
 	}
 	
@@ -173,19 +173,19 @@ public class FieldSelect {
 		return false;
 	}
 
-	public Cell getStart() {
+	public SchemaCell getStart() {
 		return start;
 	}
 
-	public void setStart(Cell start) {
+	public void setStart(SchemaCell start) {
 		this.start = start;
 	}
 
-	public Cell getEnd() {
+	public SchemaCell getEnd() {
 		return end;
 	}
 
-	public void setEnd(Cell end) {
+	public void setEnd(SchemaCell end) {
 		this.end = end;
 	}
 

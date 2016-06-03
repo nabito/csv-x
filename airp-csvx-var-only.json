@@ -11,9 +11,9 @@
 	"@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
 	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
 	"@quoteChar" : "\"",
-	"@header" : "test header", // TODO check what this means
-	"@headerRowCount" : 5,
-	"@doubleQuote" : "test doubleQuote", // TODO check what this means
+	"@header" : false,
+	//"@headerRowCount" : 1,
+	"@doubleQuote" : true,
 	"@skipBlankRows" : true,
 	"@skipColumns" : 1,
 	"@skipInitialSpace" : true,
@@ -22,18 +22,13 @@
 
 	// CSV-X metadata (Con't)
 	"@embedHeader" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
-
-	"@replaceValueMap" : 
-	{
-		"*****" : ""
-	},
 	
 	"@property" : // a user-defined data property 
 	{ 
-		"@name" : "hasMsrDay",  // (Required) 
+		"@name" : "hasMsrDay",  // Property name is always required for property as a name to refer to
 		"@id" : "ex:hasMsrDay",
-		"@datatype" : "dayOfMonth",
-		"title" : "has measurement day",
+		"@datatype" : "dayOfMonth", // TODO re-check if this rich-datatype is supported in latest version of XML schema datatype.
+		"title_en" : "has measurement day",
 		"description" : "a property describing the day observation was made." 
 	},
 	
@@ -50,10 +45,19 @@
 	// Table represents a pattern of schema for a specific set of cells. It defines each cell definition and cells' common properties.
 	"@table" :  
 	{
-		"@type" : "Dataset",
+		"@mapType" : "Dataset",
 		"@name" : "myTable", // (Optional) even without this attribute, unnamed table(s) will be assigned uniquely addressable name 
 		"title" : "{tableTitle}", 
 		"title_en" : "Tokyo Air Pollutions Report",
+
+		// (Optional) If defined, the value of all Empty Cells will be replaced with the value, making all Empty Cells not empty. 
+		// This is mutually exclusive to '@replaceValueMap' operation.
+		//"@emptyCellFill" : "", 
+		
+		"@replaceValueMap" : // (Optional) Replace value based on this map. 
+		{
+			"*****" : ""
+		},
 		
 		"@commonProps" :
 		{
@@ -67,7 +71,8 @@
 		
 		"@cell[0-2,0]" : 
 		{
-			// Empty cell indicates it's a part of the schema but is expected to contain "empty value"
+			// Empty Cell indicates it's a part of the schema but is expected to contain no value at all.
+			// (note that an empty string "" within quotes is regarded as having a value).
 		},
 	
 		"@cell[0,1]" : 
@@ -311,7 +316,7 @@
 		"@cell[3,1-24]" :
 		{
 			"@name" : "msrData{subrow}{col}",
-			"@type" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
+			"@mapType" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
 			"title_en" : "{msrProp} property measurement value at date/time: {msrYrMth}{msrDay{subrow}}/{msrHr{col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}",
@@ -321,7 +326,7 @@
 	
 		"@cell[3,25]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title_en" : "{msrProp} property measurement DAILY AVERAGE value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
 			"@datatype" : "integer",		
 			"@value" : "{@value}", // by default cell's value is associated with '@value' property but this can be overridden
@@ -336,7 +341,7 @@
 		
 		"@data" : // an alternative way to declare a data instance of a model (Datapoint). 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@id" : "ex:{msrYrMth}/{msrDay{subrow}}/{msrProp}dailyMax/",
 			"title_en" : "{msrProp} property measurement DAILY MAXIMUM value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
 			"hasMsrDay" : "{msrDay{subrow}}",
@@ -346,7 +351,7 @@
 	
 		"@cell[3,27]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement DAILY MINIMUM value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}"
@@ -354,7 +359,7 @@
 	
 		"@cell[3,28]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement DAILY MEASUREMENT TIMES value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}"
@@ -362,7 +367,7 @@
 	
 		"@cell[3,29]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement DAILY TOTAL value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}"
@@ -370,7 +375,7 @@
 	
 		"@cell[4,1-24]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY AVERAGE PER HOUR value at month-year/time: {msrYrMth}/{msrHr{Col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrHour" : "{msrHr{Col}}"
@@ -378,7 +383,7 @@
 	
 		"@cell[5,1-24]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MAXIMUM PER HOUR value at month-year/time: {msrYrMth}/{msrHr{Col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrHour" : "{msrHr{Col}}"
@@ -386,7 +391,7 @@
 	
 		"@cell[6,1-24]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MINIMUM PER HOUR value at month-year/time: {msrYrMth}/{msrHr{Col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrHour" : "{msrHr{Col}}"
@@ -395,7 +400,7 @@
 	
 		"@cell[7,1-24]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MEASUREMENT TIMES PER HOUR value at month-year/time: {msrYrMth}/{msrHr{Col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrHour" : "{msrHr{Col}}"
@@ -403,7 +408,7 @@
 	
 		"@cell[8,1-24]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY TOTAL PER HOUR value at month-year/time: {msrYrMth}/{msrHr{Col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrHour" : "{msrHr{Col}}"
@@ -411,35 +416,35 @@
 	
 		"@cell[4,25]" : 
 		{ 
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY AVERAGE value at month-year: {msrYrMth} at location: {msrLoc}",
 			"@datatype" : "integer"
 		},
 	
 		"@cell[5,26]" : 
 		{ 
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MAXIMUM value at month-year: {msrYrMth} at location: {msrLoc}",
 			"@datatype" : "integer"
 		},
 	
 		"@cell[6,27]" : 
 		{ 
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MINIMUM value at month-year: {msrYrMth} at location: {msrLoc}",
 			"@datatype" : "integer"
 		},	
 		
 		"@cell[7,28]" : 
 		{ 
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY MEASUREMENT TIMES value at month-year: {msrYrMth} at location: {msrLoc}",
 			"@datatype" : "integer"
 		},
 	
 		"@cell[8,29]" : 
 		{ 
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY TOTAL value at month-year: {msrYrMth} at location: {msrLoc}",
 			"@datatype" : "integer"
 		}
@@ -448,7 +453,7 @@
 	
 	"@table" : 
 	{
-		"@type" : "Dataset",
+		"@mapType" : "Dataset",
 		"@name" : "WindMsrTbl",
 		"title_en" : "Tokyo Monthly Environment Measurement (Wind)",
 		"title" : "{tableTitle_wind}",
@@ -695,7 +700,7 @@
 		
 		"@cell[3,1-24]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@regex" : "NNW|NNE|NW|NE|N|ENE|ESE|E|SSE|SSW|SE|SW|S|WNW|WSW|W|C",
 			"title_en" : "Measurement of {msrProp_wind} at {msrLoc_wind} on {msrDay{subrow}_wind}{msrYrMth_wind} {msrHr{col}_wind}",
 			"hasMsrHour" : "{msrHr{col}_wind}",
@@ -707,7 +712,7 @@
 		
 		"@cell[3,28]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@datatype" : "integer",			
 			"title_en" : "Measurement times in the day.",
 			"hasMsrDay" : "{msrDay{subrow}_wind}"	
@@ -832,7 +837,7 @@
 		
 		"@cell[5,1-17]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@datatype" : "integer",
 			"title_en" : "Frequency of wind direction {windDir{col}} in the {msrYrMth_wind}.",
 			"ofWindDirection" : "{windDir{col}}" 
@@ -849,7 +854,7 @@
 		
 		"@cell[6,1-17]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@datatype" : "double", // TODO how to express one decimal digit?
 			"title_en" : "Percentage of wind direction {windDir{col}} in the {msrYrMth_wind}.",
 			"ofWindDirection" : "{windDir{col}}" 
@@ -864,7 +869,7 @@
 		
 		"@cell[7,1-24]" :
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@datatype" : "integer", // TODO how to set Min/Max val
 			"title_en" : "Measurement days at {msrHr{col}_wind} in {msrYrMth_wind}",
 			"ofMsrHour" :  "{msrHr{col}_wind}"
@@ -874,7 +879,7 @@
 		
 		"@cell[7,28]" : 
 		{
-			"@type" : "Datapoint",
+			"@mapType" : "Datapoint",
 			"@datatype" : "integer",
 			"title_en" : "Total number of measurement days in {msrYrMth_wind}",			
 		},

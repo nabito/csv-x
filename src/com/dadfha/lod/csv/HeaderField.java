@@ -13,7 +13,7 @@ package com.dadfha.lod.csv;
  * @author Wirawit
  *
  */
-public class HeaderField extends Cell {
+public class HeaderField extends SchemaCell {
 		
 	/**
 	 * The scope in which the header field is applied.
@@ -46,7 +46,7 @@ public class HeaderField extends Cell {
 	 * Copy constructor for Field.
 	 * @param f
 	 */
-	public HeaderField(Cell f) {
+	public HeaderField(SchemaCell f) {
 		super(f);
 	}
 	

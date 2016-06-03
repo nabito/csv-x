@@ -42,7 +42,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	@Override
 	public String getRefEx() {
-		return "@property[" + name + "]";
+		return "@property[" + getName() + "]";
 	}
 
 }

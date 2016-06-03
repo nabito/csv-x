@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * A CSV-X schema are metadata describing unique syntactic, structural, contextual, and semantic information 
@@ -35,19 +33,7 @@ public class Schema {
 	/**
 	 * Associate the dataset with an RDF-based schema via context as in JSON-LD
 	 */
-	private List<Object> context; // IMP may use JSON-LD Java object! to map with LinkedData	
-	
-	/**
-	 * Map of the value(s) to replace.
-	 * Note that empty value has key of empty string ("").
-	 */
-	private Map<String, String> replaceValueMap;
-	
-	/**
-	 * The value to substitute when the reading is missing. 
-	 * Note that empty value ("") is not equal to missing value.
-	 */
-	private String missingValueFill;
+	//private List<Object> context; // IMP may use JSON-LD Java object! to map with LinkedData
 	
 	private List<String> targetCsvs = new ArrayList<String>();
 	
@@ -85,21 +71,8 @@ public class Schema {
 	 * Other extra/user-defined properties.
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();	
-	
-	/**
-	 * Get replacing value from the map.
-	 * @param key the original cell's value.
-	 * @return String of replacing value.
-	 */
-	public String getReplaceValue(String key) {		
-		return replaceValueMap.get(key); 
-	}
-	
-	public Map<String, String> getReplaceValueMap() {
-		return replaceValueMap;
-	}
 
-	Cell getCell(int row, int col, SchemaTable table) {
+	SchemaCell getCell(int row, int col, SchemaTable table) {
 		if(table == null) table = sTables.get("default");
 		return table.getCell(row, col);
 	}
@@ -130,22 +103,6 @@ public class Schema {
 	
 	public void setLineSeparator(String lineSeparator) {
 		this.lineSeparator = lineSeparator; 
-	}
-	
-	/**
-	 * Get empty value filling.
-	 * @return the String value meant to replace empty value ("") or null if not specified.
-	 */
-	public String getEmptyValueFill() {
-		return replaceValueMap.get("");
-	}
-	
-	/**
-	 * Missing value filling.
-	 * @return String to replace missing value or null if not specified.
-	 */
-	public String getMissingValueFill() {
-		return missingValueFill;
 	}
 	
 	/**

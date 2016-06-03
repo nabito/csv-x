@@ -27,14 +27,22 @@ public class SchemaTable extends SchemaEntity {
 	private Schema parent;
 	
 	/**
-	 * Map type.
+	 * The value to substitute when the reading is empty, a.k.a. nothing in between value separator (e.g. comma). 
+	 * Note that empty string (a.k.a. value within quote "") is regarded as a value and won't make a cell Empty Cell.
 	 */
-	private String type;
+	private String emptyCellFill = null;
 	
 	/**
-	 * Empty value definition for this schema table.
+	 * Regular Expression for any whitespace characters except newline.
 	 */
-	private String emptyValue; 
+	@SuppressWarnings("unused")
+	private static final String REGEX_WS = "[^\\S\r\n]*?";
+	
+	/**
+	 * Map of the value(s) to replace.
+	 * Note that empty value always has key of empty string ("").
+	 */
+	private Map<String, String> replaceValueMap;	
 	
 	/**
 	 * @deprecated This is not needed anymore. Considering remove this.  
@@ -107,8 +115,22 @@ public class SchemaTable extends SchemaEntity {
 		} else {
 			if(s.getSchemaTable(name) != null) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
 		}
-		this.name = name;
+		setName(name);
 		parent = s;
+	}
+	
+	/**
+	 * Create copy for data object that has everything except varMap, SchemaRow, and its Cell schema inside. 
+	 * This is used for data model creation based on schema blueprint. Each actual data model will 
+	 * still holds reference to its schema definition.
+	 */
+	public static SchemaTable createDataObject(SchemaTable st) {
+		SchemaTable newTable = new SchemaTable(st.getName(), st.parent);
+		newTable.commonProps.putAll(st.commonProps);
+		newTable.emptyCellFill =  st.emptyCellFill;
+		newTable.properties.putAll(st.properties);
+		newTable.replaceValueMap.putAll(st.replaceValueMap);
+		return newTable;
 	}
 	
 	/**
@@ -120,26 +142,33 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * @return the type
+	 * Get Empty Cell filling.
+	 * @return String to fill an Empty Cell or Java null as default.
 	 */
-	public String getType() {
-		return type;
-	}
-
+	public String getEmptyCellFill() {
+		return emptyCellFill;
+	}	
+	
 	/**
-	 * @param type the type to set
+	 * Set Empty Cell filling.
+	 * @param val
 	 */
-	public void setType(String type) {
-		this.type = type;
+	public void setEmptyCellFill(String val) {
+		emptyCellFill = val;
 	}
 	
 	/**
-	 * Get table's empty value.
-	 * @return
+	 * Get replacing value from the map.
+	 * @param key the original cell's value.
+	 * @return String of replacing value or null if there is no substitute value for the key.
 	 */
-	public String getEmptyValue() {
-		return emptyValue;
+	public String getReplaceValue(String key) {		
+		return replaceValueMap.get(key); 
 	}
+	
+	public Map<String, String> getReplaceValueMap() {
+		return replaceValueMap;
+	}	
 	
 	public String getCommonProp(String propName) {
 		return commonProps.get(propName);
@@ -176,7 +205,7 @@ public class SchemaTable extends SchemaEntity {
 	 * @param col
 	 * @return Cell or null if not available.
 	 */
-	public Cell getCell(int row, int col) {
+	public SchemaCell getCell(int row, int col) {
 		SchemaRow sr = schemaRows.get(row);
 		if(sr != null) return sr.getCell(col);
 		else return null;
@@ -188,10 +217,10 @@ public class SchemaTable extends SchemaEntity {
 	 * The prior cell's schema properties will be overwritten if there are duplicate properties.
 	 * @param cell
 	 */
-	public void addCell(Cell cell) {
+	public void addCell(SchemaCell cell) {
 		SchemaRow sr = schemaRows.get(cell.getRow());
 		if(sr != null) { // if schema object for the row is already there
-			Cell c = sr.getCell(cell.getCol()); // check if there is already schema for the cell
+			SchemaCell c = sr.getCell(cell.getCol()); // check if there is already schema for the cell
 			if(c != null) { // update schema info
 				c.merge(cell);
 			} else { // create new cell schema!
@@ -202,24 +231,6 @@ public class SchemaTable extends SchemaEntity {
 			sr.addCell(cell);
 			schemaRows.put(cell.getRow(), sr);
 		}
-	}
-	
-	@Override
-	public String getProperty(String propertyName) {		
-		String retVal = super.getProperty(propertyName);
-		if(retVal == null) {
-			switch(propertyName) {
-			case "type":
-				retVal = type;
-				break;
-			case "emptyValue":
-				retVal = emptyValue;
-				break;			
-			default:
-				throw new RuntimeException("Unrecognized property name: " + propertyName + " in schema table: " + name);
-			}						
-		}
-		return retVal;
 	}
 	
 	/**
@@ -284,7 +295,10 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * To validate a CSV cell against this schema table at its corresponding row, col.
+	 * To validate a CSV cell against its schema definition at its corresponding row, col in this schema table.
+	 * 
+	 * Note that, if a schema has replace value map defined, it will happen "before the validation" of the cell schema.
+	 * 
 	 * @param row
 	 * @param col
 	 * @param val
@@ -294,17 +308,21 @@ public class SchemaTable extends SchemaEntity {
 		
 		// check inputs
 		if(row < 0 || col < 0) throw new IllegalArgumentException("Row and Col value must NOT be negative.");
-		if(val == null) throw new IllegalArgumentException("Cell's value must not be null.");
 		
-		Cell c = getCell(row, col);
+		SchemaCell c = getCell(row, col);
 		
 		if(c == null) {
 			System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + row + "," + col + "]"); 
 			return false;
 		}
 		
+		// check if the cell is a valid Empty Cell
+		if(c.isEmpty()) return (val == null)? true : false;		
+		
 		// TODO check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
-		// also the syntax for constraints must be referred from CSVW specs
+		// also the syntax for constraints may be referred from CSVW specs
+		// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
+		// then translate that into XML model for native-XML validation.
 		String datatype = c.getDatatype();
 		if(datatype != null) {			
 			switch(datatype) {
@@ -358,20 +376,13 @@ public class SchemaTable extends SchemaEntity {
 			default:
 				throw new RuntimeException("Unsupported datatype: " + datatype);
 			}
-			// TODO later import XML datatype API and do the validation..
-			// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
-			// then translate that into XML model for native-XML validation.
 			
 		}
-		
-		//String reEmpty = "[^\\S\r\n]*?"; // Regular Expression for any whitespace characters except newline
-		
-		// TODO check empty cell too.. back to creation of empty cell.
 		
 		// validate parsed CSV record against CSV-X cell schema's regular expression.
 		String regEx = c.getRegEx();
 		if(regEx != null) {
-		    Pattern p = Pattern.compile(regEx, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+		    Pattern p = Pattern.compile(regEx, Pattern.DOTALL);
 		    Matcher m = p.matcher(val);
 		    if(!m.find()) {
 		    	System.err.println("Error: Regular Expression Mismatched at: [" + row + "," + col + "]");
@@ -389,7 +400,7 @@ public class SchemaTable extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return "@table[" + name + "]";
+		return "@table[" + getName() + "]";
 	}
 
 }
