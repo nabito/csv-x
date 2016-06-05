@@ -1,10 +1,14 @@
 package com.dadfha.lod.csv;
 
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UnsupportedEncodingException;
+import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -63,20 +67,26 @@ public class SchemaProcessor {
 	 * 
 	 * @author Wirawit
 	 */
-	public static final class Context {
-		private static final Context obj = new Context();
-		private Context() {}
-		public static Context getContext() {
-			return obj;
-		}
+	public final class Context {
 		Schema currSchema;
 		SchemaTable currSchemaTable;
+	    Integer currRow = 0, currSubRow = 0, currSchemaRow = 0, currCol = 0, repeatTimes = 0, lastSuccessLine = 0;
+	    boolean isInRepeatingRow = false;
+		String currVal = null;		
+		/**
+		 * Reset context variables needed for parsing in new data table 
+		 * (preserving currRow, lastSuccessLine, and currSchema).
+		 */
+		public void reset4NewTable() {
+			currCol = 0;
+			currSchemaRow = 0;
+			currSubRow = 0;
+			repeatTimes = 0;
+			isInRepeatingRow = false;
+			currVal = null;		
+			currSchemaTable = null;
+		}
 	}
-	
-	/**
-	 * The only (static) context object as per SchemaProcessor object.
-	 */
-	public static final Context context = Context.getContext(); 
 	
 	/**
 	 * Parser buffer size in KB unit (multiple of 1024 bytes) for disk IO performance. 
@@ -119,14 +129,13 @@ public class SchemaProcessor {
 	}
 
 	/**
-	 * Get parser setting according to schema table and its parent schema.
-	 * @param sTable
+	 * Get parser setting according to schema
+	 * @param schema
 	 * @return CsvParserSettings
 	 */
-	private CsvParserSettings getCsvParserSettings(SchemaTable sTable) {
+	private CsvParserSettings getCsvParserSettings(Schema schema) {
 		
-		if(sTable == null) throw new IllegalArgumentException("sTable must not be null.");		
-		Schema schema = sTable.getParentSchema();
+		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
 		
 		CsvParserSettings settings = new CsvParserSettings();
 		
@@ -211,37 +220,38 @@ public class SchemaProcessor {
 			// prepare resulting table
 			SchemaTable t = SchemaTable.createDataObject(st);
 			
-			// init the parser settings according to schema table
+			// init the parser settings according to schema
 			CsvParserSettings settings;
-			settings = getCsvParserSettings(st);
+			settings = getCsvParserSettings(schema);
 			
 			// creates a CSV parser
 			CsvParser parser = new CsvParser(settings);
 			
-			Reader csvReader;		
+			Reader csvReader;			
+			FileInputStream fs;
+			//FileChannel fc; // IMP CsvParser always closes the FileChannel disabling seeking fn. Must have our own parser. 
+			String csvEncoding = schema.getEncoding();			
 			try {
-				csvReader = new BufferedReader(new FileReader(csvPath), CSV_PARSER_BUFFER_SIZE);
-			} catch (FileNotFoundException e) {
-				System.err.println("Cannot find CSV file.");
+				fs = new FileInputStream(csvPath);
+				//fc = fs.getChannel();
+				csvReader = new BufferedReader(new InputStreamReader(fs, csvEncoding), CSV_PARSER_BUFFER_SIZE);	
+			} catch (FileNotFoundException|UnsupportedEncodingException e) {
+				System.err.println(e);
 				e.printStackTrace();
 				return null;
 			}			
 			
-			parser.beginParsing(csvReader);	
+			parser.beginParsing(csvReader);
 			
 			// parsing context vars
 		    String[] row;
 		    Integer currRow = 0, currSubRow = 0, currSchemaRow = 0, currCol = 0, repeatTimes = 0;
 		    boolean isInRepeatingRow = false;
-			String currVal = null;
-			//List<String[]> buffer = new ArrayList<String[]>();									
+			String currVal = null;								
 			
 			try {				
 				// match each incoming row of CSV against CSV-X schema
 			    while ((row = parser.parseNext()) != null) {
-			    	
-			    	// buffering parsed value
-			    	//buffer.add(row);
 			        
 					// for each column
 					for(currCol = 0; currCol < row.length; currCol++) {
@@ -314,9 +324,11 @@ public class SchemaProcessor {
 				if(st.getCell(currSchemaRow, currCol) != null) 
 					throw new SchemaNotMatchedException("Cannot matched with schema table: " + st);
 				
-			} catch(SchemaNotMatchedException ex) {	
+			} catch(Exception ex) {	
 				// TODO remove all objects created as a result of parsing against this schema (i.e. rollback)
 				// try another schema
+				System.err.println(ex.getMessage());
+				ex.printStackTrace();
 				continue;
 			}
 			
@@ -340,7 +352,194 @@ public class SchemaProcessor {
 		return null;
 	}
 	
+	private CsvParser prepareCsvParser(Schema schema, String csvPath, Context context) {
+		
+		// Prepare parser & settings according to schema table
+		CsvParserSettings settings = getCsvParserSettings(schema);
+		CsvParser parser = new CsvParser(settings);
+		
+		Reader csvReader;			
+		FileInputStream fs;
+		//FileChannel fc; // IMP CsvParser always closes the FileChannel disabling seeking fn. Must have our own parser. 
+		String csvEncoding = schema.getEncoding();			
+		try {
+			fs = new FileInputStream(csvPath);
+			//fc = fs.getChannel();
+			csvReader = new BufferedReader(new InputStreamReader(fs, csvEncoding), CSV_PARSER_BUFFER_SIZE);	
+		} catch (FileNotFoundException|UnsupportedEncodingException e) {
+			System.err.println(e);
+			e.printStackTrace();
+			return null;
+		}
+		
+		parser.beginParsing(csvReader);	
+		int lineCount = 0;
+		
+		// parse to line
+		do {
+	    	if(lineCount == context.lastSuccessLine) break;
+	    	lineCount++;			
+		} while(parser.parseNext() != null);	
+		return parser;
+	}
+	
+	/**
+	 * Parse CSV with CSV-X Schema.
+	 *  
+	 * Remark:
+	 * Due to limitation in usage of current CsvParser, it will be recreated, with proper starting line, 
+	 * every time a schema table has been tried for parsing, no matter the parse is success or not. 
+	 * 
+	 * @param csvPath
+	 * @param schema
+	 * @return
+	 */
+	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context) {
+		
+		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
+		
+		// Initialize variables & prepare collection to hold result		
+		context.currSchema = schema;
+		SchemaTable dTable = null;
+		CsvParser parser = null;
+		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();
+
+		while(true) {			
+			// for each schema table
+			for(SchemaTable sTable : schema.getSchemaTables().values()) {
+				context.currSchemaTable = sTable;
+				
+				// Create new parser to restart from lastSuccessLine
+				parser = prepareCsvParser(schema, csvPath, context);
+				
+				// try parsing
+				dTable = parseCsvWithSchemaTable(parser, sTable, context);
+				
+				// check if the parse yield result
+				if(dTable != null) {
+					dataTables.add(dTable);
+					context.lastSuccessLine = context.currRow;
+					break;
+				} else { // if this parse fails, try other schema table(s)
+					context.currRow = context.lastSuccessLine;
+					context.reset4NewTable();
+					parser.stopParsing(); // this is needed before creating new parser to release resources
+					continue;
+				}
+			} // end for each schema table			
+			
+			if(dTable == null) { // check if schemas trials yield result
+				System.err.println("Can't matched this CSV with the schema: " + schema);
+				return null;
+			}
+			
+			// check if there're more CSV line to parse
+			if(parser.parseNext() != null) { 
+				context.reset4NewTable();
+				parser.stopParsing();
+				continue;
+			} else {
+				break;
+			}
+		} // end while(true)
+
+		return dataTables;
+		
+/*		 
+ 		Algorithm Summary:
+ 			
+ 		 declare variable for data table and parser
+		 prepare a collection to hold output dataTables
+		 while(true)
+			 Prepare a new parser with its settings from schema, starting from lastSuccessLine of CSV
+			 for each schema table
+				 dTable = parseCsvWithSchemaTable(parser, sTable, context)
+				 check if the parse yield result (dTable != null)
+					 yes, save result in output collection 
+						 update lastSuccessLine
+						 break from for each schema table loop 
+					 no, rewind starting row: context.currRow = context.lastSuccessLine;
+						 reset parsing context vars for new table
+						 stop current parser to release resource
+						 continue trying with other schema table from lastSuccessLine
+			 end for each schema table
+
+			 if dTable == null, meaning none is matched after trials of all schemas
+				 return null & print error message
+
+			 check if there're more CSV line to parse
+				 yes, reset parsing context vars for new table
+					 stop current parser to release resource
+					 continue next while(true) loop
+				 no, break while(true) loop
+
+		 end while(true)
+		 return whole data collection! Bravo! Congratulation!
+		 	
+*/		
+	}
+	
+	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, SchemaTable sTable, Context context) {
+		
+		
+
+			// init parser settings for each schema table
+			// create dataTable from schemaTable 
+				// read in CSV & schema line-by-line
+				// Check if this is a repeating row
+					// yes, parseRepeatingRow(parser, st, dataTable, context);
+						// if error is thrown return null.
+						// checkEndOfSchemaTable()
+					// no, do checkSchemaMatch(): to check this CSV line with current schema line
+						// if matches, dataRow = createDataRow()
+							// dataCell = createDataCell() & save to dataTable
+							// checkEndOfSchemaTable():
+								// yes, return dataTable
+								// no, continue parsing in next CSV & Schema line
+						// if not, return with null object.
+		
+		return null;
+		
+	}
+	
+	private void parseRepeatingRow(CsvParser parser, SchemaTable sTable, SchemaTable dataTable, Context context) {
+
+		// while parsing in new row within a repeating row
+			// Initialize subRow = 0;
+			// check if the first CSV row matches with repeating row
+				// if yes, dataRow = createDataRow()
+					// dataCell = createDataCell()
+					// put dataCell into dataRow, and then dataRow into dataTable
+					// continue to the next step
+				// if no, throw SchemaNotMatchedException
+			// CheckExitCondition(): check if subRow == repeatTimes
+				// if yes, goto RepeatingRowExit() routine (See below)
+				// if not, subRow++, row++, and continue next step
+
+			// check if new CSV row still matches with repeating row schema
+				// if yes, createDataCell() & keep on parsing in new CSV row
+				// if not, check if repeatTimes == -1 (Indefinite)
+					// if no, throw SchemaNotMatchedException
+					// if yes, CheckInfExitCondition():
+						// try validating "current" line with "next" schema row to find the end of repeating row
+						// if matches, do RepeatingRowExit() routine:
+							// Set flag: isInRepeatingRow = false
+							// treat this CSV line as data for this schema 
+							// move on to parsing normal row (currSchemaRow++)
+							// return;
+						// if not, then it's schema mismatched. throw new SchemaNotMatchedException()
+			// CheckExitCondition():
+		
+	}
+	
+	private SchemaCell createDataCell(String val, SchemaCell sc, SchemaTable dataTable) {
+		SchemaCell dataCell = SchemaCell.createDataObject(sc, dataTable, val); 
+		return dataCell;
+	}
+	
 	public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 
+		
+		Context context = new Context();
 		
 		// load schema(s)
 		loadSchemas(schemaPaths);
@@ -353,11 +552,13 @@ public class SchemaProcessor {
 		if(sId != null) { // if matched schema ID is known, parse with the schema			
 			Schema schema = schemas.get(sId);
 			assert(schema != null) : "Impossible case of unrecognized schema ID : " + sId;
-			data = parseWithSchema(csvPath, schema);			
+			//data = parseWithSchema(csvPath, schema);
+			data = parseCsvWithSchema(csvPath, schema, context);
 		} else { 			
 			// The processor loops through known schemas until it successfully parse the CSV.
-			for(Schema schema : schemas.values()) {				
-				data = parseWithSchema(csvPath, schema);
+			for(Schema schema : schemas.values()) {
+				//data = parseWithSchema(csvPath, schema);
+				data = parseCsvWithSchema(csvPath, schema, context);
 				if(data != null) break;
 			} 			
 		}
