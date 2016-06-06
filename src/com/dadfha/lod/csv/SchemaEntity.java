@@ -173,7 +173,7 @@ public abstract class SchemaEntity {
 	/**
 	 * Get name of this schema entity.
 	 * 
-	 * @return String
+	 * @return String of variable name or null if none defined. 
 	 */
 	public String getName() {
 		return getProperty(METAPROP_NAME);

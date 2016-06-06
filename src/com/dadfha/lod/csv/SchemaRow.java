@@ -24,7 +24,7 @@ public class SchemaRow extends SchemaEntity {
 	 * Row number. -1 indicates uninitialized state.
 	 */
 	private int rowNum = -1;
-	
+
 	/**
 	 * Row repeating times. Minus value indicates indefinite.
 	 */
@@ -36,11 +36,15 @@ public class SchemaRow extends SchemaEntity {
 	 * @param sTable
 	 */
 	public SchemaRow(int rowNum, SchemaTable sTable) {
-		// initialization
-		this.setRowNum(rowNum);
+		this.rowNum = rowNum;
 		parentTable = sTable;
 	}
 	
+	/**
+	 * Get schema for a cell in this row at a specified column.
+	 * @param col column number.
+	 * @return SchemaCell of specified column (col) or null if the schema for cell doesn't exist. 
+	 */
 	public SchemaCell getCell(int col) {
 		return cells.get(col);
 	}
@@ -88,6 +92,20 @@ public class SchemaRow extends SchemaEntity {
 	
 	public boolean isEmpty() {
 		return (cells.size() == 0);
+	}
+	
+	/**
+	 * Create data row object from a blueprint schema row.
+	 * @param sRow
+	 * @param dataRowNum
+	 * @param parentDataTable
+	 * @return SchemaRow
+	 */
+	public static SchemaRow createDataObject(SchemaRow sRow, int dataRowNum, SchemaTable parentDataTable) {
+		SchemaRow dRow = new SchemaRow(dataRowNum, parentDataTable);
+		dRow.properties.putAll(sRow.properties);
+		dRow.repeatTimes = sRow.repeatTimes;
+		return dRow;
 	}
 
 	@Override

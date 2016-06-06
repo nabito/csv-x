@@ -218,7 +218,7 @@ public class SchemaProcessor {
 		for(SchemaTable st : schema.getSchemaTables().values()) {
 			
 			// prepare resulting table
-			SchemaTable t = SchemaTable.createDataObject(st);
+			SchemaTable t = SchemaTable.createDataObject(st, null);
 			
 			// init the parser settings according to schema
 			CsvParserSettings settings;
@@ -287,7 +287,7 @@ public class SchemaProcessor {
 						SchemaCell c = SchemaCell.createDataObject(sc, t, currVal);
 						if(isInRepeatingRow) {
 							c.setSubRow(currSubRow);
-							repeatTimes--;
+							repeatTimes--; // << This is wrong location to deduct subrow counter.
 						}
 													
 						// for all cell's properties, process literal for context {var}
@@ -307,10 +307,6 @@ public class SchemaProcessor {
 							throw new RuntimeException("Variable must not has {var} expression left in it: " + varName);
 						if(varName != null)						
 						t.addVar(varName, c);
-							
-						// TODO process cell & table map type via a special method in SchemaProcessor
-						// there must be a definition file of how each element in each schema entity is mapped to 
-						// what type of field, similar to Java Bean mapping.
 						
 					} // end for each CSV column
 					
@@ -333,21 +329,13 @@ public class SchemaProcessor {
 			}
 			
 			// if successfully parsed until last cell for a schema table
-			// release value buffer
 			// break;							
 		    
 		    // stop parsing when done
 		    parser.stopParsing();
 			
 			
-		} // end for each schema table		
-
-
-		// List<Datapoint[]> rows = (List<Datapoint[]>) rowProc.getRows();
-		//
-		// for(Datapoint[] d : rows) {
-		// System.out.println(Arrays.toString(d));
-		// }		
+		} // end for each schema table
 		
 		return null;
 	}
@@ -481,28 +469,67 @@ public class SchemaProcessor {
 	
 	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, SchemaTable sTable, Context context) {
 		
+		// create dataTable from schemaTable 
+		// OPT introducing runtime table naming pattern
+		SchemaTable dTable = SchemaTable.createDataObject(sTable, null);		
+		String[] row;
 		
+		// read in CSV & schema line-by-line
+	    while ((row = parser.parseNext()) != null) {
+	    	
+			// get SchemaRow object
+			SchemaRow sRow = sTable.getRow(context.currSchemaRow);
+			if(sRow == null) return null;
 
-			// init parser settings for each schema table
+			// check if this row is a repeating row
+			if(sRow.isRepeat()) {
+				context.repeatTimes = sRow.getRepeatTimes();				
+				if(parseRepeatingRow(row, parser, dTable, sRow, context)) {}
+				// TODO continue from here...
+			}		    	
+	        
+			context.currRow++;
+			context.currSchemaRow++;
+	    } // end for each row
+		
+	    
 			// create dataTable from schemaTable 
-				// read in CSV & schema line-by-line
-				// Check if this is a repeating row
-					// yes, parseRepeatingRow(parser, st, dataTable, context);
-						// if error is thrown return null.
-						// checkEndOfSchemaTable()
-					// no, do checkSchemaMatch(): to check this CSV line with current schema line
-						// if matches, dataRow = createDataRow()
-							// dataCell = createDataCell() & save to dataTable
-							// checkEndOfSchemaTable():
-								// yes, return dataTable
-								// no, continue parsing in next CSV & Schema line
-						// if not, return with null object.
+			// read in CSV & schema line-by-line
+	    		// For each row
+					// Check if this is a repeating row
+						// yes, parseRepeatingRow(parser, st, dataTable, context);
+							// if error is thrown return null.
+								// checkEndOfSchemaTable()
+							// no, do checkSchemaMatch(): to check this CSV line with current schema line
+								// if matches, dataRow = createDataRow()
+									// resolve context var in expression
+									// check variable declaration, link to object 
+									// dataCell = createDataCell() & save to dataTable
+									// checkEndOfSchemaTable():
+										// yes, return dataTable
+										// no, continue parsing in next CSV & Schema line
+								// if not, return with null object.
 		
 		return null;
 		
 	}
 	
-	private void parseRepeatingRow(CsvParser parser, SchemaTable sTable, SchemaTable dataTable, Context context) {
+	private void parseRepeatingRow(String[] firstRow, CsvParser parser, SchemaTable dTable, SchemaRow sRow, Context context) {
+		
+		// Initialize subRow & context vars
+		context.currSubRow = 0;
+		context.isInRepeatingRow = true; // FIXME << This may not be needed
+		
+		// check if the first CSV row matches with repeating row
+		if(processCsvRow(firstRow, dTable, sRow, context)) {
+			
+		}
+		// if yes, dataRow = createDataRow()
+			// dataCell = createDataCell()
+			// put dataCell into dataRow, and then dataRow into dataTable
+			// continue to the next step
+		// if no, throw SchemaNotMatchedException
+		
 
 		// while parsing in new row within a repeating row
 			// Initialize subRow = 0;
@@ -532,9 +559,91 @@ public class SchemaProcessor {
 		
 	}
 	
-	private SchemaCell createDataCell(String val, SchemaCell sc, SchemaTable dataTable) {
-		SchemaCell dataCell = SchemaCell.createDataObject(sc, dataTable, val); 
-		return dataCell;
+	// create data row, cell objects and put in data table too.
+	// return false if there's error in processing / validation or true for success.
+	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context) {
+		// get schema row's parent schema table
+		SchemaTable sTable = sRow.getSchemaTable();
+		
+		// create data row object
+		SchemaRow dRow = SchemaRow.createDataObject(sRow, context.currRow, dTable);
+		
+		// for each column
+		for(context.currCol = 0; context.currCol < row.length; context.currCol++) {
+
+			// get current cell value	
+			context.currVal = row[context.currCol];
+			
+			// fill & substitute cell value 
+			if(context.currVal == null) {
+				// fill empty cell, if a value is defined 
+				String empCellFill = sTable.getEmptyCellFill();
+				if(empCellFill != null) context.currVal = empCellFill;
+			} else {							
+				// replace certain value, if specified in schema table
+				String repVal = sTable.getReplaceValue(context.currVal);
+				if((repVal ) != null) context.currVal = repVal;							
+			}
+			
+			// validate parsed CSV cell against CSV-X schema properties				
+			if(!sTable.validate(context.currRow, context.currCol, context.currVal)) {
+				System.err.println("Cannot matched with schema table: " + sTable);
+				return false; 
+			}
+			
+			// get cell's schema
+			SchemaCell sCell = sRow.getCell(context.currCol);
+			assert(sCell != null) : "The SchemaCell object can't be null after successful validation.";
+			
+			// create actual data cell object
+			SchemaCell dCell = SchemaCell.createDataObject(sCell, dTable, context.currVal);
+										
+			// for all cell's properties, process literal for context {var}
+			for(Entry<String,String> propEntry : sCell.getProperties().entrySet()) {
+				String propName = propEntry.getKey();
+				String propVal = propEntry.getValue();
+				// pass on subRow only if this is a cell in a repeating row
+				if(sRow.isRepeat()) propVal = processContextVarLiteral(propVal, context.currRow, context.currCol, context.currSubRow);
+				else propVal = processContextVarLiteral(propVal, context.currRow, context.currCol, null);
+				
+				dCell.addProperty(propName, propVal);
+			}
+			
+			// save data cell to data row
+			dRow.addCell(dCell);
+
+			// register variable in this data table, if declared					
+			String varName = dCell.getName();
+			if(varName != null)	{
+				if(hasVarInLiteral(varName)) {
+					System.err.println("Variable must not has {var} expression left in it: " + varName);
+					return false;
+				}				
+				dTable.addVar(varName, dCell);	
+			}
+
+		} // end for each column
+		
+	    // if the schema has one more cell definition in this row, it's dimension mismatched
+		if(sRow.getCell(context.currCol) != null) {
+			System.err.println("Cannot matched with schema row: " + sRow);
+			return false;
+		} else {
+			// increment row counters
+	    	if(sRow.isRepeat()) context.currSubRow++;
+	    	else context.currSchemaRow++;
+	        context.currRow++;			
+			// save data row to data table
+			dTable.addRow(dRow);			
+		}
+
+		return true;
+	}
+	
+	private void transform2MapDataModel() {
+		// TODO process cell & table map type via a special method in SchemaProcessor
+		// there must be a definition file of how each element in each schema entity is mapped to 
+		// what type of field, similar to Java Bean mapping.		
 	}
 	
 	public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 

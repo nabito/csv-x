@@ -120,12 +120,14 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * Create copy for data object that has everything except varMap, SchemaRow, and its Cell schema inside. 
-	 * This is used for data model creation based on schema blueprint. Each actual data model will 
-	 * still holds reference to its schema definition.
+	 * IMP considering creating data classes for all schema entity.
+	 * 
+	 * Create copy for data object that has everything except varMap, SchemaRow, and its SchemaCell inside. 
+	 * This is used for data model creation based on schema blueprint. Each actual data table will 
+	 * still holds reference to its parent schema.
 	 */
-	public static SchemaTable createDataObject(SchemaTable st) {
-		SchemaTable newTable = new SchemaTable(st.getName(), st.parent);
+	public static SchemaTable createDataObject(SchemaTable st, String tableName) {
+		SchemaTable newTable = new SchemaTable(tableName, st.parent);
 		newTable.commonProps.putAll(st.commonProps);
 		newTable.emptyCellFill =  st.emptyCellFill;
 		newTable.properties.putAll(st.properties);
@@ -207,8 +209,7 @@ public class SchemaTable extends SchemaEntity {
 	 */
 	public SchemaCell getCell(int row, int col) {
 		SchemaRow sr = schemaRows.get(row);
-		if(sr != null) return sr.getCell(col);
-		else return null;
+		return sr.getCell(col);
 	}
 	
 	/**

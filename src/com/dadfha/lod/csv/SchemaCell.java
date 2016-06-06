@@ -17,6 +17,10 @@ public class SchemaCell extends SchemaEntity {
 	/**
 	 * An index of subrow inside a repeating row starting from 0.
 	 * -1 indicates uninitialized state.
+	 * 
+	 * Note: this is not used at version 1.0 since there is no schema model to describe subrow just yet.
+	 * Also, actual parsed in subrow data will be counted as normal row, since the principle is to have 
+	 * a master schema table as a blueprint for an actual schema data model expanded from CSV contents.
 	 */
 	private int subRow = -1;
 	
@@ -61,9 +65,16 @@ public class SchemaCell extends SchemaEntity {
 		this.properties.putAll(properties);
 	}
 	
-	public static SchemaCell createDataObject(SchemaCell schemaCell, SchemaTable parentTable, String value) {
+	/**
+	 * Create data cell object.
+	 * @param schemaCell
+	 * @param parentDataTable
+	 * @param value
+	 * @return
+	 */
+	public static SchemaCell createDataObject(SchemaCell schemaCell, SchemaTable parentDataTable, String value) {
 		SchemaCell dataCell = new SchemaCell(schemaCell);
-		dataCell.parentTable = parentTable;
+		dataCell.parentTable = parentDataTable;
 		dataCell.setValue(value);
 		return dataCell;
 	}
