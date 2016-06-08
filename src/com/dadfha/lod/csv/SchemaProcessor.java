@@ -207,6 +207,9 @@ public class SchemaProcessor {
 	}
 	
 	/**
+	 * @deprecated This method was supposed to parse CSV against CSV-X schema in one-go, but failed to do so 
+	 * due to high complexity in data processing flow. The improved, modularized, version is parseCsvWithSchema().    
+	 * 
 	 * Parse given CSV with specified schema.
 	 * @param csvPath
 	 * @param schema
@@ -329,7 +332,6 @@ public class SchemaProcessor {
 					throw new SchemaNotMatchedException("Cannot matched with schema table: " + st);
 				
 			} catch(Exception ex) {	
-				// TODO remove all objects created as a result of parsing against this schema (i.e. rollback)
 				// try another schema
 				System.err.println(ex.getMessage());
 				ex.printStackTrace();
@@ -408,7 +410,7 @@ public class SchemaProcessor {
 				// Create new parser to restart from milestoneRow
 				parser = prepareCsvParser(schema, csvPath, context.milestoneRow);
 				
-				// try parsing
+				// try parsing with a schema table
 				dTable = parseCsvWithSchemaTable(parser, sTable, context);
 				
 				// check if the parse yield result
@@ -475,6 +477,14 @@ public class SchemaProcessor {
 */		
 	}
 	
+	/**
+	 * Parse CSV against a schema table.
+	 * @param parser
+	 * @param sTable
+	 * @param context
+	 * @return SchemaTable data table object containing parsed CSV data in the form of schema table 
+	 * or null if the parse is failed.
+	 */
 	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, SchemaTable sTable, Context context) {
 		
 		// create dataTable from schemaTable 
@@ -482,51 +492,59 @@ public class SchemaProcessor {
 		SchemaTable dTable = SchemaTable.createDataObject(sTable, null);		
 		String[] row;
 		
+		// get first SchemaRow object, a schema table MUST have at least one schema row
+		SchemaRow sRow = sTable.getRow(context.currSchemaRow);
+		if(sRow == null) return null;		
+		
 		// read in CSV & schema line-by-line
-	    while ((row = parser.parseNext()) != null) {
-	    	
-			// get SchemaRow object
-			SchemaRow sRow = sTable.getRow(context.currSchemaRow);
-			if(sRow == null) return null;
+	    while ((row = parser.parseNext()) != null) {	    
 
 			// check if this row is a repeating row
-			if(sRow.isRepeat()) {								
-				if(parseRepeatingRow(row, parser, dTable, sRow, context)) {}
-				
-			}		    	
-	        
-			//context.currRow++;
-			//context.currSchemaRow++;
-			
-			// check the end of schema table...?
-			if(sTable.getRow(context.currSchemaRow) == null) {}
+			if(sRow.isRepeat()) { // call parseRepeatingRow()
+				if(!parseRepeatingRow(row, parser, dTable, sRow, context)) return null;				
+			} else { //for normal schema row, call processCsvRow()
+				if(!processCsvRow(row, dTable, sRow, context)) return null;
+			}
+
+			// return data table object if the end of schema table is reached
+			if((sRow = sTable.getRow(context.currSchemaRow)) == null) return dTable;
 			
 	    } // end for each row
 	    
-	    // check if there's more schema row but the CSV is running out..
-		
-	    
-			// create dataTable from schemaTable 
-			// read in CSV & schema line-by-line
-	    		// For each row
-					// Check if this is a repeating row
-						// yes, parseRepeatingRow(parser, st, dataTable, context);
-							// if error is thrown return null.
-								// checkEndOfSchemaTable()
-							// no, do checkSchemaMatch(): to check this CSV line with current schema line
-								// if matches, dataRow = createDataRow()
-									// resolve context var in expression
-									// check variable declaration, link to object 
-									// dataCell = createDataCell() & save to dataTable
-									// checkEndOfSchemaTable():
-										// yes, return dataTable
-										// no, continue parsing in next CSV & Schema line
-								// if not, return with null object.
-		
-		return null;
+		// if there's no more CSV row to process, check if there's no more next schema row as well
+	    assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
+		return (sTable.getRow(context.currSchemaRow) == null)? dTable : null;	    
+			    
+/*		  		
+  		Algorithm Summary:
+  		
+ 		create temporary data table object from schema table blueprint
+		 get the first schema row from input schema table
+		 while there is more CSV row, parse in a row
+			 check if this is a repeating row
+				 yes, call parseRepeatingRow(), return null if the parse is unsuccessful
+				 no, call processCsvRow(), return null if the parse is unsuccessful
+			 get next schema row object
+			 check if the end of schema table is reached (schema row object == null)
+				 yes, return data table object
+				 no, continue parsing in next CSV line
+		 (end for each CSV row)
+		 since there's no more CSV row to process, check if there's no more next schema row as well
+			 yes, return data table object
+			 no, return null to indicate schema mismatched.
+*/
 		
 	}
 	
+	/**
+	 * Parse CSV row(s) for a schema row with 'repeatTimes' property specified as non-zero integer. 
+	 * @param firstRow array of String for the first CSV row's values.  
+	 * @param parser the CSV parser.
+	 * @param dTable data table object to hold parsing data row and cell.
+	 * @param sRow schema row object of the repeating row.
+	 * @param context parsing context variable. 
+	 * @return boolean true if the parse is successful, false otherwise.
+	 */
 	private boolean parseRepeatingRow(String[] firstRow, CsvParser parser, SchemaTable dTable, SchemaRow sRow, Context context) {
 		
 		// Initialize subRow & context vars
@@ -541,14 +559,14 @@ public class SchemaProcessor {
 		if(!processCsvRow(firstRow, dTable, sRow, context)) return false;
 		
 		while((row = parser.parseNext()) != null) {
-			// if CSV row doesn't match with repeating row schema
+			// if a CSV row doesn't match with repeating row schema
 			if(!processCsvRow(row, dTable, sRow, context)) {
 				// if it's NOT infinite repeating, then it's certainly schema mismatch.
 				if(context.repeatTimes > 0) return false;
 				
-				// check infinite row exit condition:
+				// but if it's infinite repeating schema row, check infinite row exit condition:
 				SchemaRow nextSchemaRow = sTable.getRow(sRow.getRowNum() + 1);
-				// if there's no next schema row, that new line is may be for another table, return true.
+				// if there's no next schema row, that new line is may be for other table, return true.
 				if(nextSchemaRow == null) return true;
 				
 				// try validating "current" line with "next" schema row to find the end of repeating row.
@@ -566,33 +584,35 @@ public class SchemaProcessor {
 						
 		} // end for each CSV row
 				
-		// if there's no more CSV row to process, check if repeatingTimes is satisfied and 
+		// since there's no more CSV row to process, check if repeatingTimes is satisfied and 
 		// there's no more next schema row in the schema table. if yes, return true or false otherwise.
+		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
 		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(sRow.getRowNum() + 1) == null))? true : false;
-			
 		
-		// TODO cleanup algorithm comment
 		
-		// Initialize subRow = 0;
-		// ProcessCsvRow() to see if the first CSV row matches with repeating row schema
-			// if no, it's schema mismatched, return false.
-		// while parsing in new CSV row
-			// check if new CSV row still matches with repeating row schema
-				// if yes, createDataCell() & keep on parsing in new CSV row
-				// if not, check if repeatTimes == -1 (infinite)
-					// if no, return false.
-					// if yes, CheckInfExitCondition():
-						// try validating "current" line with "next" schema row to find the end of repeating row
-						// if there's no next schema row, that new line is may be for another sTable
-							// return true;
-						// if matches, treat this CSV line as data for this schema 
-							// do RepeatingRowExit() routine:
-							// Set flag: isInRepeatingRow = false							 
-							// move on to parsing normal row (currSchemaRow++)
-							// return;
-						// if not, then it's schema mismatched. throw new SchemaNotMatchedException()
-			// CheckExitCondition():		
-		
+/*		 
+ 		Algorithm Summary:
+ 		
+ 		 initialize subRow as 0
+		 get number of repeat times
+		 process the first CSV row, processCsvRow(), against the repeating row schema
+			 if the processing failed, return false.
+		 while there is more CSV row, parse in a row
+			 process if the new CSV row still matches with repeating row schema, processCsvRow()
+				 if matches, check if repeat times is reached:
+					 yes, return true.
+					 no, continue parsing in new CSV row.
+				 if the row doesn't match:
+					 and the schema row is NOT infinite repeating row (repeatTimes > 0), then it's certainly schema mismatch, return false.
+					 but if it's infinite repeating schema row, which may match [0,Inf) rows, check infinite row exit options:
+						 option 1) if there is no next schema row, then the new CSV row may be for other schema table, return true.
+						 or option 2) there is next schema row, try processCsvRow() with "current" line and "next" schema row
+							 if matches, it means the mismatched CSV row is the content of next schema row, thus parsed and return true.
+							 if not, then it's schema mismatched, return false.
+		 (end for each csv row)
+		 since there's no more CSV row to process, check if repeatingTimes is satisfied and 
+		 there's no more next schema row in the schema table. if yes, return true or false otherwise.		
+*/
 	}
 	
 	/**
@@ -696,7 +716,7 @@ public class SchemaProcessor {
 	}
 	
 	private void transform2MapDataModel() {
-		// TODO process cell & table map type via a special method in SchemaProcessor
+		// IMP process cell & table map type via a special method in SchemaProcessor
 		// there must be a definition file of how each element in each schema entity is mapped to 
 		// what type of field, similar to Java Bean mapping.		
 	}
@@ -728,7 +748,7 @@ public class SchemaProcessor {
 		}
 		
 		if(data != null) {
-			return (Set<DataSet>) data;
+			return (Set<DataSet>) data; // FIXME this version should only result in Schema Data Model Objects
 		} else {
 			System.err.println("The parse bears no fruit: check out errors log.");
 			return null;
