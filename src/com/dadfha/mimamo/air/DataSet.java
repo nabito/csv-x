@@ -61,11 +61,6 @@ public class DataSet {
 		return datapoints.equals(ds);
 	}
 	
-	public int hashCode() {
-		// TODO write proper hashcode for performance
-		return 0;
-	}
-	
 	/**
 	 * Size of a dataset is number of datapoint it contains.
 	 * @return

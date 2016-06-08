@@ -26,7 +26,7 @@ public class SchemaRow extends SchemaEntity {
 	private int rowNum = -1;
 
 	/**
-	 * Row repeating times. Minus value indicates indefinite.
+	 * Row repeating times. Minus value indicates infinite.
 	 */
 	private int repeatTimes = 0;
 
@@ -63,7 +63,7 @@ public class SchemaRow extends SchemaEntity {
 
 	/**
 	 * The exact number of times this row is repeated.
-	 * Minus value indicates indefinite.
+	 * Minus value indicates infinite.
 	 * @return int repeating times.
 	 */
 	public int getRepeatTimes() {

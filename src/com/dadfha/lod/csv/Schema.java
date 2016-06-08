@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * A CSV-X schema are metadata describing unique syntactic, structural, contextual, and semantic information 
@@ -71,6 +72,14 @@ public class Schema {
 	 * Other extra/user-defined properties.
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();	
+	
+	/**
+	 * This is for future version of CSV-X to support user-defined processing function
+	 * as per property for each schema entity.
+	 * 
+	 * The schema keeps the collection as map between SERE and Function class.
+	 */
+	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();	
 
 	SchemaCell getCell(int row, int col, SchemaTable table) {
 		if(table == null) table = sTables.get("default");
@@ -232,6 +241,17 @@ public class Schema {
 	public void setEmbedHeader(boolean embedHeader) {
 		this.embedHeader = embedHeader;
 	}
+	
+	/**
+	 * Get user-defined function for a property of a schema entity. 
+	 * @param se
+	 * @param propName
+	 * @return Function or null is there is no function defined for the property.
+	 */
+	public Function<String, Object> getUserPropHandlingFn(SchemaEntity se, String propName) {
+		return userFuncs.get(se.getRefEx() + "." + propName);
+		// IMP introduce how to defined user-function in schema
+	}	
 	
 	/**
 	 * Get schema table by its name.
