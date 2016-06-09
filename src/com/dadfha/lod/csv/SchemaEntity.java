@@ -180,13 +180,14 @@ public abstract class SchemaEntity {
 	}
 
 	/**
-	 * Set name of this schema entity.
-	 * 
+	 * Set name of this schema entity.  
 	 * @param name the name to set
 	 */
 	public void setName(String name) {
 		addProperty(METAPROP_NAME, name);
 	}
+	
+	//public abstract boolean changeName();
 
 	/**
 	 * Get value of this schema entity.
@@ -247,7 +248,7 @@ public abstract class SchemaEntity {
 	}
 	
 	public void setMapType(String type) {
-		// TODO check if it's recognized type (Datapoint or user-defined)
+		// IMP check if it's recognized type (Datapoint or user-defined)
 		addProperty(METAPROP_MAPTYPE, type);
 	}		
 	

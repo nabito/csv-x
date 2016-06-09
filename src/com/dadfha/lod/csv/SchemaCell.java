@@ -18,7 +18,7 @@ public class SchemaCell extends SchemaEntity {
 	 * An index of subrow inside a repeating row starting from 0.
 	 * -1 indicates uninitialized state.
 	 * 
-	 * Note: this is not used at version 1.0 since there is no schema model to describe subrow just yet.
+	 * IMP Note: this is not used at version 1.0 since there is no schema model to describe subrow just yet.
 	 * Also, actual parsed in subrow data will be counted as normal row, since the principle is to have 
 	 * a master schema table as a blueprint for an actual schema data model expanded from CSV contents.
 	 */
@@ -130,6 +130,22 @@ public class SchemaCell extends SchemaEntity {
 	 */
 	public boolean isInRepeatingRow() {
 		return parentTable.getRow(row).isRepeat();
+	}
+	
+	/**
+	 * Set the '@name' property of this schema cell while also update variable registry, if available, 
+	 * inside hashmap collection of its parent schema table.
+	 * 
+	 * @param name
+	 */
+	@Override
+	public void setName(String name) {
+		String oldName = getName();		
+		if(oldName != null && parentTable.hasVar(oldName)) {
+			parentTable.removeVar(oldName);
+			setName(name);
+			parentTable.addVar(name, this);
+		} else setName(name);
 	}
 	
 	@Override

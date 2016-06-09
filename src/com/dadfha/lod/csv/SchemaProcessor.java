@@ -16,13 +16,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.dadfha.lod.JSONMinify;
-import com.dadfha.mimamo.air.DataSet;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
@@ -79,7 +76,6 @@ public class SchemaProcessor {
 	     * Current milestone row.
 	     */
 	    Integer milestoneRow = 0;
-	    //boolean isInRepeatingRow = false;
 		String currVal = null;		
 		/**
 		 * Reset context variables needed for parsing in new data table 
@@ -90,7 +86,6 @@ public class SchemaProcessor {
 			currSchemaRow = 0;
 			currSubRow = 0;
 			repeatTimes = 0;
-			//isInRepeatingRow = false;
 			currVal = null;		
 			currSchemaTable = null;
 		}
@@ -206,150 +201,6 @@ public class SchemaProcessor {
 		return null;
 	}
 	
-	/**
-	 * @deprecated This method was supposed to parse CSV against CSV-X schema in one-go, but failed to do so 
-	 * due to high complexity in data processing flow. The improved, modularized, version is parseCsvWithSchema().    
-	 * 
-	 * Parse given CSV with specified schema.
-	 * @param csvPath
-	 * @param schema
-	 * @return Object of Java type specified by the schema or Dataset as default. Return null means error in parsing.
-	 */
-	public Object parseWithSchema(String csvPath, Schema schema) {
-				
-		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
-		
-		// collection to hold successfully parsed table 
-		List<SchemaTable> tables = new ArrayList<SchemaTable>();
-		
-		// for each schema table within a schema, try parsing
-		// IMP In case when there are more than one pattern (schema table) inside a CSV,  
-		// CSV comment should have directive annotation to which schema table it's applicable to
-		// to reduce trial'n'error.
-		for(SchemaTable st : schema.getSchemaTables().values()) {
-			
-			// prepare resulting table
-			SchemaTable t = SchemaTable.createDataObject(st, null);
-			
-			// init the parser settings according to schema
-			CsvParserSettings settings;
-			settings = getCsvParserSettings(schema);
-			
-			// creates a CSV parser
-			CsvParser parser = new CsvParser(settings);
-			
-			Reader csvReader;			
-			FileInputStream fs;
-			//FileChannel fc; // IMP CsvParser always closes the FileChannel disabling seeking fn. Must have our own parser. 
-			String csvEncoding = schema.getEncoding();			
-			try {
-				fs = new FileInputStream(csvPath);
-				//fc = fs.getChannel();
-				csvReader = new BufferedReader(new InputStreamReader(fs, csvEncoding), CSV_PARSER_BUFFER_SIZE);	
-			} catch (FileNotFoundException|UnsupportedEncodingException e) {
-				System.err.println(e);
-				e.printStackTrace();
-				return null;
-			}			
-			
-			parser.beginParsing(csvReader);
-			
-			// parsing context vars
-		    String[] row;
-		    Integer currRow = 0, currSubRow = 0, currSchemaRow = 0, currCol = 0, repeatTimes = 0;
-		    boolean isInRepeatingRow = false;
-			String currVal = null;								
-			
-			try {				
-				// match each incoming row of CSV against CSV-X schema
-			    while ((row = parser.parseNext()) != null) {
-			        
-					// for each column
-					for(currCol = 0; currCol < row.length; currCol++) {
-						// get current cell value	
-						currVal = row[currCol];									
-												
-						if(currVal == null) {
-							// fill empty cell, if a value is defined 
-							String empCellFill = st.getEmptyCellFill();
-							if(empCellFill != null) currVal = empCellFill;
-						} else {							
-							// replace certain value, if specified in schema table
-							String repVal = st.getReplaceValue(currVal);
-							if((repVal ) != null) currVal = repVal;							
-						}
-						
-						// validate parsed CSV record against CSV-X schema properties				
-						if(!st.validate(currRow, currCol, currVal)) 
-							throw new SchemaNotMatchedException("Cannot matched with schema table: " + st);							
-						
-						// get cell & row schema
-						SchemaCell sc = st.getCell(currSchemaRow, currCol);
-						SchemaRow sr = st.getRow(currSchemaRow);
-						
-						// check if the parser is "entering" a repeating row
-						if(sr.isRepeat() && isInRepeatingRow == false) {
-							isInRepeatingRow = true;
-							repeatTimes = sr.getRepeatTimes();
-							currSubRow = 0;
-						}
-						
-						// create actual data model & save value
-						SchemaCell c = SchemaCell.createDataObject(sc, t, currVal);
-						if(isInRepeatingRow) {
-							c.setSubRow(currSubRow);
-							repeatTimes--; // << This is wrong location to deduct subrow counter.
-						}
-													
-						// for all cell's properties, process literal for context {var}
-						for(Entry<String,String> propEntry : sc.getProperties().entrySet()) {
-							String propName = propEntry.getKey();
-							String propVal = propEntry.getValue();
-							// pass on subRow only if this is a cell in a repeating row
-							if(sr.isRepeat()) propVal = processContextVarLiteral(propVal, currRow, currCol, currSubRow);
-							else propVal = processContextVarLiteral(propVal, currRow, currCol, null);
-							
-							c.addProperty(propName, propVal);
-						}
-
-						// declare variable	in this data table					
-						String varName = c.getName();
-						if(hasVarInLiteral(varName)) 
-							throw new RuntimeException("Variable must not has {var} expression left in it: " + varName);
-						if(varName != null)						
-						t.addVar(varName, c);
-						
-					} // end for each CSV column
-					
-			    	if(isInRepeatingRow) currSubRow++;
-			    	else currSchemaRow++;
-			        currRow++;
-			        
-			    } // end for each CSV row
-			    
-			    // if the schema has one more cell definition in this row, it's dimension mismatched
-				if(st.getCell(currSchemaRow, currCol) != null) 
-					throw new SchemaNotMatchedException("Cannot matched with schema table: " + st);
-				
-			} catch(Exception ex) {	
-				// try another schema
-				System.err.println(ex.getMessage());
-				ex.printStackTrace();
-				continue;
-			}
-			
-			// if successfully parsed until last cell for a schema table
-			// break;							
-		    
-		    // stop parsing when done
-		    parser.stopParsing();
-			
-			
-		} // end for each schema table
-		
-		return null;
-	}
-	
 	private CsvParser prepareCsvParser(Schema schema, String csvPath, int startFromLine) {
 		
 		// Prepare parser & settings according to schema table
@@ -403,6 +254,7 @@ public class SchemaProcessor {
 		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();
 
 		while(true) {			
+			
 			// for each schema table
 			for(SchemaTable sTable : schema.getSchemaTables().values()) {
 				context.currSchemaTable = sTable;
@@ -411,6 +263,9 @@ public class SchemaProcessor {
 				parser = prepareCsvParser(schema, csvPath, context.milestoneRow);
 				
 				// try parsing with a schema table
+				// IMP In case where there are more than one pattern (schema table) inside a CSV,  
+				// CSV comment should have directive annotation to which schema table it's applicable to
+				// to reduce trial'n'error effort.		
 				dTable = parseCsvWithSchemaTable(parser, sTable, context);
 				
 				// check if the parse yield result
@@ -494,14 +349,17 @@ public class SchemaProcessor {
 		
 		// get first SchemaRow object, a schema table MUST have at least one schema row
 		SchemaRow sRow = sTable.getRow(context.currSchemaRow);
-		if(sRow == null) return null;		
+		if(sRow == null) return null;
 		
 		// read in CSV & schema line-by-line
 	    while ((row = parser.parseNext()) != null) {	    
 
 			// check if this row is a repeating row
-			if(sRow.isRepeat()) { // call parseRepeatingRow()
-				if(!parseRepeatingRow(row, parser, dTable, sRow, context)) return null;				
+			if(sRow.isRepeat()) {
+				if(!parseRepeatingRow(row, parser, dTable, sRow, context)) return null;
+				// reset repeating row context vars
+				context.currSubRow = 0;
+				context.repeatTimes = 0;
 			} else { //for normal schema row, call processCsvRow()
 				if(!processCsvRow(row, dTable, sRow, context)) return null;
 			}
@@ -550,7 +408,6 @@ public class SchemaProcessor {
 		// Initialize subRow & context vars
 		SchemaTable sTable = sRow.getSchemaTable();
 		context.currSubRow = 0;
-		//context.isInRepeatingRow = true;
 		context.repeatTimes = sRow.getRepeatTimes();
 		assert(sRow.getRepeatTimes() != 0) : "RepeatTimes = 0 should never enter this method.";
 		String[] row;
@@ -577,17 +434,14 @@ public class SchemaProcessor {
 			}
 			
 			// Check exit condition: if subRow > repeatTimes, exit repeating row 
-			if(context.currSubRow > context.repeatTimes) {
-				//context.isInRepeatingRow = false;			
-				return true;			
-			}
+			if(context.currSubRow > context.repeatTimes) return true;
 						
 		} // end for each CSV row
 				
 		// since there's no more CSV row to process, check if repeatingTimes is satisfied and 
 		// there's no more next schema row in the schema table. if yes, return true or false otherwise.
 		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
-		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(sRow.getRowNum() + 1) == null))? true : false;
+		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(context.currSchemaRow) == null))? true : false;
 		
 		
 /*		 
@@ -621,8 +475,7 @@ public class SchemaProcessor {
 	 * 2. Validate parsed CSV cell against CSV-X schema properties. 
 	 * 3. Create data row and data cell objects then put in data table.
 	 * 4. Filling in context variables for all cell properties' literal.
-	 * 5. Register variable in data table, if declared in a schema entity 
-	 *    (TODO except Property which should be already registered at schema parsing time)
+	 * 5. Register variable for schema cell and row in data table, if declared in a schema entity.
 	 * 
 	 * @param row an array of CSV data row.
 	 * @param dTable data table object.
@@ -633,10 +486,13 @@ public class SchemaProcessor {
 	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context) {
 		// get schema row's parent schema table
 		SchemaTable sTable = sRow.getSchemaTable();
-		Schema schema = sRow.getParentSchema();
 		
 		// create data row object
 		SchemaRow dRow = SchemaRow.createDataObject(sRow, context.currRow, dTable);
+		assert(dRow.properties.equals(sRow.properties)) : "Data row must always have same properties as schema row after creation.";
+		
+		//process context {var} for data row & register row variable in this data table, if declared 
+		procSchmEntPropRuntime(dRow, context);		
 		
 		// for each column
 		for(context.currCol = 0; context.currCol < row.length; context.currCol++) {
@@ -667,35 +523,13 @@ public class SchemaProcessor {
 			
 			// create actual data cell object
 			SchemaCell dCell = SchemaCell.createDataObject(sCell, dTable, context.currVal);
+			assert(dCell.properties.equals(sCell.properties)) : "Data cell must always have same properties as schema cell after creation.";
 										
-			// for all cell's properties, process literal for context {var}
-			for(Entry<String,String> propEntry : sCell.getProperties().entrySet()) {
-				String propName = propEntry.getKey();
-				String propVal = propEntry.getValue();
-				// pass on subRow only if this is a cell in a repeating row
-				if(sRow.isRepeat()) propVal = processContextVarLiteral(propVal, context.currRow, context.currCol, context.currSubRow);
-				else propVal = processContextVarLiteral(propVal, context.currRow, context.currCol, null);
-				
-				// if specified, delegate to user-defined property handling function
-				Function<String, Object> userFn;
-				if((userFn = schema.getUserPropHandlingFn(sCell, propName)) != null) userFn.apply(propVal);				
-				
-				dCell.addProperty(propName, propVal);
-			}
+			// for all cell's properties, process literal for context {var}, variable registration & etc.
+			procSchmEntPropRuntime(dCell, context);
 			
 			// save data cell to data row
-			dRow.addCell(dCell);
-
-			// register variable in this data table, if declared
-			// TODO do the same for row, table & property
-			String varName = dCell.getName();
-			if(varName != null)	{
-				if(hasVarInLiteral(varName)) {
-					System.err.println("Variable name must not has {var} expression left in it: " + varName);
-					return false;
-				}				
-				dTable.addVar(varName, dCell);	
-			}
+			dRow.addCell(dCell);			
 
 		} // end for each column
 		
@@ -703,25 +537,95 @@ public class SchemaProcessor {
 		if(sRow.getCell(context.currCol) != null) {
 			System.err.println("Cannot matched with schema row: " + sRow);
 			return false;
-		} else {
+		} else {			
 			// increment row counters
 	    	if(sRow.isRepeat()) context.currSubRow++;
 	    	else context.currSchemaRow++;
 	        context.currRow++;			
 			// save data row to data table
-			dTable.addRow(dRow);			
+			dTable.addRow(dRow);
+			// reset row parsing context vars
+			context.currCol = 0;
+			context.currVal = null;
 		}
 
 		return true;
 	}
 	
-	private void transform2MapDataModel() {
+	/**
+	 * Process Schema Entity Property at Run-Time.
+	 * This method must be used with data object at CSV parsing time where 
+	 * context variables are current and valid for use. 
+	 * 
+	 * It will process each property of a schema entity as follows:
+	 * 1. Replace context {var} expression in the property's literal.
+	 * 2. Register cell variable in this data table, if '@name' is declared. 
+	 * 
+	 * Up coming in future version:
+	 * X. Call user-defined function to process the specified property.
+	 * @param se
+	 * @param context
+	 */
+	private void procSchmEntPropRuntime(SchemaEntity se, Context context) {
+		SchemaTable dTable = se.getSchemaTable();
+		
+		for(Entry<String,String> propEntry : se.getProperties().entrySet()) {
+			String propName = propEntry.getKey();
+			String propVal = propEntry.getValue();
+			
+			// replace context {var} expression 
+			propVal = processContextVarLiteral(propVal, context);
+			
+			switch(propName) {
+			case SchemaEntity.METAPROP_NAME:
+				declareVarInTable(dTable, se);
+				break;
+			}
+			
+			// IMP (saved for future version) 
+			// if specified, delegate to user-defined property handling function
+			//Function<String, Object> userFn;
+			//if((userFn = schema.getUserPropHandlingFn(se, propName)) != null) userFn.apply(propVal);				
+			
+			// finally, update the property value
+			se.addProperty(propName, propVal);
+		}		
+	}
+	
+	/**
+	 * Check '@name' meta property and verify its value, the variable name, and register it on a schema table.
+	 * The function will return an error if the variable name still has {var} expression in it. Therefore, 
+	 * this method should be called after the processing of context {var} for schema entity those may refer 
+	 * to context {var}. As of version 1.0 these are: schema row and schema cell.
+	 * 
+	 * Note that nothing will happen, if the property '@name' is not defined.
+	 * IMP in the future, may adopt Exception instead, if it doesn't affect performance.
+	 *  
+	 * @param table
+	 * @param se
+	 * @return boolean whether the declaration is success.
+	 */
+	private boolean declareVarInTable(SchemaTable table, SchemaEntity se) {		
+		String varName = se.getName();
+		if(varName != null)	{
+			if(hasVarInLiteral(varName)) {
+				System.err.println("Variable name must not has {var} expression left in it: " + varName);
+				return false;
+			}				
+			table.addVar(varName, se);	
+		}
+		return true;
+	}
+	
+	//private void transform2MapDataModel() {
 		// IMP process cell & table map type via a special method in SchemaProcessor
 		// there must be a definition file of how each element in each schema entity is mapped to 
 		// what type of field, similar to Java Bean mapping.		
-	}
+	//}
 	
-	public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 
+	//public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 
+	@SuppressWarnings("unchecked")
+	public List<SchemaTable> getDatasets(String csvPath, String csvId, String[] schemaPaths) {
 		
 		Context context = new Context();
 		
@@ -748,7 +652,8 @@ public class SchemaProcessor {
 		}
 		
 		if(data != null) {
-			return (Set<DataSet>) data; // FIXME this version should only result in Schema Data Model Objects
+			//return (Set<DataSet>) data;
+			return (List<SchemaTable>) data;
 		} else {
 			System.err.println("The parse bears no fruit: check out errors log.");
 			return null;
@@ -846,10 +751,12 @@ public class SchemaProcessor {
 					s.setEmbedHeader((boolean) e.getValue());
 					break;
 				case "@property":
-					// TODO define property for global scope
-					//SchemaProperty sProp = new SchemaProperty();
-					//processPropertyDef((LinkedHashMap<String, String>) e.getValue());
-					//s.addSchemaProperty(sProp);
+					// define property for global scope 
+					// IMP @prop[name] think about type system for SchemaEntity.. @prop[type:name] and relation with variable name.
+					SchemaTable defTable = s.getDefaultTable();
+					SchemaProperty sProp = new SchemaProperty(null, defTable); 
+					processPropertyDef((LinkedHashMap<String, String>) e.getValue(), sProp);
+					defTable.addSchemaProperty(sProp);
 					break;
 				case "@table":
 					// process table internal structure.. e.g. cell, row, etc.
@@ -858,13 +765,12 @@ public class SchemaProcessor {
 					s.addSchemaTable(sTable);	
 					break;
 				default:
-					// TODO create schema table with default name if it yet to exist
 					if(key.startsWith("@cell")) {
 						// for cell definition outside table scope, it'll be added to 'default' schema table
-						processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), s.getSchemaTable(Schema.DEFAULT_TABLE_NAME));
+						processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
 					} else if(key.startsWith("@row")) {
 						// row definition outside table scope will also be added to 'default' schema table
-						processRowMarker(key.substring(4), (LinkedHashMap<String, String>) e.getValue(), s.getSchemaTable(Schema.DEFAULT_TABLE_NAME));
+						processRowMarker(key.substring(4), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
 					} else if(key.startsWith("@")) {
 						System.err.println("Unrecognized meta property, ignoring key : " + key);
 					} else {
@@ -885,6 +791,34 @@ public class SchemaProcessor {
 		return s;
 		
 	}
+	/**
+	 * Process schema property definition.
+	 * @param map Map of key-value holding schema property definition.
+	 * @param sProp SchemaProperty object.
+	 */
+	private void processPropertyDef(Map<String, String> map, SchemaProperty sProp) {		
+		for(Entry<String, String> e : map.entrySet()) {
+			String key = e.getKey();
+			String val = e.getValue();
+			switch(key) {
+			case "@name":
+				sProp.setName(val);
+				break;
+			case "@id":
+				sProp.setId(val);
+				break;
+			case "@datatype":
+				sProp.setDatatype(val);
+				break;
+			case "@lang":
+				sProp.setLang(val);
+				break;		
+			default:
+				sProp.addProperty(key, val);
+				break;
+			}
+		} // end for each key-value pair.
+	}
 
 	/**
 	 * Process schema table contents and update the table. 
@@ -893,7 +827,7 @@ public class SchemaProcessor {
 	 */
 	@SuppressWarnings("unchecked")
 	private void processTableContent(Map<String, Object> map, SchemaTable st) {		
-		//Schema s = st.getParentSchema();
+		
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key;
 			switch((key = e.getKey())) {
@@ -903,7 +837,7 @@ public class SchemaProcessor {
 			case "@name":
 				String tableName = (String) e.getValue();
 				st.setName(tableName);
-				//s.addVar(tableName, st); << for our policy now (2016/6/28) var must be declared at run-time as per dataset!?  
+				//s.addVar(tableName, st); << for our policy now (2016/6/28) var must be declared at run-time as per dataset.  
 				break;
 			case "@emptyCellFill":
 				st.setEmptyCellFill((String) e.getValue());
@@ -911,6 +845,11 @@ public class SchemaProcessor {
 			case "@replaceValueMap":
 				Map<String, String> rvm = st.getReplaceValueMap();
 				rvm.putAll((LinkedHashMap<String, String>) e.getValue()); 
+				break;
+			case "@property":
+				SchemaProperty sProp = new SchemaProperty(null, st); 
+				processPropertyDef((LinkedHashMap<String, String>) e.getValue(), sProp);
+				st.addSchemaProperty(sProp);
 				break;
 			case "@commonProps":
 				Map<String, String> commonProps = (LinkedHashMap<String, String>) e.getValue();
@@ -1117,12 +1056,10 @@ public class SchemaProcessor {
 	 * IMP In the future, adding support for SERE is expected.
 	 *  
 	 * @param literal
-	 * @param currRow
-	 * @param currCol
-	 * @param currSubRow
+	 * @param context
 	 * @return String of context {var} replaced literal.
 	 */
-	private String processContextVarLiteral(String literal, Integer currRow, Integer currCol, Integer currSubRow) {
+	private String processContextVarLiteral(String literal, Context context) {
 		String retVal = literal;		
 	    // detect context {var} expression	    
 	    Pattern p = Pattern.compile(CONTEXT_VAR_REGEX, Pattern.DOTALL);
@@ -1133,57 +1070,21 @@ public class SchemaProcessor {
 	    	
     		switch(varName) {
     		case "row":
-    			if(currRow != null) m.appendReplacement(sb, currRow.toString());
+    			if(context.currRow != null) m.appendReplacement(sb, context.currRow.toString());
     			else throw new IllegalArgumentException("Referring to null value for currRow.");
     			break;
     		case "col":
-    			if(currCol != null) m.appendReplacement(sb, currCol.toString());
+    			if(context.currCol != null) m.appendReplacement(sb, context.currCol.toString());
     			else throw new IllegalArgumentException("Referring to null value for currCol.");
     			break;
     		case "subrow":
-    			if(currSubRow != null) m.appendReplacement(sb, currSubRow.toString());
-    			else throw new RuntimeException("Referring to null value for currSubRow.");
+    			if(context.currSubRow != null) m.appendReplacement(sb, context.currSubRow.toString());
+    			else throw new IllegalArgumentException("Referring to null value for currSubRow.");
     			break;
     		default:
     			assert(false) : "non-context var shouldn't get matched here: " + varName; 
     			break;
-    		}	    	
-
-//	    	if(se.getClass().equals(Cell.class)) {
-//	    		Cell cell =  (Cell) se;
-//	    		switch(varName) {
-//	    		case "row":
-//	    			m.appendReplacement(sb, Integer.toString(cell.getRow()));
-//	    			break;
-//	    		case "col":
-//	    			m.appendReplacement(sb, Integer.toString(cell.getCol()));
-//	    			break;
-//	    		case "subrow":
-//	    			if(cell.isInRepeatingRow() && cell.getSubRow() != -1) m.appendReplacement(sb, Integer.toString(cell.getSubRow()));
-//	    			else throw new RuntimeException("Referring to {subrow} in non-applicable cell context: " + cell);
-//	    			break;
-//	    		default:
-//	    			assert(false) : "non-context var shouldn't get matched here: " + varName; 
-//	    			break;
-//	    		}
-//	    		
-//	    	} else if(se.getClass().equals(SchemaRow.class)) {
-//	    		SchemaRow sr =  (SchemaRow) se;
-//	    		switch(varName) {
-//	    		case "row":
-//	    			if(sr.getRowNum() != -1) m.appendReplacement(sb, Integer.toString(sr.getRowNum()));
-//	    			else throw new RuntimeException("Row number of SchemaRow object is NOT initialized.");
-//	    			break;
-//	    		case "col":
-//	    		case "subrow":
-//	    			throw new RuntimeException("Reference to context var '" + varName + "' in non-applicable context: " + sr);
-//	    		default:
-//	    			assert(false) : "non-context var shouldn't get matched here: " + varName;
-//	    			break;
-//	    		}
-//	    	} else {
-//	    		assert(false) : "there's no context var literal to process for other type of entity: " + se;
-//	    	}
+    		}
 	    
 	    	m.appendTail(sb);
 	    	retVal = sb.toString();

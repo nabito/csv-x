@@ -70,11 +70,7 @@ public class SchemaTable extends SchemaEntity {
 	
 	/**
 	 * Mapping between variable name and schema entity. 
-	 * Variable has global scope within a schema file. 
-	 * 
-	 * It can be used to cross reference schema entity from different schema table 
-	 * without directly using full schema entity reference expression e.g. \@table[name].@cell[x,y].
-	 * 
+	 * Variable has global scope within a schema table.
 	 */
 	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();		
 	
@@ -97,6 +93,13 @@ public class SchemaTable extends SchemaEntity {
 	 * 
 	 */	
 	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
+	
+	/**
+	 * Schema Property definitions shared among all schema entity in this schema table. 
+	 * This collection also serves as variable name-schema property mapping because a 
+	 * schema property cannot exists alone without a name anyway. 
+	 */
+	private Map<String, SchemaProperty> sProps = new HashMap<String,SchemaProperty>();	
 
 	/**
 	 * Create SchemaTable. If name is not provided (i.e. null) schemaTable's name will be populated with randomly 
@@ -121,7 +124,7 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * IMP considering creating data classes for all schema entity.
+	 * OPT considering creating data classes for all schema entity.
 	 * 
 	 * Create copy for data object that has everything except varMap, SchemaRow, and its SchemaCell inside. 
 	 * This is used for data model creation based on schema blueprint. Each actual data table will 
@@ -133,6 +136,7 @@ public class SchemaTable extends SchemaEntity {
 		newTable.emptyCellFill =  st.emptyCellFill;
 		newTable.properties.putAll(st.properties);
 		newTable.replaceValueMap.putAll(st.replaceValueMap);
+		newTable.sProps.putAll(st.sProps);
 		return newTable;
 	}
 	
@@ -184,14 +188,6 @@ public class SchemaTable extends SchemaEntity {
 	public void addAllCommonProps(Map<String, String> props) {
 		commonProps.putAll(props);
 	}
-
-	/**
-	 * Add schema row. If there are existing SchemaRow object it will be overwritten.
-	 * @param sr
-	 */
-	public void addRow(SchemaRow sr) {
-		schemaRows.put(sr.getRowNum(), sr);
-	}
 	
 	/**
 	 * Get schema row. 
@@ -201,6 +197,22 @@ public class SchemaTable extends SchemaEntity {
 	public SchemaRow getRow(int rowNum) {
 		return schemaRows.get(rowNum);
 	}
+	
+	/**
+	 * Get all schema rows inside this schema table.
+	 * @return Map<Integer, SchemaRow> between row number and its corresponding schema row object.
+	 */
+	public Map<Integer, SchemaRow> getSchemaRows() {
+		return schemaRows;
+	}
+	
+	/**
+	 * Add schema row. If there are existing SchemaRow object it will be overwritten.
+	 * @param sr
+	 */
+	public void addRow(SchemaRow sr) {
+		schemaRows.put(sr.getRowNum(), sr);
+	}	
 	
 	/**
 	 * Get cell.
@@ -233,6 +245,53 @@ public class SchemaTable extends SchemaEntity {
 			sr.addCell(cell);
 			schemaRows.put(cell.getRow(), sr);
 		}
+	}
+	
+	/**
+	 * Check if this schema table contains schema property with the name.
+	 * @param name
+	 * @return true or false.
+	 */
+	public boolean hasSchemaProperty(String name) {
+		return sProps.containsKey(name);
+	}
+	
+	/**
+	 * Get schema property definition object by its name.
+	 * @param propName
+	 * @return SchemaProperty object or null if schema property with the name is not available.
+	 */
+	public SchemaProperty getSchemaProperty(String propName) {
+		return sProps.get(propName);
+	}
+	
+	/**
+	 * Get collection holding map between schema property name and its object inside this schema table.
+	 * @return Map<String, SchemaProperty>
+	 */
+	public Map<String, SchemaProperty> getSchemaProperties() {
+		return sProps;
+	}
+	
+	/**
+	 * Add a schema property definition to the schema table. 
+	 * If schema property of the same name already exists it will be overwritten.
+	 * 
+	 * Note that this is done in the same fashion as schema table is for schema. 
+	 * Thus, its name is automatically registered as a variable for the schema table.
+	 *   
+	 * @param sProp
+	 */
+	public void addSchemaProperty(SchemaProperty sProp) {
+		sProps.put(sProp.getName(), sProp);
+	}
+	
+	/**
+	 * Remove a schema property by name from this schema table.
+	 * @param propName
+	 */
+	public void removeSchemaProperty(String propName) {
+		sProps.remove(propName);
 	}
 	
 	/**
@@ -294,6 +353,14 @@ public class SchemaTable extends SchemaEntity {
 	public void addVar(String varName, SchemaEntity se) {
 		if(varMap.containsKey(varName)) throw new RuntimeException("Variable name '" + varName + "' already exists and is pointed to schema entity: " + se.toString() + "");
 		varMap.put(varName, se);
+	}
+	
+	/**
+	 * Remove a variable from variable registry.
+	 * @param varName
+	 */
+	public void removeVar(String varName) {
+		varMap.remove(varName);
 	}
 	
 	/**
@@ -393,7 +460,26 @@ public class SchemaTable extends SchemaEntity {
 		}
 		
 		return true;
-	}	
+	}
+	
+	/**
+	 * Set the '@name' property of this schema table while also update its register 
+	 * inside hashmap collection of parent schema.
+	 * 
+	 * However, default table name cannot be changed. 
+	 * Any attempt to do so will cause an error to be thrown.
+	 * 
+	 * @param name
+	 */
+	@Override
+	public void setName(String name) {
+		if(name.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
+		String oldName = getName();		
+		assert(oldName != null && parent.hasSchemaTable(oldName)) : "A schema table must always have a name and a register inside its parent schema."; 
+		parent.removeSchemaTable(oldName);
+		setName(name);
+		parent.addSchemaTable(this);
+	}		
 
 	@Override
 	public SchemaTable getSchemaTable() {

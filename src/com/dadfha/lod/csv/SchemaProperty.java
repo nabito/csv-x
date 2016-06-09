@@ -21,6 +21,31 @@ package com.dadfha.lod.csv;
  */
 public class SchemaProperty extends SchemaEntity {
 
+	/**
+	 * Parent schema table.
+	 */
+	private SchemaTable parentTable;	
+	
+	public SchemaProperty(String propName, SchemaTable parentTable) {
+		setName(propName);
+		this.parentTable = parentTable;
+	}
+	
+	/**
+	 * Set the '@name' property of this schema property while also update its registry 
+	 * inside hashmap collection of parent schema table.
+	 * 
+	 * @param name
+	 */
+	@Override
+	public void setName(String name) {
+		String oldName = getName();		
+		assert(oldName != null && parentTable.hasSchemaProperty(oldName)) : "A schema property must always have a name and a registry inside its parent table."; 
+		parentTable.removeSchemaProperty(oldName);
+		setName(name);
+		parentTable.addSchemaProperty(this);
+	}
+
 	/* (non-Javadoc)
 	 * @see com.dadfha.lod.csv.SchemaEntity#getParentSchema()
 	 */

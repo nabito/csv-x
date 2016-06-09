@@ -19,6 +19,25 @@ import java.util.function.Function;
  */
 public class Schema {
 	
+	/**
+	 * Any schema entity besides schema table declared in global scope, i.e. is not under any table schema entity, 
+	 * will be assigned to default table. 
+	 * 
+	 * IMP In the next version, it may override all schema entities under a named table with the same signature, 
+	 * namely:
+	 * 
+	 * @cell[signature]
+	 * @row[signature]
+	 * @property[signature] or @property with @name = "signature".
+	 * 
+	 * This feature may, in the future, help reducing effort in describing schema table sharing a portion with 
+	 * common schema definition.  
+	 *  
+	 * At current version (1.0) the semantic of schema entities inside default table is up to user where default
+	 * table is regarded as just another table with default name. One recommend pattern is to use default table 
+	 * to hold common schema entity independent of CSV contents, like Schema Property.
+	 *  
+	 */
 	public static final String DEFAULT_TABLE_NAME = "@defaultTable";
 	
 	/**
@@ -28,6 +47,9 @@ public class Schema {
 	
 	/**
 	 * Map between table name and schema table.
+	 * 
+	 * Since a schema table always has a name, this also serve as the variable registry 
+	 * for schema table inside the schema.
 	 */
 	private Map<String, SchemaTable> sTables = new HashMap<String, SchemaTable>();
 	
@@ -254,6 +276,15 @@ public class Schema {
 	}	
 	
 	/**
+	 * Check if this schema contains a schema table with the name.
+	 * @param name
+	 * @return true or false.
+	 */
+	public boolean hasSchemaTable(String name) {
+		return sTables.containsKey(name);
+	}
+	
+	/**
 	 * Get schema table by its name.
 	 * @param name
 	 * @return SchemaTable of the input name or null if table with the name does not exist.
@@ -271,12 +302,30 @@ public class Schema {
 	}
 	
 	/**
+	 * Get default schema table. One will be created if it hasn't been done yet.
+	 * @return SchemaTable
+	 */
+	public SchemaTable getDefaultTable() {
+		SchemaTable sTable;
+		if((sTable = sTables.get(DEFAULT_TABLE_NAME)) == null) sTable = new SchemaTable(DEFAULT_TABLE_NAME, this);
+		return sTable;
+	}
+	
+	/**
 	 * Add input schema table to the map. 
 	 * Replacing existing schema table with the same name.  
 	 * @param table
 	 */
 	public void addSchemaTable(SchemaTable table) {
 		sTables.put(table.getName(), table);
+	}
+	
+	/**
+	 * Remove a register of schema table from this schema. 
+	 * @param tableName
+	 */
+	public void removeSchemaTable(String tableName) {
+		sTables.remove(tableName);
 	}
 
 }

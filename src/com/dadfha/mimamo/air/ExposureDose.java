@@ -1,10 +1,14 @@
 package com.dadfha.mimamo.air;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.dadfha.lod.csv.SchemaCell;
 import com.dadfha.lod.csv.SchemaProcessor;
+import com.dadfha.lod.csv.SchemaRow;
+import com.dadfha.lod.csv.SchemaTable;
 
 public class ExposureDose {
 	
@@ -58,6 +62,25 @@ public class ExposureDose {
 		}
 	}
 	
+	public static void dumpSchemaTables(List<SchemaTable> dataTables) {
+		for(SchemaTable dTable : dataTables) {
+			System.out.println("Table : " + dTable);
+			for(Map.Entry<Integer, SchemaRow> rowsEnt : dTable.getSchemaRows().entrySet()) {
+				Integer rowNum = rowsEnt.getKey();
+				SchemaRow dRow = rowsEnt.getValue();
+				System.out.print("Row: " + rowNum);
+				//System.out.println(dRow);
+				for(Map.Entry<Integer, SchemaCell> cellEnt : dRow.getSchemaCells().entrySet()) {
+					Integer colNum = cellEnt.getKey();
+					SchemaCell dCell = cellEnt.getValue();
+					//System.out.print("Col: " + colNum + " ");
+					System.out.print(dCell.getValue() + ", ");
+				}
+				System.out.println();
+			}
+		}
+	}	
+	
 	public void computeMatch() {
 		
 	}
@@ -72,11 +95,15 @@ public class ExposureDose {
 		SchemaProcessor sp = new SchemaProcessor();
 		//String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
 		String[] schemaPaths = {"airp-csvx-var-only.json"};
-		dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
+		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
+		List<SchemaTable> result = sp.getDatasets("oxidant.csv", null, schemaPaths);
+		System.out.println(result);
 		
-		ed.dumpDatasets();
+		dumpSchemaTables(result);
 		
-		ed.computeMatch();
+		//ed.dumpDatasets();
+		
+		//ed.computeMatch();
 	}
 
 }

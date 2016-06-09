@@ -49,6 +49,14 @@ public class SchemaRow extends SchemaEntity {
 		return cells.get(col);
 	}
 	
+	/**
+	 * Get all schema cells within this schema row.
+	 * @return Map<Integer, SchemaCell> between column number and its corresponding schema cell object.
+	 */
+	public Map<Integer, SchemaCell> getSchemaCells() {
+		return cells;
+	}	
+	
 	public void addCell(SchemaCell cell) {
 		cells.put(cell.getCol(), cell);
 	}
@@ -95,7 +103,9 @@ public class SchemaRow extends SchemaEntity {
 	}
 	
 	/**
-	 * Create data row object from a blueprint schema row.
+	 * Create data row object from a blueprint schema row. 
+	 * This is not the same as cloning since parent table will be of actual data table
+	 * instead of schema table.  
 	 * @param sRow
 	 * @param dataRowNum
 	 * @param parentDataTable
@@ -106,6 +116,22 @@ public class SchemaRow extends SchemaEntity {
 		dRow.properties.putAll(sRow.properties);
 		dRow.repeatTimes = sRow.repeatTimes;
 		return dRow;
+	}
+	
+	/**
+	 * Set the '@name' property of this schema row while also update variable registry, if available, 
+	 * inside hashmap collection of its parent schema table.
+	 * 
+	 * @param name
+	 */
+	@Override
+	public void setName(String name) {
+		String oldName = getName();		
+		if(oldName != null && parentTable.hasVar(oldName)) {
+			parentTable.removeVar(oldName);
+			setName(name);
+			parentTable.addVar(name, this);
+		} else setName(name);
 	}
 
 	@Override

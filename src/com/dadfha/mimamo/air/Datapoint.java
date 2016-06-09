@@ -16,7 +16,7 @@ import com.dadfha.lod.csv.Relation;
  * for software agent to recognize its structure and meaning, a.k.a. knowing how to consume it, 
  * using URI, title, description, or any other form of semantic representation.
  * 
- * TODO This dataset and datapoint model leverage conventions and patterns in LinkedDataPlatform specification 
+ * IMP This dataset and datapoint model leverage conventions and patterns in LinkedDataPlatform specification 
  * to represent a list of data...2B Continue..
  * 
  * As a default, let's transfer every property to the mapped object including meta-property (@) because in the 
@@ -35,7 +35,9 @@ import com.dadfha.lod.csv.Relation;
 public class Datapoint {
 	
 	/**
-	 * TODO rethink if this is necessary...
+	 * IMP this generic powerful data model now working against the goal of simple data utilization.
+	 * so this feature is postponed to the future version. 
+	 *  
 	 * Relations the cell has with other cell(s). 
 	 * This is regarded as a special kind of property. 
 	 */
