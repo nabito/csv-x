@@ -119,19 +119,26 @@ public class SchemaRow extends SchemaEntity {
 	}
 	
 	/**
-	 * Set the '@name' property of this schema row while also update variable registry, if available, 
+	 * Set the '@name' property of this schema row while also update variable register, if available, 
 	 * inside hashmap collection of its parent schema table.
 	 * 
-	 * @param name
+	 * @param newName
 	 */
 	@Override
-	public void setName(String name) {
-		String oldName = getName();		
-		if(oldName != null && parentTable.hasVar(oldName)) {
-			parentTable.removeVar(oldName);
-			setName(name);
-			parentTable.addVar(name, this);
-		} else setName(name);
+	public void changeName(String newName) {		
+		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema row: " + this);
+		String oldName = getName();
+		if(oldName != null) {			
+			if(parentTable.hasVar(oldName)) {
+				parentTable.removeVar(oldName);
+				addProperty(METAPROP_NAME, newName);
+				parentTable.addVar(newName, this);	
+			} else {
+				addProperty(METAPROP_NAME, newName);
+			}
+		} else { // if it has never been set before, call setName()
+			super.setName(newName); 			
+		}	
 	}
 
 	@Override

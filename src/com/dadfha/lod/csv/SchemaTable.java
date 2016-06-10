@@ -463,21 +463,30 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * Set the '@name' property of this schema table while also update its register 
-	 * inside hashmap collection of parent schema.
+	 * Change the '@name' property of this schema table while also update its register 
+	 * inside hashmap collection of its parent schema. Therefore, it's required that the
+	 * table is already initialized with its parent schema. 
 	 * 
-	 * However, default table name cannot be changed. 
+	 * Remarks: 
+	 * 
+	 * 1. Default table name cannot be changed. 
 	 * Any attempt to do so will cause an error to be thrown.
 	 * 
-	 * @param name
+	 * 2. If parent schema has not yet bind with the table, it will be doen so in this method.
+	 * 
+	 * @param newName
 	 */
 	@Override
-	public void setName(String name) {
-		if(name.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
-		String oldName = getName();		
-		assert(oldName != null && parent.hasSchemaTable(oldName)) : "A schema table must always have a name and a register inside its parent schema."; 
-		parent.removeSchemaTable(oldName);
-		setName(name);
+	public void changeName(String newName) {	
+		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
+		String oldName = getName();			
+		if(oldName != null) {
+			if(oldName.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
+			if(parent.hasSchemaTable(oldName)) parent.removeSchemaTable(oldName);
+			addProperty(METAPROP_NAME, newName);
+		} else { // if it has never been set before, call setName()
+			super.setName(newName); 			
+		}
 		parent.addSchemaTable(this);
 	}		
 

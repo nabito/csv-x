@@ -679,6 +679,11 @@ public class SchemaProcessor {
 		    	jsonStrBld.append(JSONMinify.minify(line));
 		    }
 		    
+		    //System.out.println(jsonStrBld.toString());
+		    //System.exit(0);
+		    
+		    // TODO wrap this fn with try catch for any error in CSV-X parsing
+		    
 			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());
 			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();		
 			
@@ -728,7 +733,7 @@ public class SchemaProcessor {
 				case "@doubleQuote":
 					s.setDoubleQuote((boolean) e.getValue());
 					break;
-				case "@skipBlankRow":
+				case "@skipBlankRows":
 					s.setSkipBlankRow((boolean) e.getValue());
 					break;
 				case "@skipColumns":

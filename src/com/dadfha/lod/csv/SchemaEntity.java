@@ -180,14 +180,29 @@ public abstract class SchemaEntity {
 	}
 
 	/**
-	 * Set name of this schema entity.  
+	 * Set name of this schema entity. Once the name is set, it cannot be changed using this method. 
+	 * It must be changed using changeName() to ensure safe update operation.
+	 * This method is final and cannot be overridden.
 	 * @param name the name to set
 	 */
-	public void setName(String name) {
+	public final void setName(String name) {
+		if(getName() != null) throw new RuntimeException("Once the name is set, it must be changed using changeName() to ensure safe update operation (See Javadoc).");
 		addProperty(METAPROP_NAME, name);
 	}
 	
-	//public abstract boolean changeName();
+	/**
+	 * Safely update the name of this schema entity. The implementation of this method must ensure that:
+	 * 
+	 * 1. Any reference to this schema entity by its name must also get update.
+	 * 2. If the name property is used for hash creation or generate output of some kinds from the property, 
+	 * those produced value should also get update too.
+	 * 3. The change doesn't violate the program's business logics.
+	 * 
+	 * It may also incorporate any additional program logics into the method as well. 
+	 */
+	public void changeName(String newName) {
+		addProperty(METAPROP_NAME, newName);
+	}
 
 	/**
 	 * Get value of this schema entity.

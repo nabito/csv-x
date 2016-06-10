@@ -96,7 +96,7 @@ public class ExposureDose {
 		//String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
 		String[] schemaPaths = {"airp-csvx-var-only.json"};
 		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
-		List<SchemaTable> result = sp.getDatasets("oxidant.csv", null, schemaPaths);
+		List<SchemaTable> result = sp.getDatasets("airpolt.csv", null, schemaPaths);
 		System.out.println(result);
 		
 		dumpSchemaTables(result);

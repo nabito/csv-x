@@ -881,7 +881,7 @@
 		{
 			"@mapType" : "Datapoint",
 			"@datatype" : "integer",
-			"title_en" : "Total number of measurement days in {msrYrMth_wind}",			
+			"title_en" : "Total number of measurement days in {msrYrMth_wind}"
 		},
 		
 		"@cell[7,29]" : {},

@@ -32,17 +32,24 @@ public class SchemaProperty extends SchemaEntity {
 	}
 	
 	/**
-	 * Set the '@name' property of this schema property while also update its registry 
-	 * inside hashmap collection of parent schema table.
+	 * Change the '@name' property of this schema property while also update its register 
+	 * inside hashmap collection of its parent schema table.
 	 * 
-	 * @param name
+	 * Note that if its parent table has not yet bind with this schema property, it'll be 
+	 * done so by this method.
+	 * 
+	 * @param newName
 	 */
 	@Override
-	public void setName(String name) {
-		String oldName = getName();		
-		assert(oldName != null && parentTable.hasSchemaProperty(oldName)) : "A schema property must always have a name and a registry inside its parent table."; 
-		parentTable.removeSchemaProperty(oldName);
-		setName(name);
+	public void changeName(String newName) {		
+		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema property: " + this);
+		String oldName = getName();
+		if(oldName != null) {			
+			if(parentTable.hasSchemaProperty(oldName)) parentTable.removeSchemaProperty(oldName);
+			addProperty(METAPROP_NAME, newName);			
+		} else { // if it has never been set before, call setName()
+			super.setName(newName);
+		}
 		parentTable.addSchemaProperty(this);
 	}
 
