@@ -43,7 +43,7 @@ public class Schema {
 	/**
 	 * ID of the schema with the same definition as in JSON-LD.
 	 */
-	private String id;
+//	private String id;
 	
 	/**
 	 * Map between table name and schema table.
@@ -58,40 +58,13 @@ public class Schema {
 	 */
 	//private List<Object> context; // IMP may use JSON-LD Java object! to map with LinkedData
 	
+	/**
+	 * List of target CSVs.
+	 */
 	private List<String> targetCsvs = new ArrayList<String>();
 	
-	private String encoding;
-	
-	private String lang;
-	
-	private String delimiter;
-	
-	private String lineSeparator; 
-	
-	private String commentPrefix;
-	
-	private String quoteChar;
-	
-	private boolean header;
-	
-	private int headerRowCount;
-	
-	private boolean skipBlankRow;
-	
-	private int skipColumns;
-	
-	private boolean doubleQuote;
-	
-	private boolean skipInitialSpace;
-	
-	private int skipRows;
-	
-	private boolean trim;
-	
-	private boolean embedHeader; 
-	
 	/**
-	 * Other extra/user-defined properties.
+	 * Schema properties (including user-defined). 
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();	
 	
@@ -101,11 +74,30 @@ public class Schema {
 	 * 
 	 * The schema keeps the collection as map between SERE and Function class.
 	 */
-	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();	
+	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();
+	
+	/**
+	 * Create data schema to hold actual data table(s).
+	 * Every attributes in original schema will be copied to this new data schema 
+	 * except for schema table which is expected to be expanded from original schema blueprint.    
+	 * @param s
+	 * @return Schema
+	 */
+	public static Schema createDataObject(Schema s) {
+		Schema newSchema = new Schema();
+		newSchema.properties.putAll(s.properties);
+		newSchema.targetCsvs.addAll(s.targetCsvs);
+		newSchema.userFuncs.putAll(s.userFuncs);
+		return newSchema;
+	}	
 
 	SchemaCell getCell(int row, int col, SchemaTable table) {
 		if(table == null) table = sTables.get("default");
 		return table.getCell(row, col);
+	}
+	
+	public Object getProperty(String propName) {
+		return properties.get(propName);
 	}
 	
 	public Map<String, Object> getProperties() {
@@ -115,25 +107,13 @@ public class Schema {
 	public void addProperty(String key, Object val) {
 		properties.put(key, val);
 	}
-
-	public String getId() {
-		return id;
-	}
-
-	public void setId(String id) {
-		this.id = id;
+	
+	public void replaceProperty(String key, Object val) {
+		properties.replace(key, val);
 	}
 
 	public boolean isRepeatingRow(int row, SchemaTable table) {
 		return table.getRow(row).isRepeat();
-	}
-	
-	public String getLineSeparator() {
-		return lineSeparator;
-	}
-	
-	public void setLineSeparator(String lineSeparator) {
-		this.lineSeparator = lineSeparator; 
 	}
 	
 	/**
@@ -146,122 +126,6 @@ public class Schema {
 	
 	public boolean addTargetCsv(String csvId) {
 		return targetCsvs.add(csvId);
-	}
-
-	public String getEncoding() {
-		return encoding;
-	}
-
-	public void setEncoding(String encoding) {
-		this.encoding = encoding;
-	}
-
-	public String getLang() {
-		return lang;
-	}
-
-	public void setLang(String lang) {
-		this.lang = lang;
-	}
-
-	public String getDelimiter() {
-		return delimiter;
-	}
-
-	public void setDelimiter(String delimiter) {
-		this.delimiter = delimiter;
-	}
-
-	public String getCommentPrefix() {
-		return commentPrefix;
-	}
-
-	public void setCommentPrefix(String commentPrefix) {
-		this.commentPrefix = commentPrefix;
-	}
-
-	public String getQuoteChar() {
-		return quoteChar;
-	}
-
-	public void setQuoteChar(String quoteChar) {
-		this.quoteChar = quoteChar;
-	}
-
-	public boolean isHeader() {
-		return header;
-	}
-	
-	public boolean getHeader() {
-		return header;
-	}
-
-	public void setHeader(boolean header) {
-		this.header = header;
-	}
-
-	public int getHeaderRowCount() {
-		return headerRowCount;
-	}
-
-	public void setHeaderRowCount(int headerRowCount) {
-		this.headerRowCount = headerRowCount;
-	}
-
-	public boolean isSkipBlankRow() {
-		return skipBlankRow;
-	}
-
-	public void setSkipBlankRow(boolean skipBlankRow) {
-		this.skipBlankRow = skipBlankRow;
-	}
-
-	public int getSkipColumns() {
-		return skipColumns;
-	}
-
-	public void setSkipColumns(int skipColumns) {
-		this.skipColumns = skipColumns;
-	}
-
-	public boolean isDoubleQuote() {
-		return doubleQuote;
-	}
-
-	public void setDoubleQuote(boolean doubleQuote) {
-		this.doubleQuote = doubleQuote;
-	}
-
-	public boolean isSkipInitialSpace() {
-		return skipInitialSpace;
-	}
-
-	public void setSkipInitialSpace(boolean skipInitialSpace) {
-		this.skipInitialSpace = skipInitialSpace;
-	}
-
-	public int getSkipRows() {
-		return skipRows;
-	}
-
-	public void setSkipRows(int skipRows) {
-		this.skipRows = skipRows;
-	}
-
-	public boolean isTrim() {
-		return trim;
-	}
-
-	public void setTrim(boolean trim) {
-		this.trim = trim;
-	}
-
-	public boolean isEmbedHeader() {
-		return embedHeader;
-	}
-
-	public void setEmbedHeader(boolean embedHeader) {
-		this.embedHeader = embedHeader;
 	}
 	
 	/**
@@ -328,4 +192,12 @@ public class Schema {
 		sTables.remove(tableName);
 	}
 
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return "Schema[" + properties.get("@id") + "]";
+	}
+	
 }

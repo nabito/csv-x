@@ -27,28 +27,28 @@ public class SchemaProperty extends SchemaEntity {
 	private SchemaTable parentTable;	
 	
 	public SchemaProperty(String propName, SchemaTable parentTable) {
-		setName(propName);
 		this.parentTable = parentTable;
+		setName(propName);
 	}
 	
 	/**
-	 * Change the '@name' property of this schema property while also update its register 
+	 * Set the '@name' property of this schema property while also update its register 
 	 * inside hashmap collection of its parent schema table.
 	 * 
 	 * Note that if its parent table has not yet bind with this schema property, it'll be 
 	 * done so by this method.
 	 * 
-	 * @param newName
+	 * @param name
 	 */
 	@Override
-	public void changeName(String newName) {		
+	public void setName(String name) {		
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema property: " + this);
 		String oldName = getName();
 		if(oldName != null) {			
 			if(parentTable.hasSchemaProperty(oldName)) parentTable.removeSchemaProperty(oldName);
-			addProperty(METAPROP_NAME, newName);			
+			addProperty(METAPROP_NAME, name);			
 		} else { // if it has never been set before, call setName()
-			super.setName(newName);
+			super.setName(name);
 		}
 		parentTable.addSchemaProperty(this);
 	}
@@ -58,7 +58,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	@Override
 	public Schema getParentSchema() {
-		return null;
+		return parentTable.getParentSchema();
 	}
 
 	/* (non-Javadoc)
@@ -66,7 +66,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	@Override
 	public SchemaTable getSchemaTable() {
-		return null;
+		return parentTable;
 	}
 
 	/* (non-Javadoc)

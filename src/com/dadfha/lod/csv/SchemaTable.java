@@ -3,7 +3,6 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,9 +40,10 @@ public class SchemaTable extends SchemaEntity {
 	
 	/**
 	 * Map of the value(s) to replace.
-	 * Note that empty value always has key of empty string ("").
+	 * Note that empty value always has key of empty string ("") 
+	 * and is not the same as Empty Cell definition.
 	 */
-	private Map<String, String> replaceValueMap;	
+	private Map<String, String> replaceValueMap = new HashMap<String, String>();	
 	
 	/**
 	 * @deprecated This is not needed anymore. Considering remove this.  
@@ -119,24 +119,30 @@ public class SchemaTable extends SchemaEntity {
 		} else {
 			if(s.getSchemaTable(name) != null) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
 		}
-		setName(name);
 		parent = s;
+		setName(name);
 	}
 	
 	/**
 	 * OPT considering creating data classes for all schema entity.
 	 * 
-	 * Create copy for data object that has everything except varMap, SchemaRow, and its SchemaCell inside. 
+	 * Create copy for data object that has everything except SchemaRow, and its SchemaCell inside. 
 	 * This is used for data model creation based on schema blueprint. Each actual data table will 
 	 * still holds reference to its parent schema.
+	 * 
+	 * @param dSchema
+	 * @param st
+	 * @param tableName
+	 * @return SchemaTable
 	 */
-	public static SchemaTable createDataObject(SchemaTable st, String tableName) {
-		SchemaTable newTable = new SchemaTable(tableName, st.parent);
+	public static SchemaTable createDataObject(Schema dSchema, SchemaTable st, String tableName) {
+		SchemaTable newTable = new SchemaTable(tableName, dSchema);
 		newTable.commonProps.putAll(st.commonProps);
 		newTable.emptyCellFill =  st.emptyCellFill;
 		newTable.properties.putAll(st.properties);
 		newTable.replaceValueMap.putAll(st.replaceValueMap);
 		newTable.sProps.putAll(st.sProps);
+		newTable.varMap.putAll(st.varMap);
 		return newTable;
 	}
 	
@@ -463,7 +469,7 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * Change the '@name' property of this schema table while also update its register 
+	 * Set the '@name' property of this schema table while also update its register 
 	 * inside hashmap collection of its parent schema. Therefore, it's required that the
 	 * table is already initialized with its parent schema. 
 	 * 
@@ -472,23 +478,23 @@ public class SchemaTable extends SchemaEntity {
 	 * 1. Default table name cannot be changed. 
 	 * Any attempt to do so will cause an error to be thrown.
 	 * 
-	 * 2. If parent schema has not yet bind with the table, it will be doen so in this method.
+	 * 2. If parent schema has not yet bind with the table, it will be done so in this method.
 	 * 
-	 * @param newName
+	 * @param name
 	 */
 	@Override
-	public void changeName(String newName) {	
+	public void setName(String name) {	
 		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
 		String oldName = getName();			
 		if(oldName != null) {
 			if(oldName.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
 			if(parent.hasSchemaTable(oldName)) parent.removeSchemaTable(oldName);
-			addProperty(METAPROP_NAME, newName);
+			addProperty(METAPROP_NAME, name);
 		} else { // if it has never been set before, call setName()
-			super.setName(newName); 			
+			super.setName(name); 			
 		}
 		parent.addSchemaTable(this);
-	}		
+	}
 
 	@Override
 	public SchemaTable getSchemaTable() {

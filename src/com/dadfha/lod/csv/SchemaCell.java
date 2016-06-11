@@ -75,7 +75,7 @@ public class SchemaCell extends SchemaEntity {
 	public static SchemaCell createDataObject(SchemaCell schemaCell, SchemaTable parentDataTable, String value) {
 		SchemaCell dataCell = new SchemaCell(schemaCell);
 		dataCell.parentTable = parentDataTable;
-		dataCell.setValue(value);
+		if(value != null) dataCell.setValue(value);
 		return dataCell;
 	}
 
@@ -133,25 +133,25 @@ public class SchemaCell extends SchemaEntity {
 	}
 	
 	/**
-	 * Change the '@name' property of this schema cell while also update variable register, if available, 
+	 * Set the '@name' property of this schema cell while also update variable register, if available, 
 	 * inside hashmap collection of its parent schema table.
 	 * 
-	 * @param newName
+	 * @param name
 	 */
 	@Override
-	public void changeName(String newName) {		
+	public void setName(String name) {		
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema cell: " + this);
 		String oldName = getName();
 		if(oldName != null) {			
 			if(parentTable.hasVar(oldName)) {
 				parentTable.removeVar(oldName);
-				addProperty(METAPROP_NAME, newName);
-				parentTable.addVar(newName, this);	
+				addProperty(METAPROP_NAME, name);
+				parentTable.addVar(name, this);	
 			} else {
-				addProperty(METAPROP_NAME, newName);
+				addProperty(METAPROP_NAME, name);
 			}
 		} else { // if it has never been set before, call setName()
-			super.setName(newName); 			
+			super.setName(name); 			
 		}
 	}
 	

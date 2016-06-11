@@ -23,18 +23,18 @@
 	// CSV-X metadata (Con't)
 	"@embedHeader" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
 	
-	"@property" : // a user-defined data property 
+	"@prop[hasMsrDay]" : // a user-defined data property with its unique name written inside the bracket[]. (Required)
 	{ 
-		"@name" : "hasMsrDay",  // Property name is always required for property as a name to refer to
+		"@name" : "hasMsrDay_prop", // This variable name is independent of property name above.
 		"@id" : "ex:hasMsrDay",
 		"@datatype" : "dayOfMonth", // TODO re-check if this rich-datatype is supported in latest version of XML schema datatype.
 		"title_en" : "has measurement day",
 		"description" : "a property describing the day observation was made." 
 	},
 	
-	"@property" : 
+	"@prop[title_en]" : 
 	{
-		"@name" : "title_en",
+		"@name" : "title_en_prop",
 		"@id" : "ex:title",
 		"@datatype" : "string",
 		"@lang" : "en", // all literal values being described by this property is in the specified language
@@ -43,10 +43,10 @@
 	},	
 
 	// Table represents a pattern of schema for a specific set of cells. It defines each cell definition and cells' common properties.
-	"@table" :  
+	"@table[myTbl]" :  // It must always have a unique name specified inside the bracket[]. (Required)
 	{
 		"@mapType" : "Dataset",
-		"@name" : "myTable", // (Optional) even without this attribute, unnamed table(s) will be assigned uniquely addressable name 
+		"@name" : "myTable", // This variable name is independent of table name above.
 		"title" : "{tableTitle}", 
 		"title_en" : "Tokyo Air Pollutions Report",
 
@@ -451,7 +451,7 @@
 
 	},
 	
-	"@table" : 
+	"@table[WindMsrTbl]" : 
 	{
 		"@mapType" : "Dataset",
 		"@name" : "WindMsrTbl",

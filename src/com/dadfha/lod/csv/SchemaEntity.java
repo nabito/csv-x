@@ -88,6 +88,9 @@ public abstract class SchemaEntity {
 	 * which are not explicitly written in the schema file and cannot be changed
 	 * by user.
 	 * 
+	 * IMP in the next version, consider change the map to <String, Object> to 
+	 * support variety of datatype which may be needed by user-defined data. 
+	 * 
 	 */
 	Map<String, String> properties = new HashMap<String, String>();
 
@@ -180,28 +183,22 @@ public abstract class SchemaEntity {
 	}
 
 	/**
-	 * Set name of this schema entity. Once the name is set, it cannot be changed using this method. 
-	 * It must be changed using changeName() to ensure safe update operation.
-	 * This method is final and cannot be overridden.
-	 * @param name the name to set
-	 */
-	public final void setName(String name) {
-		if(getName() != null) throw new RuntimeException("Once the name is set, it must be changed using changeName() to ensure safe update operation (See Javadoc).");
-		addProperty(METAPROP_NAME, name);
-	}
-	
-	/**
-	 * Safely update the name of this schema entity. The implementation of this method must ensure that:
+	 * Set name of this schema entity. 
+	 * 
+	 * Since 'name' is used as an identifier for schema entity, to ensure safe update the name of this schema entity 
+	 * the override implementation of this method must consider the following:
 	 * 
 	 * 1. Any reference to this schema entity by its name must also get update.
 	 * 2. If the name property is used for hash creation or generate output of some kinds from the property, 
 	 * those produced value should also get update too.
 	 * 3. The change doesn't violate the program's business logics.
 	 * 
-	 * It may also incorporate any additional program logics into the method as well. 
+	 * It may also incorporate any additional program logics into the method as well.
+	 * 
+	 * @param name the name to set
 	 */
-	public void changeName(String newName) {
-		addProperty(METAPROP_NAME, newName);
+	public void setName(String name) {		
+		addProperty(METAPROP_NAME, name);
 	}
 
 	/**

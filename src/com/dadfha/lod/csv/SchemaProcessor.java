@@ -143,7 +143,7 @@ public class SchemaProcessor {
 		CsvParserSettings settings = new CsvParserSettings();
 		
 		// line separator, MacOS uses '\r'; and Windows uses '\r\n'.
-		if(schema.getLineSeparator() != null) settings.getFormat().setLineSeparator(schema.getLineSeparator());
+		if(schema.getProperty("@lineSeparator") != null) settings.getFormat().setLineSeparator((String) schema.getProperty("@lineSeparator"));
 		else settings.setLineSeparatorDetectionEnabled(true);
 		
 		// define empty string ("") fill & empty value fill to be as is, as we'll handle the filling logic by ourselves
@@ -165,7 +165,7 @@ public class SchemaProcessor {
 	
 	public void loadSchema(String schemaPath) {
 		Schema s = parseCsvXSchema(schemaPath); 
-		schemas.put(s.getId(), s);
+		schemas.put((String) s.getProperty("@id"), s);
 	}
 	
 	/**
@@ -186,8 +186,8 @@ public class SchemaProcessor {
 				for(String targetCsvId : s.getTargetCsvs()) { // for each target
 					
 					if(targetCsvId.equals(csvId)) { // if target csv matched csv id, return matched schema id
-						System.out.println("Found csv id specified in a schema id : " + s.getId());
-						return s.getId();
+						System.out.println("Found csv id specified in a schema id : " + s.getProperty("@id"));
+						return (String) s.getProperty("@id");
 					} else continue; // if not matched (yet), continue checking the next target
 
 				} // end loop through all csv target(s)
@@ -210,7 +210,7 @@ public class SchemaProcessor {
 		Reader csvReader;			
 		FileInputStream fs;
 		//FileChannel fc; // IMP CsvParser always closes the FileChannel disabling seeking fn. Must have our own parser. 
-		String csvEncoding = schema.getEncoding();			
+		String csvEncoding = (String) schema.getProperty("@encoding");			
 		try {
 			fs = new FileInputStream(csvPath);
 			//fc = fs.getChannel();
@@ -251,12 +251,14 @@ public class SchemaProcessor {
 		context.currSchema = schema;
 		SchemaTable dTable = null;
 		CsvParser parser = null;
-		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();
+		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();		
+		Schema dSchema = Schema.createDataObject(schema);
 
 		while(true) {			
 			
 			// for each schema table
 			for(SchemaTable sTable : schema.getSchemaTables().values()) {
+				
 				context.currSchemaTable = sTable;
 				
 				// Create new parser to restart from milestoneRow
@@ -265,8 +267,8 @@ public class SchemaProcessor {
 				// try parsing with a schema table
 				// IMP In case where there are more than one pattern (schema table) inside a CSV,  
 				// CSV comment should have directive annotation to which schema table it's applicable to
-				// to reduce trial'n'error effort.		
-				dTable = parseCsvWithSchemaTable(parser, sTable, context);
+				// to reduce trial'n'error effort.				
+				dTable = parseCsvWithSchemaTable(parser, dSchema, sTable, context);
 				
 				// check if the parse yield result
 				if(dTable != null) {
@@ -340,11 +342,11 @@ public class SchemaProcessor {
 	 * @return SchemaTable data table object containing parsed CSV data in the form of schema table 
 	 * or null if the parse is failed.
 	 */
-	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, SchemaTable sTable, Context context) {
+	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, Schema dSchema, SchemaTable sTable, Context context) {
 		
 		// create dataTable from schemaTable 
 		// OPT introducing runtime table naming pattern
-		SchemaTable dTable = SchemaTable.createDataObject(sTable, null);		
+		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, null);
 		String[] row;
 		
 		// get first SchemaRow object, a schema table MUST have at least one schema row
@@ -522,11 +524,10 @@ public class SchemaProcessor {
 			assert(sCell != null) : "The SchemaCell object can't be null after successful validation.";
 			
 			// create actual data cell object
-			SchemaCell dCell = SchemaCell.createDataObject(sCell, dTable, context.currVal);
-			assert(dCell.properties.equals(sCell.properties)) : "Data cell must always have same properties as schema cell after creation.";
+			SchemaCell dCell = SchemaCell.createDataObject(sCell, dTable, context.currVal);			
 										
 			// for all cell's properties, process literal for context {var}, variable registration & etc.
-			procSchmEntPropRuntime(dCell, context);
+			if(!dCell.isEmpty()) procSchmEntPropRuntime(dCell, context);
 			
 			// save data cell to data row
 			dRow.addCell(dCell);			
@@ -573,7 +574,9 @@ public class SchemaProcessor {
 			String propName = propEntry.getKey();
 			String propVal = propEntry.getValue();
 			
-			// replace context {var} expression 
+			assert(propVal != null) : "The assignment of null value for a property is not allowed in CSV-X";
+			
+			// replace context {var} expression 			
 			propVal = processContextVarLiteral(propVal, context);
 			
 			switch(propName) {
@@ -644,8 +647,7 @@ public class SchemaProcessor {
 			data = parseCsvWithSchema(csvPath, schema, context);
 		} else { 			
 			// The processor loops through known schemas until it successfully parse the CSV.
-			for(Schema schema : schemas.values()) {
-				//data = parseWithSchema(csvPath, schema);
+			for(Schema schema : schemas.values()) {		
 				data = parseCsvWithSchema(csvPath, schema, context);
 				if(data != null) break;
 			} 			
@@ -679,20 +681,17 @@ public class SchemaProcessor {
 		    	jsonStrBld.append(JSONMinify.minify(line));
 		    }
 		    
-		    //System.out.println(jsonStrBld.toString());
-		    //System.exit(0);
-		    
 		    // TODO wrap this fn with try catch for any error in CSV-X parsing
+		    String minified = jsonStrBld.toString();
+		    System.out.println(minified);
 		    
-			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());
-			Iterator<Map.Entry<String, Object>> it = csvSchemaMap.entrySet().iterator();		
+			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(minified);			
 			
-			while(it.hasNext()) {
-				Map.Entry<String, Object> e = (Map.Entry<String, Object>) it.next();				
+			for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {			
 				String key = e.getKey();
 				switch(key) {		
 				case "@id":
-					s.setId((String) e.getValue());
+					s.addProperty("@id", (String) e.getValue());
 					break;
 				case "@targetCSVs":
 					for(String csvId : (ArrayList<String>) e.getValue()) {
@@ -700,74 +699,60 @@ public class SchemaProcessor {
 					}
 					break;
 				case "@encoding":
-					s.setEncoding((String) e.getValue());
+					s.addProperty("@encoding", (String) e.getValue());
 					break;
 				case "@lang":
-					s.setLang((String) e.getValue());
+					s.addProperty("@lang", (String) e.getValue());
 					break;
 				case "@delimiter":
-					s.setDelimiter((String) e.getValue());
+					s.addProperty("@delimiter", (String) e.getValue());
 					break;
 				case "@lineSeparator":
-					s.setLineSeparator((String) e.getValue());
+					s.addProperty("@lineSeparator", (String) e.getValue());
 					break;
 				case "@commentPrefix":
-					s.setCommentPrefix((String) e.getValue());					
+					s.addProperty("@commentPrefix", (String) e.getValue());					
 					break;
 				case "@quoteChar":
-					s.setQuoteChar((String) e.getValue());
+					s.addProperty("@quoteChar", (String) e.getValue());
 					break;
 				case "@header":
-					s.setHeader((boolean) e.getValue());
+					s.addProperty("@header", (boolean) e.getValue());
 					// check if headerRowCount is not yet defined, else leave it as it is
-					if(s.getHeaderRowCount() <= 0) {
-						if(s.getHeader() == true) s.setHeaderRowCount(1);
-						else s.setHeaderRowCount(0);
+					if(s.getProperty("@headerRowCount") == null) {
+						if((Boolean) s.getProperty("@header") == true) s.addProperty("@headerRowCount", 1);
+						else s.addProperty("@headerRowCount", 0);
 					}
 					break;
 				case "@headerRowCount":
 					Integer hrc = (Integer) e.getValue();
 					if(hrc <= 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
-					s.setHeaderRowCount(hrc);
+					s.addProperty("@headerRowCount", hrc);
 					break;
 				case "@doubleQuote":
-					s.setDoubleQuote((boolean) e.getValue());
+					s.addProperty("@doubleQuote", (boolean) e.getValue());
 					break;
 				case "@skipBlankRows":
-					s.setSkipBlankRow((boolean) e.getValue());
+					s.addProperty("@skipBlankRows", (boolean) e.getValue());
 					break;
 				case "@skipColumns":
 					Integer sc = (Integer) e.getValue();
 					if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
-					s.setSkipColumns(sc);
+					s.addProperty("@skipColumns", sc);
 					break;
 				case "@skipInitialSpace":
-					s.setSkipInitialSpace((boolean) e.getValue());
+					s.addProperty("@skipInitialSpace", (boolean) e.getValue());
 					break;
 				case "@skipRows":
 					Integer sr = (Integer) e.getValue();
 					if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
-					s.setSkipRows(sr);
+					s.addProperty("@skipRows", sr);
 					break;
 				case "@trim":
-					s.setTrim((boolean) e.getValue());
+					s.addProperty("@trim", (boolean) e.getValue());
 					break;					
 				case "@embedHeader":
-					s.setEmbedHeader((boolean) e.getValue());
-					break;
-				case "@property":
-					// define property for global scope 
-					// IMP @prop[name] think about type system for SchemaEntity.. @prop[type:name] and relation with variable name.
-					SchemaTable defTable = s.getDefaultTable();
-					SchemaProperty sProp = new SchemaProperty(null, defTable); 
-					processPropertyDef((LinkedHashMap<String, String>) e.getValue(), sProp);
-					defTable.addSchemaProperty(sProp);
-					break;
-				case "@table":
-					// process table internal structure.. e.g. cell, row, etc.
-					SchemaTable sTable = new SchemaTable(null, s);
-					processTableContent((Map<String, Object>) e.getValue(), sTable);
-					s.addSchemaTable(sTable);	
+					s.addProperty("@embedHeader", (boolean) e.getValue());
 					break;
 				default:
 					if(key.startsWith("@cell")) {
@@ -775,7 +760,11 @@ public class SchemaProcessor {
 						processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
 					} else if(key.startsWith("@row")) {
 						// row definition outside table scope will also be added to 'default' schema table
-						processRowMarker(key.substring(4), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
+						processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());					
+					} else if(key.startsWith("@prop")) {
+						processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
+					} else if(key.startsWith("@table")) {
+						processTableMarker(key.substring(6), (LinkedHashMap<String, Object>) e.getValue(), s);
 					} else if(key.startsWith("@")) {
 						System.err.println("Unrecognized meta property, ignoring key : " + key);
 					} else {
@@ -798,28 +787,30 @@ public class SchemaProcessor {
 	}
 	/**
 	 * Process schema property definition.
-	 * @param map Map of key-value holding schema property definition.
+	 * @param map Map<String, Object> of key-value holding schema property definition.
 	 * @param sProp SchemaProperty object.
 	 */
-	private void processPropertyDef(Map<String, String> map, SchemaProperty sProp) {		
-		for(Entry<String, String> e : map.entrySet()) {
+	private void processPropertyDef(Map<String, Object> map, SchemaProperty sProp) {		
+		SchemaTable sTable = sProp.getSchemaTable();
+		for(Entry<String, Object> e : map.entrySet()) {
 			String key = e.getKey();
-			String val = e.getValue();
+			Object val = e.getValue();
 			switch(key) {
 			case "@name":
-				sProp.setName(val);
+				sProp.setName((String) val);
+				sTable.addVar((String) val, sProp);
 				break;
 			case "@id":
-				sProp.setId(val);
+				sProp.setId((String) val);
 				break;
 			case "@datatype":
-				sProp.setDatatype(val);
+				sProp.setDatatype((String) val);
 				break;
 			case "@lang":
-				sProp.setLang(val);
+				sProp.setLang((String) val);
 				break;		
 			default:
-				sProp.addProperty(key, val);
+				sProp.addProperty(key, val.toString()); // IMP the whole prop will be re-delcared as Map<String, Object> in the next version.
 				break;
 			}
 		} // end for each key-value pair.
@@ -832,7 +823,6 @@ public class SchemaProcessor {
 	 */
 	@SuppressWarnings("unchecked")
 	private void processTableContent(Map<String, Object> map, SchemaTable st) {		
-		
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key;
 			switch((key = e.getKey())) {
@@ -841,8 +831,8 @@ public class SchemaProcessor {
 				break;
 			case "@name":
 				String tableName = (String) e.getValue();
-				st.setName(tableName);
-				//s.addVar(tableName, st); << for our policy now (2016/6/28) var must be declared at run-time as per dataset.  
+				st.setName(tableName); 
+				st.addVar(tableName, st); // add reference to the table itself so other schema entity can refer to
 				break;
 			case "@emptyCellFill":
 				st.setEmptyCellFill((String) e.getValue());
@@ -850,11 +840,6 @@ public class SchemaProcessor {
 			case "@replaceValueMap":
 				Map<String, String> rvm = st.getReplaceValueMap();
 				rvm.putAll((LinkedHashMap<String, String>) e.getValue()); 
-				break;
-			case "@property":
-				SchemaProperty sProp = new SchemaProperty(null, st); 
-				processPropertyDef((LinkedHashMap<String, String>) e.getValue(), sProp);
-				st.addSchemaProperty(sProp);
 				break;
 			case "@commonProps":
 				Map<String, String> commonProps = (LinkedHashMap<String, String>) e.getValue();
@@ -866,7 +851,9 @@ public class SchemaProcessor {
 				if(key.startsWith("@cell")) {
 					processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), st);
 				} else if(key.startsWith("@row")) {
-					processRowMarker(key.substring(4), (LinkedHashMap<String, String>) e.getValue(), st);
+					processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), st);
+				} else if(key.startsWith("@prop")) {
+					processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), st);					
 				} else if(key.startsWith("@")) {
 					System.err.println("Unrecognized meta property, ignoring key : " + key);
 				} else {
@@ -908,7 +895,7 @@ public class SchemaProcessor {
 	 * @param rowProperties
 	 * @param sTable
 	 */
-	private void processRowMarker(String marker, Map<String, String> rowProperties, SchemaTable sTable) {
+	private void processRowMarker(String marker, Map<String, Object> rowProperties, SchemaTable sTable) {
 		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		s = s.replaceAll("\\s+", ""); // remove whitespaces
 		int rowNum = Integer.parseInt(s);
@@ -917,8 +904,27 @@ public class SchemaProcessor {
 			sr = new SchemaRow(rowNum, sTable);
 			sTable.addRow(sr);
 		}
-		processRowProps(sr, rowProperties);
-	}	
+		processRowProps(sr, rowProperties); // IMP change fn name to processRowDef()
+	}
+	
+	private void processPropMarker(String marker, Map<String, Object> propProperties, SchemaTable sTable) {
+		String propName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		propName = propName.replaceAll("\\s+", ""); // remove whitespaces		
+		// define property for global scope 
+		// IMP think about type system for SchemaEntity.. @prop[type:name] and relation with variable name.
+		SchemaProperty sProp = new SchemaProperty(propName, sTable); 
+		processPropertyDef(propProperties, sProp);
+		sTable.addSchemaProperty(sProp);
+	}
+	
+	private void processTableMarker(String marker, Map<String, Object> tableProperties, Schema schema) {
+		String tableName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		tableName = tableName.replaceAll("\\s+", ""); // remove whitespaces
+		// process table internal structure.. e.g. cell, row, etc.
+		SchemaTable sTable = new SchemaTable(tableName, schema);
+		processTableContent(tableProperties, sTable); // IMP change fn name to processTableDef() 
+		schema.addSchemaTable(sTable);	
+	}
 	
 	/**
 	 * Create cell schema for [row, col], assign each cell cellProperty, and add to input schema table.
@@ -972,15 +978,20 @@ public class SchemaProcessor {
 		}
 	}
 	
-	private void processRowProps(SchemaRow sRow, Map<String, String> rowProps) {
-		for(Entry<String, String> e : rowProps.entrySet()) {
+	/**
+	 * Process properties defined in a schema row scope. 
+	 * @param sRow
+	 * @param rowProps
+	 */
+	private void processRowProps(SchemaRow sRow, Map<String, Object> rowProps) {
+		for(Entry<String, Object> e : rowProps.entrySet()) {
 			switch(e.getKey()) {
 			case "@repeatTimes":
-				sRow.setRepeatTimes(Integer.parseInt(e.getValue()));
+				sRow.setRepeatTimes((Integer) e.getValue());
 				break;
 			default:
 				// process the value then add to user-defined properties
-				sRow.addProperty(e.getKey(), e.getValue());
+				sRow.addProperty(e.getKey(), (String) e.getValue());
 				break;
 			}
 		}
@@ -1339,7 +1350,7 @@ public class SchemaProcessor {
 			if(cir.floor >= cir.ceiling) throw new RuntimeException("Illegal format for Range: Floor value >= Ceiling value.");
 		} else { // if there is no range span symbol '-'
 			cir.floor = Integer.parseInt(rangeEx);
-			if(cir.floor < 0 || cir.ceiling < 0) throw new RuntimeException("Illegal format for Range: Floor value cannot be negative.");
+			if(cir.floor < 0) throw new RuntimeException("Illegal format for Range: Floor value cannot be negative:");
 			cir.ceiling = -1; // to ensure no one use ceiling value for this range.
 		}
 		
