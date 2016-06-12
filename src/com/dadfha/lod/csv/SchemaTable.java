@@ -99,7 +99,12 @@ public class SchemaTable extends SchemaEntity {
 	 * This collection also serves as variable name-schema property mapping because a 
 	 * schema property cannot exists alone without a name anyway. 
 	 */
-	private Map<String, SchemaProperty> sProps = new HashMap<String,SchemaProperty>();	
+	private Map<String, SchemaProperty> sProps = new HashMap<String,SchemaProperty>();
+	
+	/**
+	 * Map collection for schema data objects.
+	 */
+	private Map<String, SchemaData> sDataMap = new HashMap<String,SchemaData>();
 
 	/**
 	 * Create SchemaTable. If name is not provided (i.e. null) schemaTable's name will be populated with randomly 
@@ -111,7 +116,8 @@ public class SchemaTable extends SchemaEntity {
 	 * @param name
 	 * @param s
 	 */
-	public SchemaTable(String name, Schema s) {
+	public SchemaTable(String name, Schema s) {		
+		assert(name != null) : "From @table[name] syntax, declaring table without name is not allowed.";
 		if(name == null) {			
 			do { // random name that must be unique within the schema
 				name = "@" + UUID.randomUUID().toString();	
@@ -120,7 +126,7 @@ public class SchemaTable extends SchemaEntity {
 			if(s.getSchemaTable(name) != null) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
 		}
 		parent = s;
-		setName(name);
+		setTableName(name);		
 	}
 	
 	/**
@@ -279,12 +285,29 @@ public class SchemaTable extends SchemaEntity {
 		return sProps;
 	}
 	
+	public void addSchemaData(SchemaData sData) {
+		sDataMap.put(sData.getName(), sData);
+	}
+
+	public void removeSchemaData(String dataName) {
+		sDataMap.remove(dataName);
+	}
+	
+	public boolean hasSchemaData(String name) {
+		return sDataMap.containsKey(name);
+	}
+	
+	public SchemaData getSchemaData(String dataName) {
+		return sDataMap.get(dataName);
+	}
+
+	public Map<String, SchemaData> getSchemaDataMap() {
+		return sDataMap;
+	}
+	
 	/**
 	 * Add a schema property definition to the schema table. 
 	 * If schema property of the same name already exists it will be overwritten.
-	 * 
-	 * Note that this is done in the same fashion as schema table is for schema. 
-	 * Thus, its name is automatically registered as a variable for the schema table.
 	 *   
 	 * @param sProp
 	 */
@@ -298,7 +321,7 @@ public class SchemaTable extends SchemaEntity {
 	 */
 	public void removeSchemaProperty(String propName) {
 		sProps.remove(propName);
-	}
+	}	
 	
 	/**
 	 * Check if a cell is referenced in the schema table.
@@ -469,7 +492,7 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * Set the '@name' property of this schema table while also update its register 
+	 * Set the '@talbeName' property of this schema table while also update its register 
 	 * inside hashmap collection of its parent schema. Therefore, it's required that the
 	 * table is already initialized with its parent schema. 
 	 * 
@@ -482,18 +505,34 @@ public class SchemaTable extends SchemaEntity {
 	 * 
 	 * @param name
 	 */
-	@Override
-	public void setName(String name) {	
+	public void setTableName(String name) {	
 		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
 		String oldName = getName();			
 		if(oldName != null) {
 			if(oldName.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
 			if(parent.hasSchemaTable(oldName)) parent.removeSchemaTable(oldName);
-			addProperty(METAPROP_NAME, name);
-		} else { // if it has never been set before, call setName()
-			super.setName(name); 			
 		}
+		addProperty(METAPROP_TBLNAME, name);
 		parent.addSchemaTable(this);
+	}
+	
+	/**
+	 * Set the '@name' property of this schema table. If the variable name for this schema table 
+	 * is registered, the register with old variable name will also be updated with new one.  
+	 * 
+	 * @param name
+	 */
+	@Override
+	public void setName(String name) {	
+		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
+		String oldName = getName();			
+		if(oldName != null && varMap.containsKey(oldName)) {
+			varMap.remove(oldName);			
+			super.setName(name);
+			varMap.put(name, this);
+		} else { // if it has never been set before
+			super.setName(name); 			
+		}		
 	}
 
 	@Override

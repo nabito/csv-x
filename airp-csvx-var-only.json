@@ -339,7 +339,7 @@
 			"@datatype" : "integer"		
 		},
 		
-		"@data" : // an alternative way to declare a data instance of a model (Datapoint). 
+		"@data[1]" : // an alternative way to declare a data instance of a model (Datapoint). 
 		{
 			"@mapType" : "Datapoint",
 			"@id" : "ex:{msrYrMth}/{msrDay{subrow}}/{msrProp}dailyMax/",

@@ -27,12 +27,13 @@ public class SchemaProperty extends SchemaEntity {
 	private SchemaTable parentTable;	
 	
 	public SchemaProperty(String propName, SchemaTable parentTable) {
+		assert(propName != null) : "Since @prop[name] always requires name, no one should create no name schema property.";
 		this.parentTable = parentTable;
-		setName(propName);
+		setPropertyName(propName);
 	}
 	
 	/**
-	 * Set the '@name' property of this schema property while also update its register 
+	 * Set the '@propName' property of this schema property while also update its register 
 	 * inside hashmap collection of its parent schema table.
 	 * 
 	 * Note that if its parent table has not yet bind with this schema property, it'll be 
@@ -40,17 +41,33 @@ public class SchemaProperty extends SchemaEntity {
 	 * 
 	 * @param name
 	 */
+	public void setPropertyName(String name) {		
+		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema property: " + this);
+		String oldName = getName();
+		if(oldName != null && parentTable.hasSchemaProperty(oldName)) {			
+			parentTable.removeSchemaProperty(oldName);		
+		} 
+		addProperty(METAPROP_PROPNAME, name);
+		parentTable.addSchemaProperty(this);
+	}	
+	
+	/**
+	 * Set the '@name' property of this schema property and, if available, update its variable register 
+	 * inside hashmap collection of its parent schema table.
+	 * 
+	 * @param name
+	 */
 	@Override
 	public void setName(String name) {		
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema property: " + this);
-		String oldName = getName();
-		if(oldName != null) {			
-			if(parentTable.hasSchemaProperty(oldName)) parentTable.removeSchemaProperty(oldName);
-			addProperty(METAPROP_NAME, name);			
-		} else { // if it has never been set before, call setName()
+		String oldName = getName();		
+		if(oldName != null && parentTable.hasVar(oldName)) {
+			parentTable.removeVar(oldName);			
+			super.setName(name);
+			parentTable.addVar(name, this);
+		} else { // if it has never been set before
 			super.setName(name);
 		}
-		parentTable.addSchemaProperty(this);
 	}
 
 	/* (non-Javadoc)

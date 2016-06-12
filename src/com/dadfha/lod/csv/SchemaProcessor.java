@@ -785,6 +785,7 @@ public class SchemaProcessor {
 		return s;
 		
 	}
+	
 	/**
 	 * Process schema property definition.
 	 * @param map Map<String, Object> of key-value holding schema property definition.
@@ -815,6 +816,38 @@ public class SchemaProcessor {
 			}
 		} // end for each key-value pair.
 	}
+	
+	/**
+	 * IMP refactor this kind of methods into processSchemaEntityDef() 
+	 * Process schema data definition.
+	 * @param map Map<String, Object> of key-value holding schema data definition.
+	 * @param sData SchemaData object.
+	 */
+	private void processDataDef(Map<String, Object> map, SchemaData sData) {		
+		SchemaTable sTable = sData.getSchemaTable();
+		for(Entry<String, Object> e : map.entrySet()) {
+			String key = e.getKey();
+			Object val = e.getValue();
+			switch(key) {
+			case "@name":
+				sData.setName((String) val);
+				sTable.addVar((String) val, sData);
+				break;
+			case "@id":
+				sData.setId((String) val);
+				break;
+			case "@datatype":
+				sData.setDatatype((String) val);
+				break;
+			case "@lang":
+				sData.setLang((String) val);
+				break;		
+			default:
+				sData.addProperty(key, val.toString()); 
+				break;
+			}
+		} // end for each key-value pair.
+	}	
 
 	/**
 	 * Process schema table contents and update the table. 
@@ -822,7 +855,7 @@ public class SchemaProcessor {
 	 * @param st
 	 */
 	@SuppressWarnings("unchecked")
-	private void processTableContent(Map<String, Object> map, SchemaTable st) {		
+	private void processTableDef(Map<String, Object> map, SchemaTable st) {		
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key;
 			switch((key = e.getKey())) {
@@ -854,6 +887,8 @@ public class SchemaProcessor {
 					processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), st);
 				} else if(key.startsWith("@prop")) {
 					processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), st);					
+				} else if(key.startsWith("@data")) {
+					processDataMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), st);
 				} else if(key.startsWith("@")) {
 					System.err.println("Unrecognized meta property, ignoring key : " + key);
 				} else {
@@ -909,21 +944,32 @@ public class SchemaProcessor {
 	
 	private void processPropMarker(String marker, Map<String, Object> propProperties, SchemaTable sTable) {
 		String propName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
-		propName = propName.replaceAll("\\s+", ""); // remove whitespaces		
+		propName = propName.replaceAll("\\s+", ""); // remove whitespaces
+		if(propName.equals("")) throw new RuntimeException("Property name must not be empty string.");
 		// define property for global scope 
 		// IMP think about type system for SchemaEntity.. @prop[type:name] and relation with variable name.
 		SchemaProperty sProp = new SchemaProperty(propName, sTable); 
-		processPropertyDef(propProperties, sProp);
-		sTable.addSchemaProperty(sProp);
+		processPropertyDef(propProperties, sProp);		
+		assert(sTable.hasSchemaProperty(propName)) : "At the end of processPropMarker() the schema property's name must have been already registered.";
 	}
 	
 	private void processTableMarker(String marker, Map<String, Object> tableProperties, Schema schema) {
 		String tableName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		tableName = tableName.replaceAll("\\s+", ""); // remove whitespaces
+		if(tableName.equals("")) throw new RuntimeException("Table name must not be empty string.");
 		// process table internal structure.. e.g. cell, row, etc.
 		SchemaTable sTable = new SchemaTable(tableName, schema);
-		processTableContent(tableProperties, sTable); // IMP change fn name to processTableDef() 
-		schema.addSchemaTable(sTable);	
+		processTableDef(tableProperties, sTable); 
+		assert(schema.hasSchemaTable(tableName)) : "At the end of processTableMarker() the table's name must have been already registered.";
+	}
+	
+	private void processDataMarker(String marker, Map<String, Object> dataProperties, SchemaTable sTable) {
+		String dataName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		dataName = dataName.replaceAll("\\s+", ""); // remove whitespaces
+		if(dataName.equals("")) throw new RuntimeException("Data name must not be empty string.");
+		SchemaData sData = new SchemaData(dataName, sTable);
+		processDataDef(dataProperties, sData);
+		sTable.addSchemaData(sData);
 	}
 	
 	/**

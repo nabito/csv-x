@@ -64,6 +64,21 @@ public abstract class SchemaEntity {
 	 * For Property, it's applied to its mapped literal in the use context.
 	 */
 	public static final String METAPROP_DATATYPE = "@datatype";	
+	
+	/**
+	 * The meta property storing name to identify schema data.
+	 */
+	public static final String METAPROP_DATANAME = "@dataName";
+	
+	/**
+	 * The meta property storing name to identify schema table.
+	 */
+	public static final String METAPROP_TBLNAME = "@tableName";
+	
+	/**
+	 * The meta property storing name to identify schema property.
+	 */
+	public static final String METAPROP_PROPNAME = "@propName";	
 
 	/**
 	 * Schema enitity's properties. HashMap storing mapping between property's
