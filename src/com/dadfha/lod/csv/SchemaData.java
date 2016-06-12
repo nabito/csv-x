@@ -20,13 +20,42 @@ public class SchemaData extends SchemaEntity {
 		this.parentTable = parentTable;
 	}
 	
+	/**
+	 * Set the '@dataName' property of this schema data while also update its register 
+	 * inside hashmap collection of its parent schema table.
+	 * 
+	 * Note that if its parent table has not yet bind with this schema data, it'll be 
+	 * done so by this method.
+	 * 
+	 * @param name
+	 */	
 	public void setDataName(String name) {
-		// TODO at least we can complete this in advance before we forget
+		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema data: " + this);
+		String oldName = getName();
+		if(oldName != null && parentTable.hasSchemaData(oldName)) {			
+			parentTable.removeSchemaData(oldName);		
+		} 
+		addProperty(METAPROP_DATANAME, name);
+		parentTable.addSchemaData(this);
 	}
-	
+
+	/**
+	 * Set the '@name' property of this schema data and, if available, update its variable register 
+	 * inside hashmap collection of its parent schema table.
+	 * 
+	 * @param name
+	 */
 	@Override
 	public void setName(String name) {
-		// TODO at least we can complete this in advance before we forget
+		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema data: " + this);
+		String oldName = getName();		
+		if(oldName != null && parentTable.hasVar(oldName)) {
+			parentTable.removeVar(oldName);			
+			super.setName(name);
+			parentTable.addVar(name, this);
+		} else { // if it has never been set before
+			super.setName(name);
+		}
 	}
 	
 	@Override
