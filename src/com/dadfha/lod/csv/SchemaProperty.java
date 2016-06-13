@@ -32,6 +32,10 @@ public class SchemaProperty extends SchemaEntity {
 		setPropertyName(propName);
 	}
 	
+	public String getPropertyName() {
+		return getProperty(METAPROP_PROPNAME);
+	}
+	
 	/**
 	 * Set the '@propName' property of this schema property while also update its register 
 	 * inside hashmap collection of its parent schema table.
@@ -43,7 +47,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	public void setPropertyName(String name) {		
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema property: " + this);
-		String oldName = getName();
+		String oldName = getPropertyName();
 		if(oldName != null && parentTable.hasSchemaProperty(oldName)) {			
 			parentTable.removeSchemaProperty(oldName);		
 		} 
@@ -91,7 +95,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	@Override
 	public String getRefEx() {
-		return "@property[" + getName() + "]";
+		return "@property[" + getPropertyName() + "]";
 	}
 
 }

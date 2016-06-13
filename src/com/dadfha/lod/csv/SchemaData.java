@@ -20,6 +20,10 @@ public class SchemaData extends SchemaEntity {
 		this.parentTable = parentTable;
 	}
 	
+	public String getDataName() {
+		return getProperty(METAPROP_DATANAME);
+	}
+	
 	/**
 	 * Set the '@dataName' property of this schema data while also update its register 
 	 * inside hashmap collection of its parent schema table.
@@ -31,7 +35,7 @@ public class SchemaData extends SchemaEntity {
 	 */	
 	public void setDataName(String name) {
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema data: " + this);
-		String oldName = getName();
+		String oldName = getDataName();
 		if(oldName != null && parentTable.hasSchemaData(oldName)) {			
 			parentTable.removeSchemaData(oldName);		
 		} 
@@ -70,7 +74,7 @@ public class SchemaData extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return "@data[" + getName() + "]";
+		return "@data[" + getDataName() + "]";
 	}
 
 }

@@ -10,12 +10,12 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -25,6 +25,18 @@ import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 
 public class SchemaProcessor {
+	
+	/**
+	 * Meta property to regard cell value with only whitespace characters as empty (null).
+	 */
+	public static final String METAPROP_SPACE_IS_EMPTY = "@spaceIsEmpty";
+	
+	public static final String METAPROP_TRIM = "@trim";
+	
+	/**
+	 * Processing mode to ignore error message, creating no log nor print.
+	 */
+	public static final int MODE_IGNORE_ERR_MSG = 0x01;
 	
 	@SuppressWarnings("serial")
 	public class SchemaNotMatchedException extends Exception {
@@ -163,9 +175,24 @@ public class SchemaProcessor {
 		}
 	}
 	
-	public void loadSchema(String schemaPath) {
-		Schema s = parseCsvXSchema(schemaPath); 
-		schemas.put((String) s.getProperty("@id"), s);
+	/**
+	 * Load CSV-X schema at specified path into the memory. The processor keeps a collection of loaded schemas 
+	 * indexed by its ID ('@id'). 
+	 * 
+	 * @param schemaPath
+	 * @return Schema object of loaded schema if the operation is success or null otherwise.
+	 */
+	public Schema loadSchema(String schemaPath) {
+		Schema s;
+		try {
+			s = parseCsvXSchema(schemaPath);
+			schemas.put((String) s.getProperty("@id"), s);
+		} catch (Exception e) {
+			System.err.println("Error: There's a problem in loading/parsing schema file: " + schemaPath);
+			e.printStackTrace();
+			return null;
+		}
+		return s;
 	}
 	
 	/**
@@ -236,12 +263,12 @@ public class SchemaProcessor {
 	 * Parse CSV with CSV-X Schema.
 	 *  
 	 * Remark:
-	 * Due to limitation in usage of current CsvParser, it will be recreated, with proper starting line, 
+	 * Due to limitation in usage of current univo-CsvParser, it will be recreated, with proper starting line, 
 	 * every time a schema table has been tried for parsing, no matter the parse is success or not. 
 	 * 
 	 * @param csvPath
 	 * @param schema
-	 * @return
+	 * @return Object
 	 */
 	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context) {
 		
@@ -252,7 +279,7 @@ public class SchemaProcessor {
 		SchemaTable dTable = null;
 		CsvParser parser = null;
 		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();		
-		Schema dSchema = Schema.createDataObject(schema);
+		Schema dSchema = Schema.createDataObject(schema); // schema object holding all expanded table schema 
 
 		while(true) {			
 			
@@ -337,6 +364,7 @@ public class SchemaProcessor {
 	/**
 	 * Parse CSV against a schema table.
 	 * @param parser
+	 * @param dSchema
 	 * @param sTable
 	 * @param context
 	 * @return SchemaTable data table object containing parsed CSV data in the form of schema table 
@@ -344,9 +372,8 @@ public class SchemaProcessor {
 	 */
 	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, Schema dSchema, SchemaTable sTable, Context context) {
 		
-		// create dataTable from schemaTable 
-		// OPT introducing runtime table naming pattern
-		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, null);
+		// create dataTable from schemaTable with naming pattern: schema table name followed by row number
+		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, sTable.getTableName() + context.currRow);
 		String[] row;
 		
 		// get first SchemaRow object, a schema table MUST have at least one schema row
@@ -363,7 +390,7 @@ public class SchemaProcessor {
 				context.currSubRow = 0;
 				context.repeatTimes = 0;
 			} else { //for normal schema row, call processCsvRow()
-				if(!processCsvRow(row, dTable, sRow, context)) return null;
+				if(!processCsvRow(row, dTable, sRow, context, 0)) return null;
 			}
 
 			// return data table object if the end of schema table is reached
@@ -415,28 +442,36 @@ public class SchemaProcessor {
 		String[] row;
 		
 		// check if the first CSV row matches with repeating row schema
-		if(!processCsvRow(firstRow, dTable, sRow, context)) return false;
+		if(!processCsvRow(firstRow, dTable, sRow, context, 0)) return false;
 		
 		while((row = parser.parseNext()) != null) {
 			// if a CSV row doesn't match with repeating row schema
-			if(!processCsvRow(row, dTable, sRow, context)) {
+			if(!processCsvRow(row, dTable, sRow, context, MODE_IGNORE_ERR_MSG)) {
 				// if it's NOT infinite repeating, then it's certainly schema mismatch.
 				if(context.repeatTimes > 0) return false;
 				
-				// but if it's infinite repeating schema row, check infinite row exit condition:
-				SchemaRow nextSchemaRow = sTable.getRow(sRow.getRowNum() + 1);
+				System.out.println("INFO: Entering infinite repeating row exit conditions check.");
+				
+				// but if it's infinite repeating schema row, check infinite row exit condition: first, look-ahead into next schema row
+				context.currSchemaRow++;
+				assert((sRow.getRowNum() + 1) == context.currSchemaRow) : "Schema row look ahead index must be consistent.";
+				SchemaRow nextSchemaRow = sTable.getRow(context.currSchemaRow);
 				// if there's no next schema row, that new line is may be for other table, return true.
 				if(nextSchemaRow == null) return true;
 				
 				// try validating "current" line with "next" schema row to find the end of repeating row.
 				// if matches, treat this CSV line as data for this schema & return true.
 				// if not, then it's schema mismatched, return false.
-				return (processCsvRow(row, dTable, nextSchemaRow, context))? true : false;
+				return (processCsvRow(row, dTable, nextSchemaRow, context, 0))? true : false;
 				
 			}
 			
-			// Check exit condition: if subRow > repeatTimes, exit repeating row 
-			if(context.currSubRow > context.repeatTimes) return true;
+			// Check exit condition:
+			if(context.repeatTimes < 0) { // for infinite repeating row: wait until mismatched is found!
+				continue;
+			} else { 
+				if(context.currSubRow > context.repeatTimes) return true;	
+			}
 						
 		} // end for each CSV row
 				
@@ -455,9 +490,13 @@ public class SchemaProcessor {
 			 if the processing failed, return false.
 		 while there is more CSV row, parse in a row
 			 process if the new CSV row still matches with repeating row schema, processCsvRow()
-				 if matches, check if repeat times is reached:
-					 yes, return true.
-					 no, continue parsing in new CSV row.
+				 if matches, check repeating row exit condition.
+				 	for finite repeating row:
+				 		check if repeat times is reached:
+							yes, return true.
+							no, continue parsing in new CSV row.
+					for infinite repeating row:
+						continue parsing until mismatched row is found!
 				 if the row doesn't match:
 					 and the schema row is NOT infinite repeating row (repeatTimes > 0), then it's certainly schema mismatch, return false.
 					 but if it's infinite repeating schema row, which may match [0,Inf) rows, check infinite row exit options:
@@ -479,15 +518,25 @@ public class SchemaProcessor {
 	 * 4. Filling in context variables for all cell properties' literal.
 	 * 5. Register variable for schema cell and row in data table, if declared in a schema entity.
 	 * 
+	 * Applicable mode are:
+	 * - MODE_IGNORE_ERR_MSG - ignore error message. By default, error message is printed/logged.
+	 * 
 	 * @param row an array of CSV data row.
 	 * @param dTable data table object.
 	 * @param sRow Row's schema.
 	 * @param context
+	 * @param mode 
 	 * @return boolean true if the processing is successful, false otherwise. 
 	 */
-	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context) {
-		// get schema row's parent schema table
+	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context, int mode) {
+		
+		// initialize processing mode
+		boolean ignoreErrMsg = ((MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
+		//ignoreErrMsg = false;
+		
+		// get schema row's parent schema table & schema
 		SchemaTable sTable = sRow.getSchemaTable();
+		Schema schema = sTable.getParentSchema();
 		
 		// create data row object
 		SchemaRow dRow = SchemaRow.createDataObject(sRow, context.currRow, dTable);
@@ -502,20 +551,30 @@ public class SchemaProcessor {
 			// get current cell value	
 			context.currVal = row[context.currCol];
 			
+			// check if cell with only whitespace characters are treated as empty value, a.k.a. null
+			Boolean spaceIsEmpty = (Boolean) schema.getProperty(METAPROP_SPACE_IS_EMPTY);
+			if(spaceIsEmpty != null && spaceIsEmpty && context.currVal != null) {
+				context.currVal = (context.currVal.trim().isEmpty())? null : context.currVal; 
+			}
+			
 			// fill & substitute cell value 
 			if(context.currVal == null) {
 				// fill empty cell, if a value is defined 
 				String empCellFill = sTable.getEmptyCellFill();
 				if(empCellFill != null) context.currVal = empCellFill;
-			} else {							
+			} else {		
+
+				// trim of heading and trailing spaces or not
+				Boolean trim = (Boolean) schema.getProperty(METAPROP_TRIM);
+				if(trim != null && trim) context.currVal = context.currVal.trim();
+				
 				// replace certain value, if specified in schema table
-				String repVal = sTable.getReplaceValue(context.currVal);
-				if((repVal ) != null) context.currVal = repVal;							
+				if(sTable.hasReplaceValueFor(context.currVal)) context.currVal = sTable.getReplaceValue(context.currVal);							
 			}
 			
-			// validate parsed CSV cell against CSV-X schema properties				
-			if(!sTable.validate(context.currRow, context.currCol, context.currVal)) {
-				System.err.println("Cannot matched with schema table: " + sTable);
+			// validate parsed CSV cell against CSV-X schema properties	of the schema row	
+			if(!sTable.validate(sRow.getRowNum(), context.currCol, context.currVal, mode)) {
+				if(!ignoreErrMsg) System.err.println("Error: Validation Failure at " + sRow + " column " + context.currCol + " with cell value '" + context.currVal + "'");
 				return false; 
 			}
 			
@@ -536,7 +595,7 @@ public class SchemaProcessor {
 		
 	    // if the schema has one more cell definition in this row, it's dimension mismatched
 		if(sRow.getCell(context.currCol) != null) {
-			System.err.println("Cannot matched with schema row: " + sRow);
+			if(!ignoreErrMsg) System.err.println("Error: Dimension Mismatched at " + sRow + " - more cell definition available at CSV [" + context.currRow + "," + context.currCol + "]");
 			return false;
 		} else {			
 			// increment row counters
@@ -576,8 +635,9 @@ public class SchemaProcessor {
 			
 			assert(propVal != null) : "The assignment of null value for a property is not allowed in CSV-X";
 			
-			// replace context {var} expression 			
+			// replace context {var} expression in property's literal		
 			propVal = processContextVarLiteral(propVal, context);
+			propEntry.setValue(propVal);
 			
 			switch(propName) {
 			case SchemaEntity.METAPROP_NAME:
@@ -602,22 +662,19 @@ public class SchemaProcessor {
 	 * to context {var}. As of version 1.0 these are: schema row and schema cell.
 	 * 
 	 * Note that nothing will happen, if the property '@name' is not defined.
-	 * IMP in the future, may adopt Exception instead, if it doesn't affect performance.
 	 *  
 	 * @param table
 	 * @param se
 	 * @return boolean whether the declaration is success.
 	 */
-	private boolean declareVarInTable(SchemaTable table, SchemaEntity se) {		
+	private void declareVarInTable(SchemaTable table, SchemaEntity se) {		
 		String varName = se.getName();
 		if(varName != null)	{
-			if(hasVarInLiteral(varName)) {
-				System.err.println("Variable name must not has {var} expression left in it: " + varName);
-				return false;
+			if(hasVarInLiteral(varName)) {				
+				throw new RuntimeException("Variable name must not has {var} expression left in it: " + varName); 
 			}				
 			table.addVar(varName, se);	
 		}
-		return true;
 	}
 	
 	//private void transform2MapDataModel() {
@@ -669,7 +726,7 @@ public class SchemaProcessor {
 	 * @return Schema
 	 */
 	@SuppressWarnings("unchecked")
-	public Schema parseCsvXSchema(String schemaPath) {
+	public Schema parseCsvXSchema(String schemaPath) throws Exception {
 		
 		Schema s = new Schema();
 		
@@ -681,11 +738,7 @@ public class SchemaProcessor {
 		    	jsonStrBld.append(JSONMinify.minify(line));
 		    }
 		    
-		    // TODO wrap this fn with try catch for any error in CSV-X parsing
-		    String minified = jsonStrBld.toString();
-		    System.out.println(minified);
-		    
-			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(minified);			
+			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());			
 			
 			for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {			
 				String key = e.getKey();
@@ -704,6 +757,9 @@ public class SchemaProcessor {
 				case "@lang":
 					s.addProperty("@lang", (String) e.getValue());
 					break;
+				case METAPROP_SPACE_IS_EMPTY:
+					s.addProperty(METAPROP_SPACE_IS_EMPTY, (Boolean) e.getValue());
+					break;
 				case "@delimiter":
 					s.addProperty("@delimiter", (String) e.getValue());
 					break;
@@ -717,7 +773,7 @@ public class SchemaProcessor {
 					s.addProperty("@quoteChar", (String) e.getValue());
 					break;
 				case "@header":
-					s.addProperty("@header", (boolean) e.getValue());
+					s.addProperty("@header", (Boolean) e.getValue());
 					// check if headerRowCount is not yet defined, else leave it as it is
 					if(s.getProperty("@headerRowCount") == null) {
 						if((Boolean) s.getProperty("@header") == true) s.addProperty("@headerRowCount", 1);
@@ -730,10 +786,10 @@ public class SchemaProcessor {
 					s.addProperty("@headerRowCount", hrc);
 					break;
 				case "@doubleQuote":
-					s.addProperty("@doubleQuote", (boolean) e.getValue());
+					s.addProperty("@doubleQuote", (Boolean) e.getValue());
 					break;
 				case "@skipBlankRows":
-					s.addProperty("@skipBlankRows", (boolean) e.getValue());
+					s.addProperty("@skipBlankRows", (Boolean) e.getValue());
 					break;
 				case "@skipColumns":
 					Integer sc = (Integer) e.getValue();
@@ -741,18 +797,18 @@ public class SchemaProcessor {
 					s.addProperty("@skipColumns", sc);
 					break;
 				case "@skipInitialSpace":
-					s.addProperty("@skipInitialSpace", (boolean) e.getValue());
+					s.addProperty("@skipInitialSpace", (Boolean) e.getValue());
 					break;
 				case "@skipRows":
 					Integer sr = (Integer) e.getValue();
 					if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
 					s.addProperty("@skipRows", sr);
 					break;
-				case "@trim":
-					s.addProperty("@trim", (boolean) e.getValue());
+				case METAPROP_TRIM:
+					s.addProperty(METAPROP_TRIM, (Boolean) e.getValue());
 					break;					
 				case "@embedHeader":
-					s.addProperty("@embedHeader", (boolean) e.getValue());
+					s.addProperty("@embedHeader", (Boolean) e.getValue());
 					break;
 				default:
 					if(key.startsWith("@cell")) {
@@ -873,6 +929,12 @@ public class SchemaProcessor {
 			case "@replaceValueMap":
 				Map<String, String> rvm = st.getReplaceValueMap();
 				rvm.putAll((LinkedHashMap<String, String>) e.getValue()); 
+				break;
+			case "@ignoreValues":
+				ArrayList<String> ivArray = (ArrayList<String>) e.getValue(); 
+				for(String iv : ivArray) {
+					st.addIgnoreValue(iv);
+				}
 				break;
 			case "@commonProps":
 				Map<String, String> commonProps = (LinkedHashMap<String, String>) e.getValue();
@@ -1251,10 +1313,11 @@ public class SchemaProcessor {
 	 * @param rrs Recursive Ref Stack (RRS) of LinkedHashSet<String> storing SERE as String.
 	 * @return String of {var} substituted by its recursively resolved actual value.
 	 */
-	public String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {
+	public static String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {				
+		if(literal == null) return null;		
 		String retVal = literal;		
 		SchemaTable st = se.getSchemaTable();
-				
+		
 		// add calling schema property to the Recursive Ref Stack (RRS) of LinkedHashSet<String> where String = SERE
 		if(rrs == null) rrs = new LinkedHashSet<String>();
 		rrs.add(se.getRefEx() + "." + propName);
@@ -1267,6 +1330,9 @@ public class SchemaProcessor {
 	    	String varName = m.group(2);
 	    	String dot = m.group(3);
 	    	String varProp = m.group(4);
+	    	
+	    	// if variable property is not defined, default to '@value'
+	    	if(varProp == null || varProp.equals("")) varProp = SchemaTable.METAPROP_VALUE;
 	    	
     		// check if there is var definition declared
 	    	if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
@@ -1424,6 +1490,32 @@ public class SchemaProcessor {
 				cp.process(i, j, obj, sTable);
 			}			
 		}		
+	}
+	
+	public static void schemaTables2Csv(List<SchemaTable> dataTables) {
+		int rowNum = 0;
+		for(SchemaTable dTable : dataTables) {
+			//System.out.println("Table : " + dTable);			
+			SchemaRow dRow = dTable.getRow(rowNum);
+			while(dRow != null) {
+				//System.out.print("Row" + rowNum + ": ");				
+				int colNum = 0;
+				SchemaCell dCell = dRow.getCell(colNum);
+				boolean firstCell = true;
+				while(dCell != null) {
+					if(firstCell) firstCell = false; 
+					else System.out.print(", ");
+					String litVal = dCell.getValue();
+					litVal = processVarEx(litVal, dCell, "@value", null);							
+					System.out.print(litVal);
+					colNum++;
+					dCell = dRow.getCell(colNum);
+				}
+				System.out.println();
+				rowNum++;
+				dRow = dTable.getRow(rowNum);
+			}			
+		}
 	}		
 	
 	public void parseCsvStream() {

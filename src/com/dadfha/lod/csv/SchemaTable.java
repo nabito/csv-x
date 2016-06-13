@@ -1,7 +1,9 @@
 package com.dadfha.lod.csv;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,28 +48,13 @@ public class SchemaTable extends SchemaEntity {
 	private Map<String, String> replaceValueMap = new HashMap<String, String>();	
 	
 	/**
-	 * @deprecated This is not needed anymore. Considering remove this.  
+	 * Set of values to be ignored during validation.
 	 * 
-	 * Collection of cell indexes being referenced in each schema table.
-	 * 
-	 * we want to store a collection of referenced cells, which can be searched
-	 * based on <row,col> index instantly, coz' during each csv cell iteration,
-	 * we need to check if that cell is being referred in the schema so that we
-	 * can selectively save the cell value for later use (e.g. variable-value
-	 * substitution). if we're to preserve all csv value for later use, it may
-	 * cause out-of-memory problem. if we're to re-parse the value in referred
-	 * position, it may be well too expensive operation.
-	 * 
-	 * private Map<Integer, Map<Integer, String>> refCells; is good construct to
-	 * store mapping of cell's <row, col> index with its value. However, nested
-	 * collection may need a class wrapper to be able to smoothly operated.
-	 * 
-	 * Rather, using Map<IntPair, String> where IntPair is a class representing
-	 * just <row, col> index with proper hashvalue may serves as more memory
-	 * efficient option with less hassles in coding.
+	 * Note that though the validation of the value is skipped but the dimension 
+	 * check whether there is a cell schema definition during validation is still intact.
 	 */
-	private Map<CellIndex, String> refCells = new HashMap<CellIndex, String>();	
-	
+	private Set<String> ignoreValues = new HashSet<String>();
+		
 	/**
 	 * Mapping between variable name and schema entity. 
 	 * Variable has global scope within a schema table.
@@ -89,15 +76,13 @@ public class SchemaTable extends SchemaEntity {
 	 * cell in CSV data that matches the schema properties.
 	 * 
 	 * This way there is no need to describe schema dimension as strict rectangular of rowNum x colNum nor to keep 
-	 * tracking of size for each row and column.
-	 * 
+	 * tracking of size for each row and column. 
 	 */	
 	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
 	
 	/**
-	 * Schema Property definitions shared among all schema entity in this schema table. 
-	 * This collection also serves as variable name-schema property mapping because a 
-	 * schema property cannot exists alone without a name anyway. 
+	 * This collection serves as property name-schema property mapping.
+	 * It's shared among all schema entity in this schema table. 
 	 */
 	private Map<String, SchemaProperty> sProps = new HashMap<String,SchemaProperty>();
 	
@@ -123,18 +108,15 @@ public class SchemaTable extends SchemaEntity {
 				name = "@" + UUID.randomUUID().toString();	
 			} while(s.getSchemaTable(name) != null);						
 		} else {
-			if(s.getSchemaTable(name) != null) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
+			if(s.hasSchemaTable(name)) throw new IllegalArgumentException("Schema table with the same name: " + name + " is already exist in the schema.");
 		}
 		parent = s;
 		setTableName(name);		
 	}
 	
 	/**
-	 * OPT considering creating data classes for all schema entity.
-	 * 
 	 * Create copy for data object that has everything except SchemaRow, and its SchemaCell inside. 
-	 * This is used for data model creation based on schema blueprint. Each actual data table will 
-	 * still holds reference to its parent schema.
+	 * This is used for data model creation based on schema blueprint. 
 	 * 
 	 * @param dSchema
 	 * @param st
@@ -145,8 +127,14 @@ public class SchemaTable extends SchemaEntity {
 		SchemaTable newTable = new SchemaTable(tableName, dSchema);
 		newTable.commonProps.putAll(st.commonProps);
 		newTable.emptyCellFill =  st.emptyCellFill;
-		newTable.properties.putAll(st.properties);
+		// copy all table properties except table name
+		for(Map.Entry<String, String> e : st.properties.entrySet()) {
+			String key = e.getKey();
+			String val = e.getValue();
+			if(!key.equals(METAPROP_TBLNAME)) newTable.properties.put(key, val);
+		}
 		newTable.replaceValueMap.putAll(st.replaceValueMap);
+		newTable.ignoreValues.addAll(st.ignoreValues);
 		newTable.sProps.putAll(st.sProps);
 		newTable.varMap.putAll(st.varMap);
 		return newTable;
@@ -177,17 +165,57 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * Get replacing value from the map.
-	 * @param key the original cell's value.
-	 * @return String of replacing value or null if there is no substitute value for the key.
+	 * Check if the replace value map for this table has a mapping for the key. 
+	 * @param key
+	 * @return true or false.
 	 */
-	public String getReplaceValue(String key) {		
-		return replaceValueMap.get(key); 
+	public boolean hasReplaceValueFor(String key) {
+		return replaceValueMap.containsKey(key);
+	}
+	
+	/**
+	 * Get replacing value from the map with the specified key. 
+	 * 
+	 * Note that if null value is return, it could either mean that 
+	 * the key is mapped with null or there's no such mapping.
+	 * 
+	 * So user must check before calling this method using hasReplaceValueFor().
+	 * 
+	 * @param key
+	 * @return String of replacing value or null.
+	 */
+	public String getReplaceValue(String key) {
+		return replaceValueMap.get(key);		
 	}
 	
 	public Map<String, String> getReplaceValueMap() {
 		return replaceValueMap;
-	}	
+	}
+	
+	/**
+	 * Check if a value is marked to be ignored.
+	 * @param val
+	 * @return boolean true or false.
+	 */
+	public boolean isIgnoreValue(String val) {
+		return ignoreValues.contains(val);
+	}
+	
+	/**
+	 * Add a value to the ignore set.
+	 * @param val
+	 */
+	public void addIgnoreValue(String val) {
+		ignoreValues.add(val);
+	}
+	
+	/**
+	 * Get the whole ignore values set.
+	 * @return Set<String>
+	 */
+	public Set<String> getIgnoreValuesSet() {
+		return ignoreValues;
+	}
 	
 	public String getCommonProp(String propName) {
 		return commonProps.get(propName);
@@ -238,9 +266,12 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
-	 * This method will check for already existing row and cell schema and properly update their properties.
-	 * It will create row and cell schema object as needed if there is none before.
-	 * The prior cell's schema properties will be overwritten if there are duplicate properties.
+	 * Add a schema cell to this schema table or merge with an existing one. This method checks for an already 
+	 * existing row and cell schema and properly update their properties (merge). If there are properties with 
+	 * the same name prior cell's schema properties will be overwritten. It also creates new row schema object 
+	 * as needed if there is none before. This way, user doesn't need to write schema row definition if there's
+	 * no particular reason because a schema cell already implies an existence of a schema row it resides in.  
+	 * 
 	 * @param cell
 	 */
 	public void addCell(SchemaCell cell) {
@@ -286,7 +317,7 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	public void addSchemaData(SchemaData sData) {
-		sDataMap.put(sData.getName(), sData);
+		sDataMap.put(sData.getDataName(), sData);
 	}
 
 	public void removeSchemaData(String dataName) {
@@ -312,7 +343,7 @@ public class SchemaTable extends SchemaEntity {
 	 * @param sProp
 	 */
 	public void addSchemaProperty(SchemaProperty sProp) {
-		sProps.put(sProp.getName(), sProp);
+		sProps.put(sProp.getPropertyName(), sProp);
 	}
 	
 	/**
@@ -321,38 +352,6 @@ public class SchemaTable extends SchemaEntity {
 	 */
 	public void removeSchemaProperty(String propName) {
 		sProps.remove(propName);
-	}	
-	
-	/**
-	 * Check if a cell is referenced in the schema table.
-	 * @param row
-	 * @param col
-	 * @return boolean whether or not a cell is being referenced in the table.
-	 */
-	public boolean isCellRef(int row, int col) {
-		return refCells.containsKey(new CellIndex(row, col));
-	}
-	
-	/**
-	 * @deprecated
-	 * Record a reference to cell.
-	 * @param row
-	 * @param col
-	 * @param value the value of cell being referenced. Accept null if not known at the time.
-	 */
-	public void saveRefCell(int row, int col, String value) {		
-		refCells.put(new CellIndex(row, col), value);
-	}	
-	
-	/**
-	 * @deprecated
-	 * This method won't save unreferenced cell.
-	 * @param row
-	 * @param col
-	 * @param val
-	 */
-	public void updateRefCellVal(int row, int col, String val) {
-		refCells.replace(new CellIndex(row,col), val);
 	}
 	
 	/**
@@ -380,7 +379,7 @@ public class SchemaTable extends SchemaEntity {
 	 * @param se
 	 */
 	public void addVar(String varName, SchemaEntity se) {
-		if(varMap.containsKey(varName)) throw new RuntimeException("Variable name '" + varName + "' already exists and is pointed to schema entity: " + se.toString() + "");
+		if(varMap.containsKey(varName)) throw new RuntimeException("Variable name '" + varName + "' already exists and is pointed to schema entity: " + se);
 		varMap.put(varName, se);
 	}
 	
@@ -397,26 +396,51 @@ public class SchemaTable extends SchemaEntity {
 	 * 
 	 * Note that, if a schema has replace value map defined, it will happen "before the validation" of the cell schema.
 	 * 
-	 * @param row
-	 * @param col
-	 * @param val
-	 * @return boolean
+	 * IMP consider moving this fn back to SchemaProcessing
+	 * 
+	 * Currently supported modes are:
+	 * 
+	 * MODE_IGNORE_ERR_MSG
+	 * 
+	 * @param sRow schema row number
+	 * @param sCol schema column number
+	 * @param val CSV's cell value
+	 * @param mode
+	 * @return boolean true if the validate is success or false otherwise.
 	 */
-	public boolean validate(int row, int col, String val) {
+	public boolean validate(int sRow, int sCol, String val, int mode) {
+		
+		// initialize processing mode
+		boolean ignoreErrMsg = ((SchemaProcessor.MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
+		//ignoreErrMsg = false;
 		
 		// check inputs
-		if(row < 0 || col < 0) throw new IllegalArgumentException("Row and Col value must NOT be negative.");
+		if(sRow < 0 || sCol < 0) throw new IllegalArgumentException("Row and Col value must NOT be negative.");
 		
-		SchemaCell c = getCell(row, col);
-		
+		// check dimension, whether there is schema cell definition at specified row and column
+		SchemaCell c = getCell(sRow, sCol);		
 		if(c == null) {
-			System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + row + "," + col + "]"); 
+			if(!ignoreErrMsg) System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + sRow + "," + sCol + "]"); 
 			return false;
 		}
 		
-		// check if the cell is a valid Empty Cell
-		if(c.isEmpty()) return (val == null)? true : false;		
+		// search in ignore values set, exit if found
+		if(isIgnoreValue(val)) return true; // IMP should print out INFO msg on this, since it may change the validation result without notice.
 		
+		// check if the cell is a valid Empty Cell
+		if(c.isEmpty()) {
+			if(val == null) return true;
+			else {
+				if(!ignoreErrMsg) System.err.println("Error: Schema Mismatched - Expecting EmptyCell but found cell value '" + val + "' at: [" + sRow + "," + sCol + "]");
+				return false;		
+			}
+		} else { // in case the schema cell is not Empty Cell, the value must not be null
+			if(val == null) {
+				if(!ignoreErrMsg) System.err.println("Error: There is no cell value, i.e. null, to validate against schema cell at: [" + sRow + "," + sCol + "]");
+				return false;
+			}
+		}		
+
 		// TODO check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
 		// also the syntax for constraints may be referred from CSVW specs
 		// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
@@ -483,12 +507,19 @@ public class SchemaTable extends SchemaEntity {
 		    Pattern p = Pattern.compile(regEx, Pattern.DOTALL);
 		    Matcher m = p.matcher(val);
 		    if(!m.find()) {
-		    	System.err.println("Error: Regular Expression Mismatched at: [" + row + "," + col + "]");
+		    	if(!ignoreErrMsg) {
+		    		System.err.println("Error: Regular Expression Mismatched for schema cell: " + c);
+		    		System.err.println("Expecting pattern: " + regEx + " found: " + val);
+		    	}
 		    	return false;			
 		    }
 		}
 		
 		return true;
+	}
+	
+	public String getTableName() {
+		return getProperty(METAPROP_TBLNAME);
 	}
 	
 	/**
@@ -507,7 +538,7 @@ public class SchemaTable extends SchemaEntity {
 	 */
 	public void setTableName(String name) {	
 		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
-		String oldName = getName();			
+		String oldName = getTableName();			
 		if(oldName != null) {
 			if(oldName.equals(Schema.DEFAULT_TABLE_NAME)) throw new RuntimeException("The default table name cannot be changed.");
 			if(parent.hasSchemaTable(oldName)) parent.removeSchemaTable(oldName);
@@ -542,7 +573,7 @@ public class SchemaTable extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return "@table[" + getName() + "]";
+		return "@table[" + getTableName() + "]";
 	}
 
 }

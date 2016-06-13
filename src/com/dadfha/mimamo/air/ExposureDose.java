@@ -68,13 +68,14 @@ public class ExposureDose {
 			for(Map.Entry<Integer, SchemaRow> rowsEnt : dTable.getSchemaRows().entrySet()) {
 				Integer rowNum = rowsEnt.getKey();
 				SchemaRow dRow = rowsEnt.getValue();
-				System.out.print("Row: " + rowNum);
-				//System.out.println(dRow);
+				System.out.print("Row" + rowNum + ": ");
+				boolean firstCell = true;
 				for(Map.Entry<Integer, SchemaCell> cellEnt : dRow.getSchemaCells().entrySet()) {
 					Integer colNum = cellEnt.getKey();
 					SchemaCell dCell = cellEnt.getValue();
-					//System.out.print("Col: " + colNum + " ");
-					System.out.print(dCell.getValue() + ", ");
+					if(firstCell) firstCell = false; 
+					else System.out.print(", ");
+					System.out.print(dCell.getValue());
 				}
 				System.out.println();
 			}
@@ -96,14 +97,16 @@ public class ExposureDose {
 		//String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
 		String[] schemaPaths = {"airp-csvx-var-only.json"};
 		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
-		List<SchemaTable> result = sp.getDatasets("airpolt.csv", null, schemaPaths);
-		System.out.println(result);
+		List<SchemaTable> result = sp.getDatasets("airpolt.csv", null, schemaPaths);		
 		
-		dumpSchemaTables(result);
+		SchemaProcessor.schemaTables2Csv(result);
+		
+		//dumpSchemaTables(result);
 		
 		//ed.dumpDatasets();
 		
 		//ed.computeMatch();
+
 	}
 
 }

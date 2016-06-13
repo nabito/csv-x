@@ -147,16 +147,25 @@ public abstract class SchemaEntity {
 	 * @return String
 	 */
 	public abstract String getRefEx();
+	
+	/**
+	 * Check if property with the specified name is defined in this schema entity.
+	 * @param propName
+	 * @return true or false
+	 */
+	public boolean hasProperty(String propName) {
+		return properties.containsKey(propName);
+	}
 
 	/**
 	 * Get literal value of a property with the given name.
-	 * 
-	 * @param propertyName
+	 * IMP soon this must support return type of Object as per JSON capability.
+	 * @param propName
 	 * @return String holding literal value of the property 
 	 * or null if the property is not yet defined.
 	 */
-	public String getProperty(String propertyName) {
-		return properties.get(propertyName);
+	public String getProperty(String propName) {
+		return properties.get(propName);
 	}
 
 	/**
@@ -217,9 +226,9 @@ public abstract class SchemaEntity {
 	}
 
 	/**
-	 * Get value of this schema entity.
+	 * Get value of this schema entity specified by '@value' property.
 	 * 
-	 * @return
+	 * @return String
 	 */
 	public String getValue() {
 		return getProperty(METAPROP_VALUE);

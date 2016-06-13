@@ -41,11 +41,6 @@ public class Schema {
 	public static final String DEFAULT_TABLE_NAME = "@defaultTable";
 	
 	/**
-	 * ID of the schema with the same definition as in JSON-LD.
-	 */
-//	private String id;
-	
-	/**
 	 * Map between table name and schema table.
 	 * 
 	 * Since a schema table always has a name, this also serve as the variable registry 
@@ -181,7 +176,7 @@ public class Schema {
 	 * @param table
 	 */
 	public void addSchemaTable(SchemaTable table) {
-		sTables.put(table.getName(), table);
+		sTables.put(table.getTableName(), table);
 	}
 	
 	/**
