@@ -20,6 +20,11 @@ package com.dadfha.lod.csv;
  *
  */
 public class SchemaProperty extends SchemaEntity {
+	
+	/**
+	 * Class IRI for schema property.
+	 */
+	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaProperty";	
 
 	/**
 	 * Parent schema table.

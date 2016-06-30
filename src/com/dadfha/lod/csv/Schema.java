@@ -20,6 +20,16 @@ import java.util.function.Function;
 public class Schema {
 	
 	/**
+	 * CSV-X namespace.
+	 */
+	public static final String NS = "http://dadfha.com/ont/csvx";
+	
+	/**
+	 * CSV-X default namespace prefix.
+	 */
+	public static final String NS_PREFIX = "csvx";
+	
+	/**
 	 * Any schema entity besides schema table declared in global scope, i.e. is not under any table schema entity, 
 	 * will be assigned to default table. 
 	 * 
@@ -41,6 +51,16 @@ public class Schema {
 	public static final String DEFAULT_TABLE_NAME = "@defaultTable";
 	
 	/**
+	 * The base IRI (or other addressing scheme) for all schema entity.
+	 * Any \@id in each schema entity will override the base. Therefore, prefix must be used 
+	 * to define unique local name over a base.  
+	 * 
+	 * If \@base not defined in a schema, it'll be default to empty string. 
+	 * 
+	 */
+	public static final String METAPROP_BASE = "@base";
+	
+	/**
 	 * Map between table name and schema table.
 	 * 
 	 * Since a schema table always has a name, this also serve as the variable registry 
@@ -59,7 +79,8 @@ public class Schema {
 	private List<String> targetCsvs = new ArrayList<String>();
 	
 	/**
-	 * Schema properties (including user-defined). 
+	 * Properties of the schema (including user-defined). 
+	 * This is not the same as SchemaProperty which is the data property. 
 	 */
 	private Map<String, Object> properties = new HashMap<String, Object>();	
 	
@@ -70,6 +91,22 @@ public class Schema {
 	 * The schema keeps the collection as map between SERE and Function class.
 	 */
 	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();
+	
+	/**
+	 * Set base (IRI) for the whole schema. Existing value will be overwritten.
+	 * @param baseIri
+	 */
+	public void setBase(String base) {
+		properties.put(METAPROP_BASE, base);
+	}
+	
+	/**
+	 * Get base (IRI) for the schema.
+	 * @return String or null if none is defined.
+	 */
+	public String getBase() {
+		return (String) properties.get(METAPROP_BASE);
+	}
 	
 	/**
 	 * Create data schema to hold actual data table(s).
@@ -193,6 +230,62 @@ public class Schema {
 	@Override
 	public String toString() {
 		return "Schema[" + properties.get("@id") + "]";
+	}
+	
+	/**
+	 * Serialize into RDF Turtle format.
+	 * @return
+	 */
+	public String serializeTtl() {
+		StringBuilder ttl = new StringBuilder();
+		for(Map.Entry<String, SchemaTable> tableE : sTables.entrySet()) {
+			String tableName = tableE.getKey();
+			SchemaTable sTable = tableE.getValue();
+			
+			ttl.append(sTable.getTtl());
+			
+			// for every row
+			for(Map.Entry<Integer, SchemaRow> rowE : sTable.getSchemaRows().entrySet()) {
+				Integer rowNum = rowE.getKey();
+				SchemaRow sRow = rowE.getValue();
+				
+				ttl.append(sRow.getTtl());
+				
+				// for every cell
+				for(Map.Entry<Integer, SchemaCell> cellE : sRow.getSchemaCells().entrySet()) {
+					Integer colNum = cellE.getKey();
+					SchemaCell sCell = cellE.getValue();
+					
+					ttl.append(sCell.getTtl());
+					
+				}
+			}
+			
+			// for every schema property
+			for(Map.Entry<String, SchemaProperty> propE : sTable.getSchemaProperties().entrySet()) {
+				String propName = propE.getKey();
+				SchemaProperty sProp = propE.getValue();
+				
+				ttl.append(sProp.getTtl());
+				
+				// TODO add statememt for which table it's belonged to for Schema Property and Schema Data
+				// FIXME SERE for dCell must show actual row not schema def row [3]
+				// TODO resolve {var} when serialize too (See CSV dump)
+				// TODO handle @base
+				// TODO why schema property object appears in all dTable ? shouldn't it be only default table for now?
+				
+			}
+			
+			// for every schema data
+			for(Map.Entry<String, SchemaData> dataE : sTable.getSchemaDataMap().entrySet()) {
+				String dataName = dataE.getKey();
+				SchemaData sData = dataE.getValue();
+				
+				ttl.append(sData.getTtl());
+			}
+			
+		}
+		return ttl.toString();
 	}
 	
 }

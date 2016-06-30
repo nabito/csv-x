@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.dadfha.lod.csv.Schema;
 import com.dadfha.lod.csv.SchemaCell;
 import com.dadfha.lod.csv.SchemaProcessor;
 import com.dadfha.lod.csv.SchemaRow;
@@ -94,12 +95,15 @@ public class ExposureDose {
 		ExposureDose ed = new ExposureDose();
 		
 		SchemaProcessor sp = new SchemaProcessor();
-		//String[] schemaPaths = {"airp-csvx1.json", "airp-csvx2.json"};
-		String[] schemaPaths = {"airp-csvx-var-only.json"};
+		//String[] schemaPaths = {"airp-csvx-var-only.json"};
+		String[] schemaPaths = {"airp-csvx-var-only-template.json"};
 		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
-		List<SchemaTable> result = sp.getDatasets("airpolt.csv", null, schemaPaths);		
 		
+		List<SchemaTable> result = sp.getDataTableList("airpolt.csv", null, schemaPaths);		
 		SchemaProcessor.schemaTables2Csv(result);
+		
+		//Schema dSchema = sp.getDataSchema("airpolt.csv", null, schemaPaths);
+		//System.out.println(dSchema.serializeTtl());
 		
 		//dumpSchemaTables(result);
 		

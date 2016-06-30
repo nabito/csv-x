@@ -17,6 +17,11 @@ import java.util.regex.Pattern;
  * @author Wirawit
  */
 public class SchemaTable extends SchemaEntity {
+
+	/**
+	 * Class IRI for schema table.
+	 */
+	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaTable";
 	
 	/**
 	 * Set this to two times the expected number of row per section. 

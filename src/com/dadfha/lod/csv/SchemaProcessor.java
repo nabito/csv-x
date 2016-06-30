@@ -15,7 +15,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -31,12 +30,19 @@ public class SchemaProcessor {
 	 */
 	public static final String METAPROP_SPACE_IS_EMPTY = "@spaceIsEmpty";
 	
+	/**
+	 * Whether or not to trim CSV value.
+	 */
 	public static final String METAPROP_TRIM = "@trim";
 	
 	/**
 	 * Processing mode to ignore error message, creating no log nor print.
 	 */
 	public static final int MODE_IGNORE_ERR_MSG = 0x01;
+	
+	public enum ReturnType {
+		DATA_SCHEMA, TABLE_LIST
+	}
 	
 	@SuppressWarnings("serial")
 	public class SchemaNotMatchedException extends Exception {
@@ -263,14 +269,16 @@ public class SchemaProcessor {
 	 * Parse CSV with CSV-X Schema.
 	 *  
 	 * Remark:
-	 * Due to limitation in usage of current univo-CsvParser, it will be recreated, with proper starting line, 
+	 * Due to limitation in usage of current univo-CsvParser API, it will be recreated, with proper starting line, 
 	 * every time a schema table has been tried for parsing, no matter the parse is success or not. 
 	 * 
-	 * @param csvPath
-	 * @param schema
+	 * @param csvPath path to csv file
+	 * @param schema schema to be parsed against with
+	 * @param context context variable
+	 * @param retType the desire return type
 	 * @return Object
 	 */
-	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context) {
+	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context, ReturnType retType) {
 		
 		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
 		
@@ -324,8 +332,15 @@ public class SchemaProcessor {
 				break;
 			}
 		} // end while(true)
-
-		return dataTables;
+		
+		switch(retType) {
+		case DATA_SCHEMA:
+			return dSchema;
+		case TABLE_LIST:
+			return dataTables;
+		default:
+			return dSchema;
+		}
 		
 /*		 
  		Algorithm Summary:
@@ -684,8 +699,7 @@ public class SchemaProcessor {
 	//}
 	
 	//public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 
-	@SuppressWarnings("unchecked")
-	public List<SchemaTable> getDatasets(String csvPath, String csvId, String[] schemaPaths) {
+	public Object getDatasets(String csvPath, String csvId, String[] schemaPaths, ReturnType retType) {
 		
 		Context context = new Context();
 		
@@ -701,24 +715,33 @@ public class SchemaProcessor {
 			Schema schema = schemas.get(sId);
 			assert(schema != null) : "Impossible case of unrecognized schema ID : " + sId;
 			//data = parseWithSchema(csvPath, schema);
-			data = parseCsvWithSchema(csvPath, schema, context);
+			data = parseCsvWithSchema(csvPath, schema, context, retType);
 		} else { 			
 			// The processor loops through known schemas until it successfully parse the CSV.
 			for(Schema schema : schemas.values()) {		
-				data = parseCsvWithSchema(csvPath, schema, context);
+				data = parseCsvWithSchema(csvPath, schema, context, retType);
 				if(data != null) break;
 			} 			
 		}
 		
 		if(data != null) {
 			//return (Set<DataSet>) data;
-			return (List<SchemaTable>) data;
+			return data;
 		} else {
 			System.err.println("The parse bears no fruit: check out errors log.");
 			return null;
 		}
 				
-	}	
+	}
+	
+	@SuppressWarnings("unchecked")
+	public List<SchemaTable> getDataTableList(String csvPath, String csvId, String[] schemaPaths) {
+		return (List<SchemaTable>) getDatasets(csvPath, csvId, schemaPaths, ReturnType.TABLE_LIST);
+	}
+	
+	public Schema getDataSchema(String csvPath, String csvId, String[] schemaPaths) {
+		return (Schema) getDatasets(csvPath, csvId, schemaPaths, ReturnType.DATA_SCHEMA);
+	}
 	
 	/**
 	 * Parse in CSV-X Schema file.
@@ -742,7 +765,10 @@ public class SchemaProcessor {
 			
 			for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {			
 				String key = e.getKey();
-				switch(key) {		
+				switch(key) {
+				case Schema.METAPROP_BASE:
+					s.addProperty(Schema.METAPROP_BASE, (String) e.getValue()); 
+					break;
 				case "@id":
 					s.addProperty("@id", (String) e.getValue());
 					break;
@@ -892,7 +918,7 @@ public class SchemaProcessor {
 			case "@id":
 				sData.setId((String) val);
 				break;
-			case "@datatype":
+			case SchemaEntity.METAPROP_DATATYPE:
 				sData.setDatatype((String) val);
 				break;
 			case "@lang":
@@ -915,7 +941,7 @@ public class SchemaProcessor {
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key;
 			switch((key = e.getKey())) {
-			case "@mapType":				
+			case SchemaEntity.METAPROP_MAPTYPE:				
 				st.setMapType((String) e.getValue());
 				break;
 			case "@name":
@@ -1064,11 +1090,11 @@ public class SchemaProcessor {
 			case "@regex":
 				cell.setRegEx(e.getValue());
 				break;
-			case "@mapType":
+			case SchemaEntity.METAPROP_MAPTYPE:
 				String type = e.getValue();
 				cell.setMapType(type);
 				break;
-			case "@datatype":				
+			case SchemaEntity.METAPROP_DATATYPE:				
 				String datatype = e.getValue();				
 				cell.setDatatype(datatype);
 				break;

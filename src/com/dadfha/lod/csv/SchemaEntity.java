@@ -3,6 +3,8 @@ package com.dadfha.lod.csv;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.xerces.dom.ParentNode;
+
 public abstract class SchemaEntity {
 
 	/**
@@ -14,6 +16,9 @@ public abstract class SchemaEntity {
 	 * resource in Linked Data according to RDF model.
 	 */
 	public static final String METAPROP_NAME = "@name";
+	
+	public static final String METAPROP_NAME_PRED = Schema.NS_PREFIX + ":name";
+	
 
 	/**
 	 * The value defined by '@value' property for each schema entity. 
@@ -22,6 +27,8 @@ public abstract class SchemaEntity {
 	 * For Row, Table, and Property this has no specific semantic defined.
 	 */
 	public static final String METAPROP_VALUE = "@value";
+	
+	public static final String METAPROP_VALUE_PRED = Schema.NS_PREFIX + ":value";
 
 	/**
 	 * The unique id for the entity within a processing context. Can be UUID for
@@ -33,16 +40,22 @@ public abstract class SchemaEntity {
 	 */
 	public static final String METAPROP_ID = "@id";
 	
+	public static final String METAPROP_ID_PRED = Schema.NS_PREFIX + ":id";
+	
 	/**
 	 * Language code to tell what default language the literals inside this entity is written in.
 	 * This should comply with ISO 639-1 (https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes). 
 	 */
 	public static final String METAPROP_LANG = "@lang";
 	
+	public static final String METAPROP_LANG_PRED = Schema.NS_PREFIX + ":lang";
+	
 	/**
 	 * The user-defined data model type in which the cell is mapped to.
 	 */
-	public static final String METAPROP_MAPTYPE = "@maptype";
+	public static final String METAPROP_MAPTYPE = "@mapType";
+	
+	public static final String METAPROP_MAPTYPE_PRED = Schema.NS_PREFIX + ":mapType";
 	
 	/**
 	 * Regular expression applied differently for each schema entity type.
@@ -55,6 +68,8 @@ public abstract class SchemaEntity {
 	 */
 	public static final String METAPROP_REGEX = "@regex";
 	
+	public static final String METAPROP_REGEX_PRED = Schema.NS_PREFIX + ":regex";
+	
 	/**
 	 * The XML datatype according to latest XML Schema Datatype specification.
 	 * 
@@ -65,20 +80,28 @@ public abstract class SchemaEntity {
 	 */
 	public static final String METAPROP_DATATYPE = "@datatype";	
 	
+	public static final String METAPROP_DATATYPE_PRED = Schema.NS_PREFIX + ":datatype";
+	
 	/**
 	 * The meta property storing name to identify schema data.
 	 */
 	public static final String METAPROP_DATANAME = "@dataName";
+	
+	public static final String METAPROP_DATANAME_PRED = Schema.NS_PREFIX + ":dataName";
 	
 	/**
 	 * The meta property storing name to identify schema table.
 	 */
 	public static final String METAPROP_TBLNAME = "@tableName";
 	
+	public static final String METAPROP_TBLNAME_PRED = Schema.NS_PREFIX + ":tableName";
+	
 	/**
 	 * The meta property storing name to identify schema property.
 	 */
 	public static final String METAPROP_PROPNAME = "@propName";	
+	
+	public static final String METAPROP_PROPNAME_PRED = Schema.NS_PREFIX + ":propName";
 
 	/**
 	 * Schema enitity's properties. HashMap storing mapping between property's
@@ -312,6 +335,103 @@ public abstract class SchemaEntity {
 	 */
 	public String toString() {
 		return getRefEx();
+	}
+	
+	/**
+	 * Serialize to RDF Turtle format.
+	 * @return String
+	 */
+	public String getTtl() {
+		
+		StringBuilder sb = new StringBuilder();		
+		String base, subject, predicate, object;		
+		Schema parentSchema = getParentSchema(); 
+		
+		base = parentSchema.getBase();
+		if(base == null) base = "";  
+		
+		String id = getId();
+		if(id == null) subject = base + getRefEx(); // default id for every entity is its SERE
+		else subject = base + id; // use the id for triple subject if one is defined
+				
+		// check schema entity type, denote the type in ttl too
+		predicate = "rdf:type";
+		Class<? extends SchemaEntity> objCls = this.getClass();
+		if(objCls.equals(SchemaTable.class)) {
+			object = SchemaTable.CLASS_IRI;
+		} else if(objCls.equals(SchemaRow.class)) {
+			object = SchemaRow.CLASS_IRI;
+		} else if(objCls.equals(SchemaCell.class)) {
+			object = SchemaCell.CLASS_IRI;
+		} else if(objCls.equals(SchemaProperty.class)) {
+			object = SchemaProperty.CLASS_IRI;
+		} else if(objCls.equals(SchemaData.class)) {
+			object = SchemaData.CLASS_IRI;
+		} else {
+			throw new RuntimeException("Unrecognized Schema Entity type. Should never got here.");
+		}
+		
+		// add node type annotation
+		sb.append(subject + " " + predicate + " " + object + " ." + System.lineSeparator());
+		
+		// for each property inside a schema entity
+		for(Map.Entry<String, String> e : properties.entrySet()) {
+			String propName = e.getKey();
+			String propVal = e.getValue();
+			
+			switch(propName) {
+			case METAPROP_DATANAME:
+				predicate = METAPROP_DATANAME_PRED;
+				break;
+			case METAPROP_DATATYPE:
+				predicate = METAPROP_DATATYPE_PRED;
+				break;
+			case METAPROP_ID: // FIXME may be this one is already used as subject
+				predicate = METAPROP_ID_PRED;
+				break;
+			case METAPROP_LANG: // FIXME should follow RDF i18n literal structure
+				predicate = METAPROP_LANG_PRED;
+				break;
+			case METAPROP_MAPTYPE:
+				predicate = METAPROP_MAPTYPE_PRED;
+				break;		
+			case METAPROP_NAME:
+				predicate = METAPROP_NAME_PRED;
+				break;
+			case METAPROP_PROPNAME:
+				predicate = METAPROP_PROPNAME_PRED;
+				break;			
+			case METAPROP_REGEX:
+				predicate = METAPROP_REGEX_PRED;
+				break;			
+			case METAPROP_TBLNAME:
+				predicate = METAPROP_TBLNAME_PRED;
+				break;			
+			case METAPROP_VALUE:
+				predicate = METAPROP_VALUE_PRED;
+				break;							
+			default: 				
+				// user-defined property will become predicate as is, any property with same name is the same for v1.x
+				predicate = base + propName;
+				
+				// check if there's schema property definition defined
+				SchemaProperty sProp = getSchemaTable().getSchemaProperty(propName); 
+				if(sProp != null) {					
+					// declare this property type
+					String propId = sProp.getProperty(METAPROP_ID);
+					if(propId != null) sb.append(predicate + " rdf:type " + propId + " ." + System.lineSeparator());
+					else sb.append(predicate + " rdf:type " + base + sProp.getRefEx() + " ." + System.lineSeparator());
+				}
+				break;
+			} // end property switch case
+			
+			// add statement for each property-value pair inside this schema entity
+			object = propVal;
+			sb.append(subject + " " + predicate + " " + object + " ." + System.lineSeparator()); 
+			
+		} // end for each property
+		
+		return sb.toString();
 	}
 
 }

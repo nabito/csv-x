@@ -5,6 +5,11 @@ import java.util.Map;
 public class SchemaCell extends SchemaEntity {	
 	
 	/**
+	 * Class IRI for schema cell.
+	 */
+	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaCell";	
+	
+	/**
 	 * Parent schema table this cell is contained in.
 	 */
 	private SchemaTable parentTable;

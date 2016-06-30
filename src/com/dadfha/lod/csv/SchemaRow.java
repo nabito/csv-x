@@ -6,6 +6,11 @@ import java.util.Map;
 public class SchemaRow extends SchemaEntity {
 	
 	/**
+	 * Class IRI for schema row.
+	 */
+	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaRow";	
+	
+	/**
 	 * Parent schema table.
 	 */
 	private SchemaTable parentTable;

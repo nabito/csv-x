@@ -12,6 +12,11 @@ package com.dadfha.lod.csv;
  */
 public class SchemaData extends SchemaEntity {
 	
+	/**
+	 * Class IRI for schema data.
+	 */
+	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaData";	
+	
 	SchemaTable parentTable;
 	
 	public SchemaData(String dataName, SchemaTable parentTable) {
