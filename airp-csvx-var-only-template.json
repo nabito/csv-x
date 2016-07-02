@@ -323,122 +323,24 @@
 			"@name" : "msrDay{subrow}",
 			"@regex" : "(\\d+)(日)"
 		},
+
+		"@data[sensor]" : 
+		{
+			"@name" : "sensor",
+			"name" : "{msrProp}Sensor"
+		},
 	
 		"@cell[3,1-24]" :
 		{
 			"@name" : "msrDataAtSubrow{subrow}Col{col}",
 			"@mapType" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
-			"@mapTemplate" : "sensorObserve",
+			"@mapTemplate" : "createSensorObs('{sensor.name}', '{msrProp}', 'Atmosphere', '{@this.@value}', '{msrYrMth}{@this.hasMsrDay}{@this.hasMsrHour}')", // TODO make ref to commonprops possible by adding them to dCell first before serialize, make sure the {var} resolution allow for reference for "other" property within the schema entity, and check for circular ref for the same prop as well
 			"title_en" : "{msrProp} property measurement value at date/time: {msrYrMth}{msrDay{subrow}}/{msrHr{col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}",
 			"hasMsrHour" : "{msrHr{col}}", // former "@cell[2,{col}]",
-			"hasMsrVal" : "{@value}" // this is the way to associate this cell's value with a property of datapoint.
+			"hasMsrVal" : "{@this.@value}" // this is the way to associate this cell's value with a property of datapoint. FIXME, this should be @this.@value to prevent name collision 
 		},
-
-        // it's possible to express a whole RDF template using RDF itself, but that'd limit the readability
-        // though it'll have a good portability via client already know how to parse in RDF
-
-        // however, we want numbers of templates to be mainly embedded in a CSV-X schema file
-        // it'll be more convenient to be able to describe a template within the file.
-
-        // there may be needs in the future to introduce new features to the template, 
-        // which may demand more specific syntax, custom for the purpose, ex. repeating construct like foreach
-        // in which case, it's still also embeddable in JSON as string (with escape chars as need)
-
-        // therefore, let's try JSON-based first to benefit from portability, simplicity-readability (over XML, ttl, etc.)
-        // until a specific need arises 
-
-
-        "@template[ttlHeaders]" : 
-        {
-        	"ttl" :
-				"
-                # the meta-directives shoukd be defined as per schema
-                
-                @prefix : <http://www.dadfha.com/ont/ex#> .
-                @prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn> .
-                @prefix DUL: <http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#> .
-                @prefix qu <http://www.omgwiki.org/SysML-QUDV-SI.owl#> .
-                @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-                @base <http://www.dadfha.com/ont/ex> .				
-				"
-        },
-
-        "@template[createSensorDesc]" : 
-        {
-            "params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],
-
-            "description" : "Declare a sensor with its measuremnet properties.",
-
-            // IMP template referencing another template
-            "ttl" : 
-                "
-                :{sensor} rdf:type ssn:SensingDevice ;
-                ssn:observes :{property} ;
-                ssn:onPlatform ?plat1 ;
-                ssn:hasMeasurementCapability :{msrCap} .
-
-                # define measurement property
-                :{property} rdf:type ssn:Property ;
-                rdf:type qu:QuantityKind ;
-                qu:unitKind :{unit} .
-                :{unit} rdf:type qu:Unit .
-
-                # measurement properties
-                :{msrCap} ssn:hasMeasurementProperty ?f1, ?p1 .
-
-                ?f1 rdf:type ssn:Frequency ;
-                ssn:hasValue ?freqPropVal .
-                ?freqPropVal rdf:type DUL:Amount ;
-                DUL:isClassifiedBy :timesPerDay ;
-                DUL:hasDataValue {frequency} .
-                :timesPerDay rdf:type DUL:UnitOfMeasure .
-                
-                ?p1 rdf:type ssn:Precision ;
-                ssn:hasValue ?precPropVal .
-                ?precPropVal rdf:type DUL:Amount ;
-                DUL:hasDataValue {precision} .
-
-                # sensor platform location
-                ?plat1 rdf:type ssn:Platform ;
-                DUL:hasLocation {location} .
-                {location} rdf:type DUL:PhysicalPlace .                
-                "
-
-        }, 
-
-        "@template[createSensorObs]" : 
-        {
-            "params" : [ "sensor", "property", "feature", "value", "time" ],
-
-            "description" : "Template for each sensor observation.",
-
-            "ttl" : 
-                "
-                ?o rdf:type ssn:Observation ;
-                ssn:observedBy {sensor} ;
-                ssn:featureOfInterest {feature} ;
-                ssn:observedProperty {property} ;
-                ssn:observationSamplingTime {time} ;
-                ssn:observationResult ?so .
-
-                {property} ssn:isPropertyOf {feature} .
-
-                # express value
-                ?so rdf:type ssn:SensorOutput ;
-                ?so ssn:isProducedBy {sensor} ;
-                ssn:hasValue ?obsVal .
-                ?obsVal rdf:type ssn:ObservationValue ;
-                ?obsVal DUL:hasDataValue {value} .
-
-                # if a sensor type define a specific property type to observe in the ontology, 
-                # this statement can help in verifying inconsistency in annotating 
-                # a sensor type for wrong property type.
-
-                {sensor} ssn:observes {property} .
-                "
-        },		
 	
 		"@cell[3,25]" :
 		{
@@ -1046,7 +948,113 @@
 		
 		"@cell[8,1-24]" : {}
 		
-	} // end of wind direction table
+	}, // end of wind direction table
+
+    // it's possible to express a whole RDF template using RDF itself, but that'd limit the readability
+    // though it'll have a good portability via client already know how to parse in RDF
+
+    // however, we want numbers of templates to be mainly embedded in a CSV-X schema file
+    // it'll be more convenient to be able to describe a template within the file.
+
+    // there may be needs in the future to introduce new features to the template, 
+    // which may demand more specific syntax, custom for the purpose, ex. repeating construct like foreach
+    // in which case, it's still also embeddable in JSON as string (with escape chars as need)
+
+    // therefore, let's try JSON-based first to benefit from portability, simplicity-readability (over XML, ttl, etc.)
+    // until a specific need arises 
+
+
+    "@template[ttlHeaders]" : 
+    {
+    	"ttl" :
+			"
+            # the meta-directives shoukd be defined as per schema
+            
+            @prefix : <http://www.dadfha.com/ont/ex#> .
+            @prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn> .
+            @prefix DUL: <http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#> .
+            @prefix qu <http://www.omgwiki.org/SysML-QUDV-SI.owl#> .
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            @base <http://www.dadfha.com/ont/ex> .				
+			"
+    },
+
+    // created in accordance to guide in http://www.w3.org/2005/Incubator/ssn/XGR-ssn-20110628/
+    "@template[createSensorDesc]" : 
+    {
+        "params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],
+
+        "description" : "Declare a sensor with its measuremnet properties.",
+
+        // IMP template referencing another template
+        "ttl" : 
+            "
+            :{sensor} rdf:type ssn:SensingDevice ;
+            ssn:observes :{property} ;
+            ssn:onPlatform ?plat1 ;
+            ssn:hasMeasurementCapability :{msrCap} .
+
+            # define measurement property
+            :{property} rdf:type ssn:Property ;
+            rdf:type qu:QuantityKind ;
+            qu:unitKind :{unit} .
+            :{unit} rdf:type qu:Unit .
+
+            # measurement properties
+            :{msrCap} ssn:hasMeasurementProperty ?f1, ?p1 .
+
+            ?f1 rdf:type ssn:Frequency ;
+            ssn:hasValue ?freqPropVal .
+            ?freqPropVal rdf:type DUL:Amount ;
+            DUL:isClassifiedBy :timesPerDay ;
+            DUL:hasDataValue {frequency} .
+            :timesPerDay rdf:type DUL:UnitOfMeasure .
+            
+            ?p1 rdf:type ssn:Precision ;
+            ssn:hasValue ?precPropVal .
+            ?precPropVal rdf:type DUL:Amount ;
+            DUL:hasDataValue {precision} .
+
+            # sensor platform location
+            ?plat1 rdf:type ssn:Platform ;
+            DUL:hasLocation {location} .
+            {location} rdf:type DUL:PhysicalPlace .                
+            "
+
+    }, 
+
+    "@template[createSensorObs]" : 
+    {
+        "params" : [ "sensor", "property", "feature", "value", "time" ],
+
+        "description" : "Template for each sensor observation.",
+
+        "ttl" : 
+            "
+            ?o rdf:type ssn:Observation ;
+            ssn:observedBy {sensor} ;
+            ssn:featureOfInterest {feature} ;
+            ssn:observedProperty {property} ;
+            ssn:observationSamplingTime {time} ;
+            ssn:observationResult ?so .
+
+            {property} ssn:isPropertyOf {feature} .
+
+            # express value
+            ?so rdf:type ssn:SensorOutput ;
+            ?so ssn:isProducedBy {sensor} ;
+            ssn:hasValue ?obsVal .
+            ?obsVal rdf:type ssn:ObservationValue ;
+            ?obsVal DUL:hasDataValue {value} .
+
+            # if a sensor type define a specific property type to observe in the ontology, 
+            # this statement can help in verifying inconsistency in annotating 
+            # a sensor type for wrong property type.
+
+            {sensor} ssn:observes {property} .
+            "
+    }
+
 
 } // end of schema
 

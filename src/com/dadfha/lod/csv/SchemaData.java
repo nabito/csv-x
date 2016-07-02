@@ -25,6 +25,12 @@ public class SchemaData extends SchemaEntity {
 		this.parentTable = parentTable;
 	}
 	
+	public static SchemaData createDataObject(SchemaData sData, SchemaTable parentDataTable) {
+		SchemaData dData = new SchemaData(sData.getDataName(), parentDataTable); 
+		dData.properties.putAll(sData.properties);
+		return dData;
+	}		
+	
 	public String getDataName() {
 		return getProperty(METAPROP_DATANAME);
 	}
@@ -79,7 +85,7 @@ public class SchemaData extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return "@data[" + getDataName() + "]";
+		return parentTable.getRefEx() + ".@data[" + getDataName() + "]";
 	}
 
 }

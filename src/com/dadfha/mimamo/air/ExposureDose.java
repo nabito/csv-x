@@ -99,13 +99,16 @@ public class ExposureDose {
 		String[] schemaPaths = {"airp-csvx-var-only-template.json"};
 		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
 		
-		List<SchemaTable> result = sp.getDataTableList("airpolt.csv", null, schemaPaths);		
-		SchemaProcessor.schemaTables2Csv(result);
-		
-		//Schema dSchema = sp.getDataSchema("airpolt.csv", null, schemaPaths);
-		//System.out.println(dSchema.serializeTtl());
+		//List<SchemaTable> result = sp.getDataTableList("airpolt.csv", null, schemaPaths);		
+		//SchemaProcessor.schemaTables2Csv(result);
 		
 		//dumpSchemaTables(result);
+		
+		Schema dSchema = sp.getDataSchema("airpolt.csv", null, schemaPaths);
+		//System.out.println(dSchema.serializeTtl());
+		SchemaProcessor.generateRdfFromTemplate(dSchema);
+		
+		
 		
 		//ed.dumpDatasets();
 		

@@ -93,6 +93,11 @@ public class Schema {
 	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();
 	
 	/**
+	 * RDF template collection.
+	 */
+	private Map<String, RdfTemplate> rdfTemplates = new HashMap<String,RdfTemplate>();
+	
+	/**
 	 * Set base (IRI) for the whole schema. Existing value will be overwritten.
 	 * @param baseIri
 	 */
@@ -120,6 +125,7 @@ public class Schema {
 		newSchema.properties.putAll(s.properties);
 		newSchema.targetCsvs.addAll(s.targetCsvs);
 		newSchema.userFuncs.putAll(s.userFuncs);
+		newSchema.rdfTemplates.putAll(s.rdfTemplates);
 		return newSchema;
 	}	
 
@@ -223,6 +229,24 @@ public class Schema {
 	public void removeSchemaTable(String tableName) {
 		sTables.remove(tableName);
 	}
+	
+	/**
+	 * Get an RDF template by name.
+	 * @param name
+	 * @return RdfTemplate or null if no template with the name exists.
+	 */
+	public RdfTemplate getRdfTemplate(String name) {
+		return (rdfTemplates.containsKey(name))? rdfTemplates.get(name) : null;
+	}
+	
+	/**
+	 * Add an RDF template to the schema. 
+	 * Already existing template with the same name will be overwritten.
+	 * @param template
+	 */
+	public void addRdfTemplate(RdfTemplate template) {
+		rdfTemplates.put(template.getName(), template);
+	}
 
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
@@ -269,10 +293,8 @@ public class Schema {
 				ttl.append(sProp.getTtl());
 				
 				// TODO add statememt for which table it's belonged to for Schema Property and Schema Data
-				// FIXME SERE for dCell must show actual row not schema def row [3]
 				// TODO resolve {var} when serialize too (See CSV dump)
-				// TODO handle @base
-				// TODO why schema property object appears in all dTable ? shouldn't it be only default table for now?
+				// TODO recheck handling of @base and prefix properly
 				
 			}
 			

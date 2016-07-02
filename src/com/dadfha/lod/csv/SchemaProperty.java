@@ -37,6 +37,12 @@ public class SchemaProperty extends SchemaEntity {
 		setPropertyName(propName);
 	}
 	
+	public static SchemaProperty createDataObject(SchemaProperty sProp, SchemaTable parentDataTable) {
+		SchemaProperty dProp = new SchemaProperty(sProp.getPropertyName(), parentDataTable); 
+		dProp.properties.putAll(sProp.properties);
+		return dProp;
+	}	
+	
 	public String getPropertyName() {
 		return getProperty(METAPROP_PROPNAME);
 	}
@@ -100,7 +106,7 @@ public class SchemaProperty extends SchemaEntity {
 	 */
 	@Override
 	public String getRefEx() {
-		return "@property[" + getPropertyName() + "]";
+		return parentTable.getRefEx() + ".@property[" + getPropertyName() + "]";
 	}
 
 }

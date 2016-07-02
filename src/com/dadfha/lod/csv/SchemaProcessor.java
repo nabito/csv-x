@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -117,7 +118,7 @@ public class SchemaProcessor {
 	/**
 	 * RegEx for variable expression, {var} and {var.attr} 
 	 */
-	private static final String VAR_REGEX = "(\\{)([a-zA-Z_][a-zA-Z0-9_]*)(?:(\\.)([a-zA-Z_][a-zA-Z0-9_]*))?(\\})";
+	private static final String VAR_REGEX = "(\\{)([@a-zA-Z_][a-zA-Z0-9_]*)(?:(\\.)([@a-zA-Z_][a-zA-Z0-9_]*))?(\\})";
 	
 	/**
 	 * RegEx for context variable expression, {row}, {col}, and {subrow}
@@ -408,14 +409,22 @@ public class SchemaProcessor {
 				if(!processCsvRow(row, dTable, sRow, context, 0)) return null;
 			}
 
-			// return data table object if the end of schema table is reached
-			if((sRow = sTable.getRow(context.currSchemaRow)) == null) return dTable;
+			// add successfully parsed data table to data schema & return data table object if the end of schema table is reached
+			if((sRow = sTable.getRow(context.currSchemaRow)) == null) {
+				dSchema.addSchemaTable(dTable);
+				return dTable;
+			}
 			
 	    } // end for each row
 	    
 		// if there's no more CSV row to process, check if there's no more next schema row as well
 	    assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
-		return (sTable.getRow(context.currSchemaRow) == null)? dTable : null;	    
+		if(sTable.getRow(context.currSchemaRow) == null) {
+			dSchema.addSchemaTable(dTable);
+			return dTable;
+		} else {
+			return null;
+		}
 			    
 /*		  		
   		Algorithm Summary:
@@ -598,7 +607,9 @@ public class SchemaProcessor {
 			assert(sCell != null) : "The SchemaCell object can't be null after successful validation.";
 			
 			// create actual data cell object
-			SchemaCell dCell = SchemaCell.createDataObject(sCell, dTable, context.currVal);			
+			SchemaCell dCell = SchemaCell.createDataObject(sCell, context.currRow, context.currCol, dTable, context.currVal);
+			//System.out.print(dCell.getSchemaTable() + " --> ");
+			//System.out.println(dCell.getName());
 										
 			// for all cell's properties, process literal for context {var}, variable registration & etc.
 			if(!dCell.isEmpty()) procSchmEntPropRuntime(dCell, context);
@@ -633,7 +644,7 @@ public class SchemaProcessor {
 	 * context variables are current and valid for use. 
 	 * 
 	 * It will process each property of a schema entity as follows:
-	 * 1. Replace context {var} expression in the property's literal.
+	 * 1. Replace "context" {var} expression in the property's literal.
 	 * 2. Register cell variable in this data table, if '@name' is declared. 
 	 * 
 	 * Up coming in future version:
@@ -689,6 +700,8 @@ public class SchemaProcessor {
 				throw new RuntimeException("Variable name must not has {var} expression left in it: " + varName); 
 			}				
 			table.addVar(varName, se);	
+		} else {
+			throw new RuntimeException("A schema entity '" + se + "' has no variable name declared.");
 		}
 	}
 	
@@ -847,8 +860,10 @@ public class SchemaProcessor {
 						processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
 					} else if(key.startsWith("@table")) {
 						processTableMarker(key.substring(6), (LinkedHashMap<String, Object>) e.getValue(), s);
+					} else if(key.startsWith("@template")) {
+						processTemplateMarker(key.substring(9), (LinkedHashMap<String, Object>) e.getValue(), s);
 					} else if(key.startsWith("@")) {
-						System.err.println("Unrecognized meta property, ignoring key : " + key);
+						System.err.println("Unrecognized meta-property, ignoring key : " + key);
 					} else {
 						// Others are add to extra/user-defined properties map for later processing.
 						s.addProperty(key, e.getValue());
@@ -881,7 +896,7 @@ public class SchemaProcessor {
 			switch(key) {
 			case "@name":
 				sProp.setName((String) val);
-				sTable.addVar((String) val, sProp);
+				// sTable.addVar((String) val, sProp); << as of 2-July-2016, all var declaration must be made at schema generation time, since each schema property object will also get replicated for each data table. 
 				break;
 			case "@id":
 				sProp.setId((String) val);
@@ -899,6 +914,27 @@ public class SchemaProcessor {
 		} // end for each key-value pair.
 	}
 	
+	@SuppressWarnings("unchecked")
+	private void processTemplateDef(Map<String, Object> tmpProps, RdfTemplate tmp) {
+		for(Entry<String, Object> e : tmpProps.entrySet()) {
+			String key = e.getKey();
+			Object val = e.getValue();			
+			switch(key) {
+			case "params":
+				tmp.addParams((ArrayList<String>) val);
+				break;
+			case "description":
+				tmp.setDescription((String) val);
+				break;
+			case "ttl":
+				tmp.setTemplate((String) val);
+				break;
+			default:
+				throw new RuntimeException("Unrecognized template property: " + key);
+			}
+		}
+	}
+	
 	/**
 	 * IMP refactor this kind of methods into processSchemaEntityDef() 
 	 * Process schema data definition.
@@ -913,7 +949,9 @@ public class SchemaProcessor {
 			switch(key) {
 			case "@name":
 				sData.setName((String) val);
-				sTable.addVar((String) val, sData);
+				// Though at v1.0 it's assumed data @data cannot refer to context {var}, the variable register 
+				// must still be done at schema generation time, coz the schema data object will refer to new data table.
+				//sTable.addVar((String) val, sData);  
 				break;
 			case "@id":
 				sData.setId((String) val);
@@ -945,9 +983,9 @@ public class SchemaProcessor {
 				st.setMapType((String) e.getValue());
 				break;
 			case "@name":
-				String tableName = (String) e.getValue();
-				st.setName(tableName); 
-				st.addVar(tableName, st); // add reference to the table itself so other schema entity can refer to
+				String tableVarName = (String) e.getValue();
+				st.setName(tableVarName); 				
+				//st.addVar(tableVarName, st); // as of 2-July-2016, all variable must get registered in a table at schema generation time (CSV-parsing) for consistency.  
 				break;
 			case "@emptyCellFill":
 				st.setEmptyCellFill((String) e.getValue());
@@ -1027,7 +1065,7 @@ public class SchemaProcessor {
 			sr = new SchemaRow(rowNum, sTable);
 			sTable.addRow(sr);
 		}
-		processRowProps(sr, rowProperties); // IMP change fn name to processRowDef()
+		processRowDef(sr, rowProperties);
 	}
 	
 	private void processPropMarker(String marker, Map<String, Object> propProperties, SchemaTable sTable) {
@@ -1037,7 +1075,7 @@ public class SchemaProcessor {
 		// define property for global scope 
 		// IMP think about type system for SchemaEntity.. @prop[type:name] and relation with variable name.
 		SchemaProperty sProp = new SchemaProperty(propName, sTable); 
-		processPropertyDef(propProperties, sProp);		
+		processPropertyDef(propProperties, sProp);	
 		assert(sTable.hasSchemaProperty(propName)) : "At the end of processPropMarker() the schema property's name must have been already registered.";
 	}
 	
@@ -1048,7 +1086,17 @@ public class SchemaProcessor {
 		// process table internal structure.. e.g. cell, row, etc.
 		SchemaTable sTable = new SchemaTable(tableName, schema);
 		processTableDef(tableProperties, sTable); 
+		schema.addSchemaTable(sTable);
 		assert(schema.hasSchemaTable(tableName)) : "At the end of processTableMarker() the table's name must have been already registered.";
+	}
+	
+	private void processTemplateMarker(String marker, Map<String, Object> templateProperties, Schema schema) {
+		String templateName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		templateName = templateName.replaceAll("\\s+", ""); // remove whitespaces		
+		if(templateName.equals("")) throw new RuntimeException("Template name must not be empty string.");
+		RdfTemplate tmp = new RdfTemplate(templateName, schema); 
+		processTemplateDef(templateProperties, tmp);
+		schema.addRdfTemplate(tmp);
 	}
 	
 	private void processDataMarker(String marker, Map<String, Object> dataProperties, SchemaTable sTable) {
@@ -1058,6 +1106,7 @@ public class SchemaProcessor {
 		SchemaData sData = new SchemaData(dataName, sTable);
 		processDataDef(dataProperties, sData);
 		sTable.addSchemaData(sData);
+		assert(sTable.hasSchemaData(dataName)) : "At the end of processDataMarker() the schema data's name must have been already registered.";
 	}
 	
 	/**
@@ -1069,23 +1118,24 @@ public class SchemaProcessor {
 	 */
 	private void cellCreation(int row, int col, Map<String, String> cellProps, SchemaTable sTable) {		
 		SchemaCell c = new SchemaCell(row, col, sTable);
-		processCellProps(c, cellProps);
+		processCellDef(c, cellProps);
 		sTable.addCell(c);	
 	}	
 	
 	/**
-	 * Process special properties inside cell.
+	 * Process all properties inside a cell definition.
 	 * @param cell
 	 * @param cellProps
 	 */
-	private void processCellProps(SchemaCell cell, Map<String, String> cellProps) {
-		//Schema s = cell.getParentSchema();
+	private void processCellDef(SchemaCell cell, Map<String, String> cellProps) {
 		for(Entry<String, String> e : cellProps.entrySet()) {
-			switch(e.getKey()) {
+			String propName = e.getKey();
+			switch(propName) {
 			case "@name":
 				String cellName = e.getValue();
 				cell.setName(cellName);
-				//s.addVar(cellName, cell); << for our policy now (2016/6/28) var must be declared at run-time as per dataset!?
+				assert(cell.getName() == cellName) : "The cell name is not properly set for cell schema: " + cell;
+				//s.addVar(cellName, cell); << for our policy now (2016/6/28) var must be declared at run-time as per dataset because its name may refer to context {var}
 				break;		
 			case "@regex":
 				cell.setRegEx(e.getValue());
@@ -1104,9 +1154,15 @@ public class SchemaProcessor {
 			case "@value":
 				cell.setValue(e.getValue());
 				break;
+			case SchemaEntity.METAPROP_MAP_RDF_TEMPLATE:
+				cell.setRdfTemplateMapping(e.getValue()); 
+				break;
 			default:
+				if(propName.startsWith("@")) {
+					System.err.println("Warning: unrecognized meta-property '" + propName + "' in schema cell definition: " + cell);
+				}
 				// process the value then add to user-defined properties
-				cell.addProperty(e.getKey(), e.getValue());
+				cell.addProperty(propName, e.getValue());
 				break;
 			}
 		}
@@ -1117,7 +1173,7 @@ public class SchemaProcessor {
 	 * @param sRow
 	 * @param rowProps
 	 */
-	private void processRowProps(SchemaRow sRow, Map<String, Object> rowProps) {
+	private void processRowDef(SchemaRow sRow, Map<String, Object> rowProps) {
 		for(Entry<String, Object> e : rowProps.entrySet()) {
 			switch(e.getKey()) {
 			case "@repeatTimes":
@@ -1344,6 +1400,8 @@ public class SchemaProcessor {
 		String retVal = literal;		
 		SchemaTable st = se.getSchemaTable();
 		
+		//System.err.println("DEBUG: @SchemaProcessor::processVarEx() Top : " + st.getVarMap().toString());
+		
 		// add calling schema property to the Recursive Ref Stack (RRS) of LinkedHashSet<String> where String = SERE
 		if(rrs == null) rrs = new LinkedHashSet<String>();
 		rrs.add(se.getRefEx() + "." + propName);
@@ -1362,7 +1420,12 @@ public class SchemaProcessor {
 	    	
     		// check if there is var definition declared
 	    	if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
-	    		throw new RuntimeException("Reference to unknown variable: " + varName + " in scope of schema table: " + se.getSchemaTable());
+	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() property name: " + propName);
+	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() process literal: " + literal);
+	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema entity: " + se);
+	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema table: " + st);
+	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() varMap: " + st.getVarMap().toString());
+	    		throw new RuntimeException("Reference to unknown variable: " + varName + " in the scope of schema table: " + st);
 	   		}
     		
 	    	// Get mapped schema entity object
@@ -1543,6 +1606,102 @@ public class SchemaProcessor {
 			}			
 		}
 	}		
+	
+	/**
+	 * Generate RDF in Turtle format from mapped template.
+	 * @param dSchema
+	 */
+	public static void generateRdfFromTemplate(Schema dSchema) {
+		
+		Map<String, SchemaTable> dTables = dSchema.getSchemaTables();
+		
+		for(Map.Entry<String, SchemaTable> tableE : dTables.entrySet()) {
+			String tableName = tableE.getKey();
+			SchemaTable dTable = tableE.getValue();
+			
+			//System.out.println(dTable);
+			//System.out.println(dTable.getVarMap());			
+			
+			if(dTable.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dTable));
+			
+			// for every row
+			for(Map.Entry<Integer, SchemaRow> rowE : dTable.getSchemaRows().entrySet()) {
+				Integer rowNum = rowE.getKey();
+				SchemaRow dRow = rowE.getValue();
+				
+				//System.out.println(dRow);				
+				
+				if(dRow.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dRow));
+				
+				// for every cell
+				for(Map.Entry<Integer, SchemaCell> cellE : dRow.getSchemaCells().entrySet()) {
+					Integer colNum = cellE.getKey();
+					SchemaCell dCell = cellE.getValue();
+					
+					//System.out.print(dCell);
+					assert(dCell.getSchemaTable() == dTable) : "dCell : " + dCell + " has inconsistent parent table.";					
+					
+					if(dCell.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dCell));
+					
+				}
+			}
+			
+			// for every schema property
+			for(Map.Entry<String, SchemaProperty> propE : dTable.getSchemaProperties().entrySet()) {
+				String propName = propE.getKey();
+				SchemaProperty sProp = propE.getValue();
+				
+				//System.out.println(sProp);
+				if(sProp.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(sProp));
+			}
+			
+			// for every schema data
+			for(Map.Entry<String, SchemaData> dataE : dTable.getSchemaDataMap().entrySet()) {
+				String dataName = dataE.getKey();
+				SchemaData sData = dataE.getValue();
+				
+				//System.out.println(sData);
+				if(sData.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(sData));
+			}
+			
+		}		
+		
+	}
+	
+	public static String applyRdfTemplate(SchemaEntity se) {
+		Schema s = se.getParentSchema();
+		
+		String mapping = se.getRdfTemplateMapping();
+		if(mapping == null) throw new RuntimeException("The schema entity '" + se + "' doesn't have RDF mapping.");
+		
+		// extract template name from mapping expression
+		String tmpName = mapping.substring(0, mapping.indexOf("("));
+		RdfTemplate tmp = s.getRdfTemplate(tmpName);
+		if(tmp == null) throw new RuntimeException("Referring to undefined template name: " + tmpName);
+		
+		// then extract the parameter(s)		
+		CsvParserSettings settings = new CsvParserSettings();
+		settings.getFormat().setQuote('\'');
+		settings.getFormat().setQuoteEscape('\\');
+		settings.getFormat().setCharToEscapeQuoteEscaping('\\');
+		CsvParser parser = new CsvParser(settings);
+		String[] params = parser.parseLine(mapping.substring(mapping.indexOf("(") + 1, mapping.length() - 2));
+		
+		// resolve each {var} expression, if any, for each parameter
+		for(int i = 0; i < params.length; i++) {
+			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_RDF_TEMPLATE, null);	
+		}
+
+		System.out.println(Arrays.toString(params));
+		
+		return null;
+
+		// replace template {var} with parameters value
+		//String ttl = tmp.getTemplate();
+		//ttl.replaceAll(regex, replacement);
+
+		
+	}
 	
 	public void parseCsvStream() {
 		// OPT by leveraging this, we can implement CSV stream parsing!		

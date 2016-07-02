@@ -34,17 +34,17 @@ public class SchemaCell extends SchemaEntity {
 	 */
 	private int col;
 	
-	/**
-	 * Copy constructor.
-	 * @param c
-	 */
-	public SchemaCell(SchemaCell c) {
-		super(c);
-		parentTable = c.parentTable;
-		row = c.row;
-		subRow = c.subRow;
-		col = c.col;		 
-	}
+//	/**
+//	 * Copy constructor.
+//	 * @param c
+//	 */
+//	public SchemaCell(SchemaCell c) {
+//		super(c);
+//		parentTable = c.parentTable;
+//		row = c.row;
+//		subRow = c.subRow;
+//		col = c.col;		 
+//	}
 	
 	/**
 	 * Create cell.
@@ -73,13 +73,15 @@ public class SchemaCell extends SchemaEntity {
 	/**
 	 * Create data cell object.
 	 * @param schemaCell
+	 * @param dataRow
+	 * @param dataCol
 	 * @param parentDataTable
 	 * @param value
 	 * @return
 	 */
-	public static SchemaCell createDataObject(SchemaCell schemaCell, SchemaTable parentDataTable, String value) {
-		SchemaCell dataCell = new SchemaCell(schemaCell);
-		dataCell.parentTable = parentDataTable;
+	public static SchemaCell createDataObject(SchemaCell schemaCell, int dataRow, int dataCol, SchemaTable parentDataTable, String value) {
+		SchemaCell dataCell = new SchemaCell(dataRow, dataCol, parentDataTable); 
+		dataCell.properties.putAll(schemaCell.properties);
 		if(value != null) dataCell.setValue(value);
 		return dataCell;
 	}

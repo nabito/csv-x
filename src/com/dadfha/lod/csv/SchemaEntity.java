@@ -104,6 +104,13 @@ public abstract class SchemaEntity {
 	public static final String METAPROP_PROPNAME_PRED = Schema.NS_PREFIX + ":propName";
 
 	/**
+	 * The meta property for RDF template mapping. 
+	 */
+	public static final String METAPROP_MAP_RDF_TEMPLATE = "@mapTemplate";
+	
+	public static final String METAPROP_MAP_RDF_TEMPLATE_PRED = Schema.NS_PREFIX + ":mapTemplate";
+
+	/**
 	 * Schema enitity's properties. HashMap storing mapping between property's
 	 * name and its value.
 	 * 
@@ -326,7 +333,31 @@ public abstract class SchemaEntity {
 	public void setDatatype(String datatype) {
 		// TODO check if it's a recognized XML datatype.
 		addProperty(METAPROP_DATATYPE, datatype);
-	}	
+	}
+	
+	/**
+	 * Check if the schema entity has an RDF template mapping or not.
+	 * @return boolean
+	 */
+	public boolean hasRdfTemplateMapping() {
+		return properties.containsKey(METAPROP_MAP_RDF_TEMPLATE);
+	}
+	
+	/**
+	 * Get the mapping with an RDF template with this schema entity.
+	 * @return String or null if there's no mapping.
+	 */
+	public String getRdfTemplateMapping() {
+		return getProperty(METAPROP_MAP_RDF_TEMPLATE);
+	}
+	
+	/**
+	 * Set the mapping with an RDF template with this schema entity.  
+	 * @param mapping
+	 */
+	public void setRdfTemplateMapping(String mapping) {
+		addProperty(METAPROP_MAP_RDF_TEMPLATE, mapping);
+	}
 
 	/**
 	 * Give SERE output to identify itself.

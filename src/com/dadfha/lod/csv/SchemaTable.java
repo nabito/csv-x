@@ -63,6 +63,8 @@ public class SchemaTable extends SchemaEntity {
 	/**
 	 * Mapping between variable name and schema entity. 
 	 * Variable has global scope within a schema table.
+	 * 
+	 * As of v1.0 this variable map must not be used at schema parsing, but only schema generation time.
 	 */
 	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();		
 	
@@ -123,6 +125,9 @@ public class SchemaTable extends SchemaEntity {
 	 * Create copy for data object that has everything except SchemaRow, and its SchemaCell inside. 
 	 * This is used for data model creation based on schema blueprint. 
 	 * 
+	 * The data objects for SchemaProperty and SchemaData will also be created here, since they're considered 
+	 * as members under a schema table.
+	 * 
 	 * @param dSchema
 	 * @param st
 	 * @param tableName
@@ -140,8 +145,28 @@ public class SchemaTable extends SchemaEntity {
 		}
 		newTable.replaceValueMap.putAll(st.replaceValueMap);
 		newTable.ignoreValues.addAll(st.ignoreValues);
-		newTable.sProps.putAll(st.sProps);
-		newTable.varMap.putAll(st.varMap);
+		
+		// recreate schema property for data table 		
+		for(SchemaProperty sProp : st.sProps.values()) {
+			SchemaProperty dProp = SchemaProperty.createDataObject(sProp, newTable);
+			newTable.sProps.put(dProp.getPropertyName(), dProp);
+			// also declare var within this new table
+			if(dProp.getName() != null) newTable.addVar(dProp.getName(), dProp);
+		}
+
+		// recreate schema data for data table
+		for(SchemaData sData : st.sDataMap.values()) {
+			SchemaData dData = SchemaData.createDataObject(sData, newTable);
+			newTable.sDataMap.put(dData.getDataName(), dData);
+			// also declare var within this new table
+			if(dData.getName() != null) newTable.addVar(dData.getName(), dData);
+		}
+		
+		// add var register for the data table itself, so other schema entity can refer to it by variable name
+		if(newTable.getName() != null) newTable.addVar(newTable.getName(), newTable);
+		
+		assert(st.varMap.size() == 0) : "As of v1.0 this variable map must not be used at schema parsing, but only schema generation time.";
+
 		return newTable;
 	}
 	
@@ -378,6 +403,14 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
+	 * Get all variable mappings. 
+	 * @return Map<String, SchemaEntity>
+	 */
+	public Map<String, SchemaEntity> getVarMap() {
+		return varMap;
+	}
+	
+	/**
 	 * Add a variable-schema entity map to the schema.
 	 * If variable of the same name already exists, it will throw an error. 
 	 * @param varName
@@ -534,10 +567,8 @@ public class SchemaTable extends SchemaEntity {
 	 * 
 	 * Remarks: 
 	 * 
-	 * 1. Default table name cannot be changed. 
+	 * - Default table name cannot be changed. 
 	 * Any attempt to do so will cause an error to be thrown.
-	 * 
-	 * 2. If parent schema has not yet bind with the table, it will be done so in this method.
 	 * 
 	 * @param name
 	 */
@@ -549,7 +580,7 @@ public class SchemaTable extends SchemaEntity {
 			if(parent.hasSchemaTable(oldName)) parent.removeSchemaTable(oldName);
 		}
 		addProperty(METAPROP_TBLNAME, name);
-		parent.addSchemaTable(this);
+		//parent.addSchemaTable(this);
 	}
 	
 	/**
