@@ -3,11 +3,12 @@ package com.dadfha.lod.csv;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -767,15 +768,19 @@ public class SchemaProcessor {
 		Schema s = new Schema();
 		
 		// read in the csv schema file and strip out all comments
-		StringBuilder jsonStrBld = new StringBuilder(1000);
-		try (BufferedReader br = new BufferedReader(new FileReader(schemaPath))) {
-		    String line;		    
-		    while ((line = br.readLine()) != null) {
-		    	jsonStrBld.append(JSONMinify.minify(line));
-		    }
-		    
-			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());			
-			
+		String schemaStr = JSONMinify.minify(new String(Files.readAllBytes(Paths.get(schemaPath)), StandardCharsets.UTF_8));
+		//System.out.println(schemaStr);
+		
+//		StringBuilder jsonStrBld = new StringBuilder(1000);
+//		try (BufferedReader br = new BufferedReader(new FileReader(schemaPath))) {
+//		    String line;		    
+//		    while ((line = br.readLine()) != null) {
+//		    	jsonStrBld.append(JSONMinify.minify(line));
+//		    }	
+//			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());			
+		
+		Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(schemaStr);
+		
 			for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {			
 				String key = e.getKey();
 				switch(key) {
@@ -873,11 +878,11 @@ public class SchemaProcessor {
 			} // end while loop for 1st level schema	
 		    
 		    
-		} catch (FileNotFoundException e1) {
-			e1.printStackTrace();
-		} catch (IOException e1) {
-			e1.printStackTrace();
-		}
+//		} catch (FileNotFoundException e1) {
+//			e1.printStackTrace();
+//		} catch (IOException e1) {
+//			e1.printStackTrace();
+//		}
 		
 		return s;
 		
@@ -1415,22 +1420,27 @@ public class SchemaProcessor {
 	    	String dot = m.group(3);
 	    	String varProp = m.group(4);
 	    	
+	    	assert(varName != null || varName.equals("")) : "The regular expression must not match empty variable name.";
+	    	
 	    	// if variable property is not defined, default to '@value'
 	    	if(varProp == null || varProp.equals("")) varProp = SchemaTable.METAPROP_VALUE;
 	    	
-    		// check if there is var definition declared
-	    	if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
+    		// check if it's a recognized var definition, if yes get its schema entity object
+	    	SchemaEntity varSe;
+	    	if(varName.startsWith("@this")) { // check if it's a meta-reference
+	    		varSe = se;
+	    	} else if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
 	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() property name: " + propName);
 	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() process literal: " + literal);
 	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema entity: " + se);
 	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema table: " + st);
 	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() varMap: " + st.getVarMap().toString());
 	    		throw new RuntimeException("Reference to unknown variable: " + varName + " in the scope of schema table: " + st);
+	   		} else {	   			
+		    	// Get mapped schema entity object
+	    		varSe = st.getVarSchemaEntity(varName);
+				assert (varSe != null) : "Variable must always associate with a Schema Entity.";	   			
 	   		}
-    		
-	    	// Get mapped schema entity object
-    		SchemaEntity varSe = st.getVarSchemaEntity(varName);
-			assert (varSe != null) : "Variable must always associate with a Schema Entity.";
 	    	
 	    	// check for circular ref reference, e.g. A->B->A as well as higher level circular reference 
 			// A->B->C->A, by keeping track of what properties of what schema entities have been referenced from 
@@ -1440,14 +1450,15 @@ public class SchemaProcessor {
 	    	}			
 			
 	    	// dereference schema entity property value
-			String propVal = null;
-	    	if(dot == null || dot.equals("")) { // if there is no 'dot' in variable expression, a.k.a. just {var}
-	    		// get variable property value (here is '@value')
-	    		propVal = varSe.getValue();	    		
-	    	} else { // {var.prop} processing	    			    		
-	    		// get variable property value	    		
-	    		propVal = varSe.getProperty(varProp);
-	    	}
+	    	String propVal = varSe.getProperty(varProp);
+//			String propVal = null;
+//	    	if(dot == null || dot.equals("")) { // if there is no 'dot' in variable expression, a.k.a. just {var}
+//	    		// get variable property value (here is '@value')
+//	    		propVal = varSe.getValue();	    		
+//	    	} else { // {var.prop} processing	    			    		
+//	    		// get variable property value	    		
+//	    		propVal = varSe.getProperty(varProp);
+//	    	}
 	    	
 	    	// do recursive call of this method to dereferenced any available nested {var}
 	    	propVal = processVarEx(propVal, varSe, varProp, rrs);
@@ -1687,20 +1698,23 @@ public class SchemaProcessor {
 		CsvParser parser = new CsvParser(settings);
 		String[] params = parser.parseLine(mapping.substring(mapping.indexOf("(") + 1, mapping.length() - 2));
 		
+		//System.out.println("Before: " + Arrays.toString(params));	
+		
+		// get template parameter(s) list & check number of parameter
+		List<String> tmpParams = tmp.getParameterList();
+		if(params.length != tmpParams.size()) throw new RuntimeException("The number of argument (" + params.length + ") doesn't match template's parameter number: " + tmpParams.size());
+		
 		// resolve each {var} expression, if any, for each parameter
+		// then replace template {var} with parameters value
+		String ttl = tmp.getTemplate();
+		//System.out.println(ttl);
+
 		for(int i = 0; i < params.length; i++) {
 			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_RDF_TEMPLATE, null);	
+			ttl = ttl.replaceAll("\\{" + tmpParams.get(i) + "\\}", params[i]);
 		}
-
-		System.out.println(Arrays.toString(params));
-		
-		return null;
-
-		// replace template {var} with parameters value
-		//String ttl = tmp.getTemplate();
-		//ttl.replaceAll(regex, replacement);
-
-		
+		//System.out.println("After: " + Arrays.toString(params));		
+		return ttl;
 	}
 	
 	public void parseCsvStream() {

@@ -330,6 +330,7 @@
 			"name" : "{msrProp}Sensor"
 		},
 	
+		// the meta-reference must be in {@this.@value} form to prevent name collision when we want to access other user-defined property which may happen to have the same name with a variable.
 		"@cell[3,1-24]" :
 		{
 			"@name" : "msrDataAtSubrow{subrow}Col{col}",
@@ -339,7 +340,7 @@
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}",
 			"hasMsrHour" : "{msrHr{col}}", // former "@cell[2,{col}]",
-			"hasMsrVal" : "{@this.@value}" // this is the way to associate this cell's value with a property of datapoint. FIXME, this should be @this.@value to prevent name collision 
+			"hasMsrVal" : "{@this}" // this is the compact way to associate this cell's value with a property of datapoint, as referring to just a schema entity will be resolved to its @value property.
 		},
 	
 		"@cell[3,25]" :

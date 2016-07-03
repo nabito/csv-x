@@ -42,6 +42,18 @@ public class JSONMinify {
         if (c == string_opener) {
           in_string = false;
           out.append(c);
+        } else if(c == '\n') { // nabito: added newline escaping for csv-x JSON, user only need to escape " and \ by \" and \\ within string. 
+          out.append("\\n");
+        } else if(c == '\r') {
+          out.append("\\r");
+        } else if(c == '\b') { 
+        	out.append("\\b");
+        } else if(c == '\f') {
+        	out.append("\\f");
+        } else if(c == '\t') {
+        	out.append("\\t");
+        } else if(c == '/') {
+        	out.append("\\/");
         } else if (c == '\\') { // no special treatment needed for \\u, it just works like this too
           out.append(cc);
           ++i;

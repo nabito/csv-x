@@ -25,6 +25,14 @@ public class RdfTemplate {
 		this.templateName = templateName;
 		this.parentSchema = parentSchema;
 	}
+	
+	/**
+	 * Get all parameters for this template.
+	 * @return
+	 */
+	public List<String> getParameterList() {
+		return params;
+	}
 
 	/**
 	 * Add all template parameters to the definition, preserving the original iterator's order. 
