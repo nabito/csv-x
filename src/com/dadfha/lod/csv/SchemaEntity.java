@@ -9,11 +9,10 @@ public abstract class SchemaEntity {
 
 	/**
 	 * The name given for a schema entity. Must be unique within the scope of
-	 * schema. If explicitly specified in schema file, it'll also be used as
-	 * variable name for the entity.
+	 * schema. If explicitly specified for a schema entity description, 
+	 * it'll also be used as variable name for the entity. 
 	 * 
-	 * This must be XML QNAME so it can suffix an IRI to be an addressable
-	 * resource in Linked Data according to RDF model.
+	 * The variable name must follow identifier naming.
 	 */
 	public static final String METAPROP_NAME = "@name";
 	
@@ -441,7 +440,9 @@ public abstract class SchemaEntity {
 			case METAPROP_VALUE:
 				predicate = METAPROP_VALUE_PRED;
 				break;							
-			default: 				
+			default: 		
+				// FIXME it should be predicate = parent schema entity IRI + propName
+				// or just base + propName in case it's a property at root schema level.
 				// user-defined property will become predicate as is, any property with same name is the same for v1.x
 				predicate = base + propName;
 				
@@ -457,6 +458,7 @@ public abstract class SchemaEntity {
 			} // end property switch case
 			
 			// add statement for each property-value pair inside this schema entity
+			// FIXME need checking if propVal is IRI or literal (must type and i18n properly for latter case)
 			object = propVal;
 			sb.append(subject + " " + predicate + " " + object + " ." + System.lineSeparator()); 
 			

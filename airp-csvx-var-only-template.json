@@ -1,20 +1,22 @@
 {
 
 	// CSV-X native properties
-	"@base" : "http://dadfha.com/csv/", // the base for all @id value
+	"@base" : "http://dadfha.com/csv/", // the base for all @id value (Optional)
 	"@id" : "ex1.csvx", // ID of this csv-x schema file which can be IRI. (Required)
 	"@targetCSVs" : [ "http://dadfha.com/csv/ex1.csv", "http://dadfha.com/csv/ex2.csv" ], // ID of CSV file(s) this schema is describing. (Optional)
 	"@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
 	"@lang" : "ja",	// The main language of string literals inside the file. Default to "en" if not specified. (Optional)
 	//"@spaceIsEmpty" : true, // Meta property to regard cell value with only whitespace characters as empty (a.k.a. null).
 	
-	// adopt CSV dialects from CSVW
+	// adopted CSV dialects from CSVW?
 	"@trim" : true,
 
 	"@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
 	"@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
 	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
 	"@quoteChar" : "\"",
+
+	// TODO check if we really use all of this?
 	"@header" : false,
 	//"@headerRowCount" : 1,
 	"@doubleQuote" : true,
@@ -33,7 +35,7 @@
 	{ 
 		"@name" : "hasMsrDay_prop", // This variable name is independent of property name above.
 		"@id" : "ex:hasMsrDay",
-		"@datatype" : "dayOfMonth", // TODO re-check if this rich-datatype is supported in latest version of XML schema datatype.
+		"@datatype" : "xsd:gMonthDay",
 		"title_en" : "has measurement day",
 		"description" : "a property describing the day observation was made." 
 	},
@@ -967,7 +969,7 @@
 
     "@template[ttlHeaders]" : 
     {
-    	"ttl" :
+    	"ttl" : // TODO add @ infront of all the official keywords
 			"
             # the meta-directives shoukd be defined as per schema
             

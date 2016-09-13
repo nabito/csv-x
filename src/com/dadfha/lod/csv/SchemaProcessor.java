@@ -271,8 +271,9 @@ public class SchemaProcessor {
 	 * Parse CSV with CSV-X Schema.
 	 *  
 	 * Remark:
-	 * Due to limitation in usage of current univo-CsvParser API, it will be recreated, with proper starting line, 
-	 * every time a schema table has been tried for parsing, no matter the parse is success or not. 
+	 * Due to limitation in usage of current univo-CsvParser API, a new parser will be recreated, 
+	 * with proper starting line, every time a schema table has been tried for parsing, 
+	 * no matter the parse is success or not. 
 	 * 
 	 * @param csvPath path to csv file
 	 * @param schema schema to be parsed against with
@@ -572,7 +573,8 @@ public class SchemaProcessor {
 		
 		// for each column
 		for(context.currCol = 0; context.currCol < row.length; context.currCol++) {
-
+			// FIXME check column repeating definition here, if found create separate counter for sCol 
+			
 			// get current cell value	
 			context.currVal = row[context.currCol];
 			
@@ -596,7 +598,7 @@ public class SchemaProcessor {
 				// replace certain value, if specified in schema table
 				if(sTable.hasReplaceValueFor(context.currVal)) context.currVal = sTable.getReplaceValue(context.currVal);							
 			}
-			
+						
 			// validate parsed CSV cell against CSV-X schema properties	of the schema row	
 			if(!sTable.validate(sRow.getRowNum(), context.currCol, context.currVal, mode)) {
 				if(!ignoreErrMsg) System.err.println("Error: Validation Failure at " + sRow + " column " + context.currCol + " with cell value '" + context.currVal + "'");
@@ -686,7 +688,7 @@ public class SchemaProcessor {
 	 * Check '@name' meta property and verify its value, the variable name, and register it on a schema table.
 	 * The function will return an error if the variable name still has {var} expression in it. Therefore, 
 	 * this method should be called after the processing of context {var} for schema entity those may refer 
-	 * to context {var}. As of version 1.0 these are: schema row and schema cell.
+	 * to context {var}. As of version 1.0 these are: schema row/column and schema cell.
 	 * 
 	 * Note that nothing will happen, if the property '@name' is not defined.
 	 *  
@@ -801,7 +803,7 @@ public class SchemaProcessor {
 				case "@lang":
 					s.addProperty("@lang", (String) e.getValue());
 					break;
-				case METAPROP_SPACE_IS_EMPTY:
+				case METAPROP_SPACE_IS_EMPTY: 			// FIXME this should be at schema table level
 					s.addProperty(METAPROP_SPACE_IS_EMPTY, (Boolean) e.getValue());
 					break;
 				case "@delimiter":
@@ -1199,18 +1201,15 @@ public class SchemaProcessor {
 	 * {col}
 	 * {subrow} <--- you can't replace this at the time of schema parsing, since we still don't know 
 	 * how many subrow there will be at run-time. But there's a need to declare var name using this context var
-	 * for cells within a repeating row. Therefore, var declaration for cells within a repeating row,
+	 * for cells within a repeating row. Therefore, var declaration for cells within a repeating row, 
+	 * including other context var as well for consistency,
 	 * should be processed at CSV parsing time. 
 	 * 
-	 * At the moment, {var} replacement happens during CSV parsing time while its declaration (association
-	 * a variable name with a schema entity) is done at schema parsing time so processor know what to replace
-	 * during CSV parsing time. 
+	 * At the moment, context {var} replacement and variable registration (association a variable name with a schema entity)
+	 * happens during CSV parsing time. 
 	 * 
-	 * But now that some {var} declaration can't be done at schema parsing time for the stated reason, {var} 
-	 * dereferenced to SERE will become more cumbersome too (~O(2n) at worst case performance).
-	 * 
-	 * However, let's say if we still want to keep SERE, we should NOT resolve {var} to SERE at CSV parsing time 
-	 * just because we can. But a better solution is to regard {var} and SERE as the same thing, a.k.a. 
+	 * We should NOT resolve {var} to SERE as a way to register association between var and schema entity. 
+	 * But a better solution is to regard {var} and SERE as the same thing, a.k.a. 
 	 * a mean to refer to schema object, and treat with the same process and same level of importance. 
 	 * They're just differ in expression.  
 	 * 
@@ -1227,7 +1226,7 @@ public class SchemaProcessor {
 	 * 
 	 * Therefore, variable-schema entity object mapping is ultimately the property of each resulting data model after
 	 * CSV parsing!  This means that variable declaration (mapping) should be done at run-time for each dataset, 
-	 * NOT at schema parsing time! and be saved at each schema file.
+	 * NOT at schema parsing time! and be saved for each  dataset (schema table).
 	 * 
 	 * On a side note: 
 	 * 
@@ -1240,13 +1239,13 @@ public class SchemaProcessor {
 	 * {var} & SERE are not pointer, because it's interpreted directly as object. It's not pointing to the "location" 
 	 * of the object nor it can point to other pointer. 
 	 * 
-	 * {var} is NOT macro for SERE as long as it does not reduced itself to be just "find and replace" {var}-->SERE.
+	 * {var} is NOT macro for SERE as long as it does not reduce itself to be just "find and replace" {var}-->SERE.
 	 * In fact, another reason to drop the SERE substitution approach is that no one will get to see replaced SERE in
 	 * the literal anyway, since all that matter is the "reference" to a schema object not expression. Moreover, 
 	 * there's a need to check for validity of the whole literal again after substitution, further complicate the matter.
 	 * 
 	 * Though {var} can be think of as symlink for SERE, canonical representation of schema entity object,
-	 * just like symlink is for file. So a {var} get resolved to an actual SERE when being used, rather than substituting 
+	 * just like symlink is for file. So a {var} "can" get resolved to an actual SERE when being used, rather than substituting 
 	 * everything from the beginning. The problem of this approach is the hidden circular link which is hard to be 
 	 * detected as often manifests in linux file system (copy, delete, etc.). In addition, it's also inefficient since 
 	 * variable name is already associated with schema object internally when declared, translating it to SERE, which

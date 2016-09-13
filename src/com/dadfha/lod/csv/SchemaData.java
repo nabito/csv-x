@@ -5,8 +5,6 @@ package com.dadfha.lod.csv;
  * This is considered an important feature in the completion of data transformation and mapping 
  * since some target data model may not be able to map directly with tabular-view-based CSV schema model.
  * 
- * IMP Let this be the feature of the next version.
- * 
  * @author Wirawit
  *
  */
