@@ -23,12 +23,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.dadfha.lod.JSONMinify;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 
-public class SchemaProcessor {
+public class SchemaProcessor {	
 	
 	private static final Logger logger = LogManager.getLogger();
 	

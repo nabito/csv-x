@@ -3,6 +3,8 @@ package com.dadfha.lod.csv;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.logging.log4j.core.config.ConfigurationFactory;
+
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
@@ -11,7 +13,7 @@ import com.beust.jcommander.Parameters;
 public class CsvxCmd {	
 	
 	public static final String programName = "csvx";
-	public static final String version = "0.9.1";
+	public static final String version = "0.9.2";
 
 	//@Parameter(description = "input csv and csvx path respectively.", arity = 2)
 	//private List<String> files = new ArrayList<>();
@@ -31,6 +33,9 @@ public class CsvxCmd {
 	}
 
 	public static void main(String... args) {
+		// init log4j config
+		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
+		
 		CsvxCmd cmd = new CsvxCmd();
 		ValidateCmd vCmd = new ValidateCmd();
 		SerializeCmd sCmd = new SerializeCmd();
