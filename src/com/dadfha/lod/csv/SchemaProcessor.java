@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -20,12 +19,18 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.dadfha.lod.JSONMinify;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
 
 public class SchemaProcessor {
+	
+	private static final Logger logger = LogManager.getLogger();
 	
 	/**
 	 * Meta property to regard cell value with only whitespace characters as empty (null).
@@ -191,13 +196,13 @@ public class SchemaProcessor {
 	 * @return Schema object of loaded schema if the operation is success or null otherwise.
 	 */
 	public Schema loadSchema(String schemaPath) {
-		Schema s;
+		Schema s = null;
 		try {
 			s = parseCsvXSchema(schemaPath);
 			schemas.put((String) s.getProperty("@id"), s);
-		} catch (Exception e) {
-			System.err.println("Error: There's a problem in loading/parsing schema file: " + schemaPath);
-			e.printStackTrace();
+		} catch(Exception e) {
+			logger.error("There's a problem in loading/parsing schema file {}: \n {}", schemaPath, e.getMessage());			
+			logger.debug("StackTrace:", e);
 			return null;
 		}
 		return s;
@@ -280,8 +285,9 @@ public class SchemaProcessor {
 	 * @param context context variable
 	 * @param retType the desire return type
 	 * @return Object
+	 * @throws Exception 
 	 */
-	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context, ReturnType retType) {
+	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context, ReturnType retType) throws Exception {
 		
 		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
 		
@@ -322,7 +328,8 @@ public class SchemaProcessor {
 			} // end for each schema table			
 			
 			if(dTable == null) { // check if schemas trials yield result
-				System.err.println("Can't matched this CSV with the schema: " + schema);
+				logger.warn("Can't matched this CSV with the schema: {}", schema);
+				//System.err.println("Can't matched this CSV with the schema: " + schema);
 				return null;
 			}
 			
@@ -387,8 +394,9 @@ public class SchemaProcessor {
 	 * @param context
 	 * @return SchemaTable data table object containing parsed CSV data in the form of schema table 
 	 * or null if the parse is failed.
+	 * @throws Exception 
 	 */
-	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, Schema dSchema, SchemaTable sTable, Context context) {
+	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, Schema dSchema, SchemaTable sTable, Context context) throws Exception {
 		
 		// create dataTable from schemaTable with naming pattern: schema table name followed by row number
 		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, sTable.getTableName() + context.currRow);
@@ -457,8 +465,9 @@ public class SchemaProcessor {
 	 * @param sRow schema row object of the repeating row.
 	 * @param context parsing context variable. 
 	 * @return boolean true if the parse is successful, false otherwise.
+	 * @throws Exception 
 	 */
-	private boolean parseRepeatingRow(String[] firstRow, CsvParser parser, SchemaTable dTable, SchemaRow sRow, Context context) {
+	private boolean parseRepeatingRow(String[] firstRow, CsvParser parser, SchemaTable dTable, SchemaRow sRow, Context context) throws Exception {
 		
 		// Initialize subRow & context vars
 		SchemaTable sTable = sRow.getSchemaTable();
@@ -472,11 +481,12 @@ public class SchemaProcessor {
 		
 		while((row = parser.parseNext()) != null) {
 			// if a CSV row doesn't match with repeating row schema
-			if(!processCsvRow(row, dTable, sRow, context, MODE_IGNORE_ERR_MSG)) {
+			if(!processCsvRow(row, dTable, sRow, context, 0)) {
+			//if(!processCsvRow(row, dTable, sRow, context, MODE_IGNORE_ERR_MSG)) { // temporarily commented out for development
 				// if it's NOT infinite repeating, then it's certainly schema mismatch.
 				if(context.repeatTimes > 0) return false;
 				
-				System.out.println("INFO: Entering infinite repeating row exit conditions check.");
+				logger.warn("Verifying MISMATCHED: entering infinite repeating row exit conditions check.");
 				
 				// but if it's infinite repeating schema row, check infinite row exit condition: first, look-ahead into next schema row
 				context.currSchemaRow++;
@@ -496,7 +506,11 @@ public class SchemaProcessor {
 			if(context.repeatTimes < 0) { // for infinite repeating row: wait until mismatched is found!
 				continue;
 			} else { 
-				if(context.currSubRow > context.repeatTimes) return true;	
+				logger.trace("context.currSubRow {} VS context.repeatTimes {}", context.currSubRow, context.repeatTimes);
+				if(context.currSubRow >= context.repeatTimes) {
+					context.currSchemaRow++;
+					return true;	
+				}
 			}
 						
 		} // end for each CSV row
@@ -553,8 +567,9 @@ public class SchemaProcessor {
 	 * @param context
 	 * @param mode 
 	 * @return boolean true if the processing is successful, false otherwise. 
+	 * @throws Exception 
 	 */
-	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context, int mode) {
+	private boolean processCsvRow(String[] row, SchemaTable dTable, SchemaRow sRow, Context context, int mode) throws Exception {
 		
 		// initialize processing mode
 		boolean ignoreErrMsg = ((MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
@@ -599,9 +614,12 @@ public class SchemaProcessor {
 				if(sTable.hasReplaceValueFor(context.currVal)) context.currVal = sTable.getReplaceValue(context.currVal);							
 			}
 						
-			// validate parsed CSV cell against CSV-X schema properties	of the schema row	
+			// validate a CSV cell value against CSV-X schema at its corresponding "schema position" 	
 			if(!sTable.validate(sRow.getRowNum(), context.currCol, context.currVal, mode)) {
-				if(!ignoreErrMsg) System.err.println("Error: Validation Failure at " + sRow + " column " + context.currCol + " with cell value '" + context.currVal + "'");
+				if(!ignoreErrMsg) {
+					logger.warn("Validation Failure for schema {} against csv row {} column {} with value '{}'.", sRow.getCell(context.currCol), context.currRow, context.currCol, context.currVal);
+					//System.err.println("Error: Validation Failure at " + sRow + " column " + context.currCol + " with cell value '" + context.currVal + "'");
+				}
 				return false; 
 			}
 			
@@ -628,7 +646,9 @@ public class SchemaProcessor {
 			return false;
 		} else {			
 			// increment row counters
-	    	if(sRow.isRepeat()) context.currSubRow++;
+	    	if(sRow.isRepeat()) {
+	    		context.currSubRow++;
+	    	}
 	    	else context.currSchemaRow++;
 	        context.currRow++;			
 			// save data row to data table
@@ -730,21 +750,32 @@ public class SchemaProcessor {
 		if(sId != null) { // if matched schema ID is known, parse with the schema			
 			Schema schema = schemas.get(sId);
 			assert(schema != null) : "Impossible case of unrecognized schema ID : " + sId;
-			//data = parseWithSchema(csvPath, schema);
-			data = parseCsvWithSchema(csvPath, schema, context, retType);
+			try {
+				data = parseCsvWithSchema(csvPath, schema, context, retType);	
+			} catch(Exception e) {
+				logger.error("There's an exception in processing csv {} with schema {}: {}", csvPath, schema, e);
+			}			
 		} else { 			
 			// The processor loops through known schemas until it successfully parse the CSV.
 			for(Schema schema : schemas.values()) {		
-				data = parseCsvWithSchema(csvPath, schema, context, retType);
-				if(data != null) break;
+				try {
+					data = parseCsvWithSchema(csvPath, schema, context, retType);
+				} catch(Exception e) {
+					logger.warn("There's an exception in processing csv {} with schema {}: {}", csvPath, schema, e);
+				}									
+				if(data != null) {
+					logger.info("Successfully validated a csv {} with csv-x {}.", csvPath, schema);
+					break;
+				}
 			} 			
-		}
-		
+		}		
+
 		if(data != null) {
 			//return (Set<DataSet>) data;
 			return data;
 		} else {
-			System.err.println("The parse bears no fruit: check out errors log.");
+			logger.error("The processing bears no fruit: check out error log.");
+			//System.err.println("The parse bears no fruit: check out error log.");
 			return null;
 		}
 				
@@ -770,8 +801,8 @@ public class SchemaProcessor {
 		Schema s = new Schema();
 		
 		// read in the csv schema file and strip out all comments
-		String schemaStr = JSONMinify.minify(new String(Files.readAllBytes(Paths.get(schemaPath)), StandardCharsets.UTF_8));
-		//System.out.println(schemaStr);
+		String schemaStr = JSONMinify.minify(new String(Files.readAllBytes(Paths.get(schemaPath)), StandardCharsets.UTF_8));		
+		logger.trace(schemaStr);
 		
 //		StringBuilder jsonStrBld = new StringBuilder(1000);
 //		try (BufferedReader br = new BufferedReader(new FileReader(schemaPath))) {
@@ -980,9 +1011,10 @@ public class SchemaProcessor {
 	 * Process schema table contents and update the table. 
 	 * @param map
 	 * @param st
+	 * @throws Exception 
 	 */
 	@SuppressWarnings("unchecked")
-	private void processTableDef(Map<String, Object> map, SchemaTable st) {		
+	private void processTableDef(Map<String, Object> map, SchemaTable st) throws Exception {		
 		for(Entry<String, Object> e : map.entrySet()) {
 			String key;
 			switch((key = e.getKey())) {
@@ -1015,7 +1047,11 @@ public class SchemaProcessor {
 				break;
 			default:
 				if(key.startsWith("@cell")) {
-					processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), st);
+					try {
+						processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), st);
+					} catch(Exception ex) {
+						throw new Exception("Illegal format for Schema Cell declaration " + key + " inside " + st + ": " + ex.getLocalizedMessage(), ex);
+					}					
 				} else if(key.startsWith("@row")) {
 					processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), st);
 				} else if(key.startsWith("@prop")) {
@@ -1037,16 +1073,16 @@ public class SchemaProcessor {
 	 * Recognize \@cell syntax and create cell schema based on its properties.  
 	 * @param marker
 	 * @param cellProperty
+	 * @throws Exception 
 	 */
 	@SuppressWarnings("unchecked")
-	private void processCellMarker(String marker, Map<String, String> cellProperties, SchemaTable sTable) {	
+	private void processCellMarker(String marker, Map<String, String> cellProperties, SchemaTable sTable) throws Exception {	
 				
 		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		s = s.replaceAll("\\s+", ""); // remove whitespaces
 		String[] pos = s.split(","); // split value by ','
-		if(pos.length != 2) throw new RuntimeException("Illegal format for @cell[RowRange,ColRange].");
+		if(pos.length != 2) throw new Exception("Illegal format for @cell[RowRange,ColRange], there must be only one comma.");
 		else {
-
 			CellIndexRange rowRange = processCellIndexRange(pos[0]);
 			CellIndexRange colRange = processCellIndexRange(pos[1]);
 									
@@ -1086,7 +1122,7 @@ public class SchemaProcessor {
 		assert(sTable.hasSchemaProperty(propName)) : "At the end of processPropMarker() the schema property's name must have been already registered.";
 	}
 	
-	private void processTableMarker(String marker, Map<String, Object> tableProperties, Schema schema) {
+	private void processTableMarker(String marker, Map<String, Object> tableProperties, Schema schema) throws Exception {
 		String tableName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		tableName = tableName.replaceAll("\\s+", ""); // remove whitespaces
 		if(tableName.equals("")) throw new RuntimeException("Table name must not be empty string.");
@@ -1544,24 +1580,25 @@ public class SchemaProcessor {
 	 * Parse cell index range String into CellIndexRange object. 
 	 * @param rangeEx
 	 * @return CellIndexRange
+	 * @throws Exception 
 	 */
-	private CellIndexRange processCellIndexRange(String rangeEx) {
+	private CellIndexRange processCellIndexRange(String rangeEx) throws Exception {
 		
 		rangeEx = rangeEx.replaceAll("\\s+", ""); // remove whitespaces just in case unprocessed string is passed		
 		CellIndexRange cir = new CellIndexRange();
 		
 		if(rangeEx.indexOf("-") != -1) { // check if there is range span symbol '-'
 			String[] range = rangeEx.split("-"); // then split range by '-'				
-			if(range.length != 2) throw new RuntimeException("Illegal format for Range: must be in Floor-Ceiling format.");
+			if(range.length != 2) throw new Exception("Illegal format for Range: must be in Floor-Ceiling format.");
 			
 			cir.floor = Integer.parseInt(range[0]);
 			cir.ceiling = Integer.parseInt(range[1]);
 			
-			if(cir.floor < 0 || cir.ceiling < 0) throw new RuntimeException("Illegal format for Range: Floor value and Ceiling value cannot be negative.");
-			if(cir.floor >= cir.ceiling) throw new RuntimeException("Illegal format for Range: Floor value >= Ceiling value.");
+			if(cir.floor < 0 || cir.ceiling < 0) throw new Exception("Illegal format for Range: Floor value and Ceiling value cannot be negative.");
+			if(cir.floor >= cir.ceiling) throw new Exception("Illegal format for Range: Floor value >= Ceiling value.");
 		} else { // if there is no range span symbol '-'
 			cir.floor = Integer.parseInt(rangeEx);
-			if(cir.floor < 0) throw new RuntimeException("Illegal format for Range: Floor value cannot be negative:");
+			if(cir.floor < 0) throw new Exception("Illegal format for Range: Floor value cannot be negative:");
 			cir.ceiling = -1; // to ensure no one use ceiling value for this range.
 		}
 		

@@ -1,0 +1,830 @@
+{
+    "@base" : "http://dadfha.com/csv/", // the base for all @id value (Optional)
+    "@id" : "uk_telecom_market.csvx", // ID of this csv-x schema file which can be IRI. (Required)
+    "@targetCSVs" : [ "http://stakeholders.ofcom.org.uk/binaries/research/cmr/telecoms/Q3-2015.csv" ], // ID of CSV file(s) this schema is describing. (Optional)
+    "@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
+    
+    //"@spaceIsEmpty" : true, // Meta property to regard cell value with only whitespace characters as empty (a.k.a. null).
+    
+    // adopted CSV dialects from CSVW?
+    "@trim" : true,
+
+    "@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
+    "@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
+    "@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
+    "@quoteChar" : "\"",
+
+    // TODO check if we really use all of this?
+    "@header" : false,
+    //"@headerRowCount" : 1,
+    "@doubleQuote" : true,
+    "@skipBlankRows" : true,
+    "@skipColumns" : 1,
+    "@skipInitialSpace" : true,
+    "@skipRows" : 2,
+
+    // user's properties 
+    "source" : "https://data.gov.uk/dataset/telecommunications-market-quarterly-data-tables",
+
+    "@table[fixedTeleTbl]" : 
+    {
+        "@cell[0,0]" : 
+        {
+            "@regex" : "1. Fixed telecoms tables"
+        },
+        "@cell[0,1-9]" : {},
+        "@cell[1,0-9]" : {},
+        "@cell[2,0-9]" : {}
+    },
+
+    "@table[mobTeleTbl]" : 
+    {
+        "@cell[0,0]" : 
+        {
+            "@regex" : "2. Mobile telecoms tables"
+        },
+        "@cell[0,1-9]" : {}
+    },
+    
+    "@table[Tbl1_6]" : 
+    {       
+        "description" : "{tblDesc}",
+        
+        // "@replaceValueMap" :
+        // {
+        //     "*****" : ""
+        // },
+
+        //"@ignoreValues" : ["*****", null], 
+        
+        // "@commonProps" : 
+        // {
+
+        // },
+
+        "@cell[0,0]" : 
+        {
+            "@regex" : "Table \\d+"
+        },
+        "@cell[0,1-9]" : {},
+        
+        "@cell[1,0]" : 
+        {
+            "@name" : "tblDesc",
+            "@datatype" : "string"
+        },
+        "@cell[1,1-9]" : {},
+
+        "@cell[2,0-9]" : {},
+        "@cell[3,0]" : {},
+        "@cell[3,1]" : 
+        {
+            "@name" : "all_operator_prop_title",
+            "@regex" : "All Operators"
+        },
+
+        "@cell[3,2]" : 
+        {
+            "@name" : "bt_col",
+            "@regex" : "BT"
+        },
+
+        "@cell[3,3]" : 
+        {
+            "@name" : "vm_col",
+            "@regex" : "Virgin Media"
+        },
+
+        "@cell[3,4]" : 
+        {
+            "@name" : "other_col",
+            "@regex" : "Other"
+        },    
+
+        "@cell[3,5]" : {},
+
+        "@cell[3,6]" : 
+        {
+            "@name" : "btShare_col",
+            "@regex" : "BT share"
+        },
+
+        "@cell[3,7-9]" : {},
+
+        "@cell[4,0-9]" : {},
+
+        "@cell[5,0]" :
+        {
+            "@regex" : "Access & Calls1"
+        },
+
+        "@cell[5,1-9]" : {},
+
+        "@cell[6-7,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[6-7,1-4]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[6-7,5]" : {},
+
+        "@cell[6-7,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[6-7,7-9]" : {},
+
+        "@cell[8,0-9]" : {},
+
+        "@cell[9-13,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[9-13,1-4]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[9-13,5]" : {},
+
+        "@cell[9-13,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[9-13,7-9]" : {},
+
+        "@cell[14,0-9]" : {},
+
+        "@cell[15,0]" :
+        {
+            "@regex" : "Access"
+        },
+
+        "@cell[15,1-9]" : {},
+
+        "@cell[16-17,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[16-17,1-4]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[16-17,5]" : {},
+
+        "@cell[16-17,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[16-17,7-9]" : {},
+
+        "@cell[18,0-9]" : {},
+
+        "@cell[19-23,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[19-23,1-4]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[19-23,5]" : {},
+
+        "@cell[19-23,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[19-23,7-9]" : {},
+
+        "@cell[24,0-9]" : {},            
+
+        "@cell[25,0]" :
+        {
+            "@regex" : "Calls1"
+        },
+
+        "@cell[25,1-9]" : {},
+
+        "@cell[26-27,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[26-27,1-4]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[26-27,5]" : {},
+
+        "@cell[26-27,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[26-27,7-9]" : {},
+
+        "@cell[28,0-9]" : {},
+
+        "@cell[29-33,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[29-33,1-4]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[29-33,5]" : {},
+
+        "@cell[29-33,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[29-33,7-9]" : {},
+
+        "@cell[34,0-9]" : {},
+
+        "@cell[35,0]" : 
+        {
+            "@name" : "remark",
+            "@datatype" : "string"
+        },
+
+        "@cell[35,1-9]" : {},
+
+        "@row[36]" : { "@repeatTimes" : 3 },
+
+        "@cell[36,0-9]" : {}
+        
+    }, // end @table[Tbl1_6]
+
+    "@table[Tbl2]" : 
+    {
+        "description" : "{tblDesc}",
+
+        "@cell[0,0]" : 
+        {
+            "@regex" : "Table \\d+"
+        },
+        "@cell[0,1-9]" : {},
+        
+        "@cell[1,0]" : 
+        {
+            "@name" : "tblDesc",
+            "@datatype" : "string"
+        },
+        "@cell[1,1-9]" : {},
+
+        "@cell[2,0-9]" : {},
+        "@cell[3,0]" : {},
+        "@cell[3,1]" : 
+        {
+            "@name" : "all_operator_col",
+            "@regex" : "All Operators"
+        },
+
+        "@cell[3,2]" : 
+        {
+            "@name" : "bt_col",
+            "@regex" : "BT"
+        },
+
+        "@cell[3,3]" : 
+        {
+            "@name" : "vm_col",
+            "@regex" : "Virgin Media"
+        },
+
+        "@cell[3,4]" : 
+        {
+            "@name" : "other_col",
+            "@regex" : "Other"
+        },    
+
+        "@cell[3,5]" : {},
+
+        "@cell[3,6]" : 
+        {
+            "@name" : "btShare_col",
+            "@regex" : "BT share"
+        },
+
+        "@cell[3,7-9]" : {},
+
+        "@cell[4,0-9]" : {},
+
+        "@cell[5-6,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[5-6,1-4]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[5-6,5]" : {},
+
+        "@cell[5-6,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[5-6,7-9]" : {},
+
+        "@cell[7,0-9]" : {},
+
+        "@cell[8-12,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[8-12,1-4]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[8-12,5]" : {},
+
+        "@cell[8-12,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[8-12,7-9]" : {},
+
+        "@row[13]" : { "@repeatTimes" : 3 },
+
+        "@cell[13,0-9]" : {}
+
+    }, // end @table[Tbl2]
+
+
+    "@table[Tbl3]" : 
+    {
+        "description" : "{tblDesc}",
+
+        "@cell[0,0]" : 
+        {
+            "@regex" : "Table \\d+"
+        },
+        "@cell[0,1-9]" : {},
+        
+        "@cell[1,0]" : 
+        {
+            "@name" : "tblDesc",
+            "@datatype" : "string"
+        },
+        "@cell[1,1-9]" : {},
+
+        "@cell[2,0-9]" : {},
+        "@cell[3,0]" : {},
+        "@cell[3,1]" : 
+        {
+            "@name" : "all_operator_col",
+            "@regex" : "All Operators"
+        },
+
+        "@cell[3,2]" : 
+        {
+            "@name" : "bt_col",
+            "@regex" : "BT"
+        },
+
+        "@cell[3,3]" : 
+        {
+            "@name" : "vm_col",
+            "@regex" : "Virgin Media"
+        },
+
+        "@cell[3,4]" : 
+        {
+            "@name" : "other_dir_accs_col",
+            "@regex" : "Other Direct Access"
+        },    
+
+        "@cell[3,5]" : 
+        {
+            "@name" : "other_indir_accs_col",
+            "@regex" : "Other Indirect Access"
+        },            
+
+        "@cell[3,6]" : 
+        {
+            "@name" : "btShare_col",
+            "@regex" : "BT share"
+        },
+
+        "@cell[3,7-9]" : {},
+
+        "@cell[4,0-9]" : {},
+
+        "@cell[5-6,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[5-6,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[5-6,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[5-6,7-9]" : {},
+
+        "@cell[7,0-9]" : {},
+
+        "@cell[8-12,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[8-12,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[8-12,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[8-12,7-9]" : {},
+
+        "@row[13]" : { "@repeatTimes" : 3 },
+
+        "@cell[13,0-9]" : {}
+
+    }, // end @table[Tbl3]
+
+
+    "@table[Tbl4]" : 
+    {
+        "description" : "{tblDesc}",
+
+        "@cell[0,0]" : 
+        {
+            "@regex" : "Table \\d+"
+        },
+        "@cell[0,1-9]" : {},
+        
+        "@cell[1,0]" : 
+        {
+            "@name" : "tblDesc",
+            "@datatype" : "string"
+        },
+        "@cell[1,1-9]" : {},
+
+        "@cell[2,0-9]" : {},
+        "@cell[3,0]" : {},
+        "@cell[3,1]" : 
+        {
+            "@name" : "all_calls_col",
+            "@regex" : "All calls"
+        },
+
+        "@cell[3,2]" : 
+        {
+            "@name" : "uk_geo_call_col",
+            "@regex" : "UK geographic calls"
+        },
+
+        "@cell[3,3]" : 
+        {
+            "@name" : "inter_call_col",
+            "@regex" : "International calls"
+        },
+
+        "@cell[3,4]" : 
+        {
+            "@name" : "mobile_call_col",
+            "@regex" : "Calls to mobiles"
+        },    
+
+        "@cell[3,5]" : 
+        {
+            "@name" : "other_call_col",
+            "@regex" : "Other calls1"
+        },            
+
+        "@cell[3,6-9]" : {},
+
+        "@cell[4,0-9]" : {},
+
+        "@cell[5-6,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[5-6,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[5-6,6-9]" : {},
+
+        "@cell[7,0-9]" : {},
+
+        "@cell[8-12,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[8-12,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[8-12,6-9]" : {},
+
+        "@cell[13,0-9]" : {},
+
+        "@cell[14,0]" : 
+        {
+            "@name" : "remark",
+            "@datatype" : "string"
+        },
+
+        "@cell[14,1-9]" : {},
+
+        "@row[15]" : { "@repeatTimes" : 3 },
+
+        "@cell[15,0-9]" : {}
+
+    }, // end @table[Tbl4]
+
+    "@table[Tbl5_15]" : 
+    {       
+        "description" : "{tblDesc}",
+        
+        "@cell[0,0]" : 
+        {
+            "@regex" : "Table \\d+"
+        },
+        "@cell[0,1-9]" : {},
+        
+        "@cell[1,0]" : 
+        {
+            "@name" : "tblDesc",
+            "@datatype" : "string"
+        },
+        "@cell[1,1-9]" : {},
+
+        "@cell[2,0-9]" : {},
+        "@cell[3,0]" : {},
+        "@cell[3,1]" : 
+        {
+            "@name" : "all_operator_col",
+            "@regex" : "All Operators"
+        },
+
+        "@cell[3,2]" : 
+        {
+            "@name" : "bt_col",
+            "@regex" : "BT"
+        },
+
+        "@cell[3,3]" : 
+        {
+            "@name" : "vm_col",
+            "@regex" : "Virgin Media"
+        },
+
+        "@cell[3,4]" : 
+        {
+            "@name" : "other_dir_accs_col",
+            "@regex" : "Other Direct Access"
+        },    
+
+        "@cell[3,5]" : 
+        {
+            "@name" : "other_indir_accs_col",
+            "@regex" : "Other Indirect Access"
+        },            
+
+        "@cell[3,6]" : 
+        {
+            "@name" : "btShare_col",
+            "@regex" : "BT share"
+        },
+
+        "@cell[3,7-9]" : {},
+
+        "@cell[4,0-9]" : {},
+
+        "@cell[5,0]" :
+        {
+            "@regex" : "UK geographic calls"
+        },
+
+
+        "@cell[5,1-9]" : {},
+
+        "@cell[6-7,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[6-7,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[6-7,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[6-7,7-9]" : {},
+
+        "@cell[8,0-9]" : {},
+
+        "@cell[9-13,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[9-13,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[9-13,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[9-13,7-9]" : {},
+
+        "@cell[14,0-9]" : {},
+
+        "@cell[15,0]" :
+        {
+            "@regex" : "International calls"
+        },
+
+        "@cell[15,1-9]" : {},
+
+        "@cell[16-17,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[16-17,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[16-17,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[16-17,7-9]" : {},
+
+        "@cell[18,0-9]" : {},
+
+        "@cell[19-23,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[19-23,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[19-23,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[19-23,7-9]" : {},
+
+        "@cell[24,0-9]" : {},
+
+        "@cell[25,0]" :
+        {
+            "@regex" : "Calls to mobiles"
+        },
+
+        "@cell[25,1-9]" : {},
+
+        "@cell[26-27,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[26-27,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[26-27,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[26-27,7-9]" : {},
+
+        "@cell[28,0-9]" : {},
+
+        "@cell[29-33,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[29-33,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[29-33,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[29-33,7-9]" : {},
+
+        "@cell[34,0-9]" : {},
+
+        "@cell[35,0]" :
+        {
+            "@regex" : "Other calls(.*)"
+        },
+
+        "@cell[35,1-9]" : {},
+
+        "@cell[36-37,0]" :
+        {
+            "@datatype" : "gYear"
+        },
+
+        "@cell[36-37,1-5]" :
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[36-37,6]" :
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[36-37,7-9]" : {},
+
+        "@cell[38,0-9]" : {},
+
+        "@cell[39-43,0]" :
+        {
+            "@regex" : "(19|20)\\d{2} Q[1234]" // regex for 1900-2099 Q1/2/3/4
+        },
+
+        "@cell[39-43,1-5]" : 
+        {
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator   
+        },
+
+        "@cell[39-43,6]" : 
+        {
+            "@regex" : "(?:\\d*\\.)?\\d+%" // regex for decimal in percent
+        },
+
+        "@cell[39-43,7-9]" : {},
+
+        "@cell[44,0-9]" : {},
+
+        "@cell[45,0]" : 
+        {
+            "@name" : "remark",
+            "@datatype" : "string"
+        },
+
+        "@cell[45,1-9]" : {},
+
+        "@row[46]" : { "@repeatTimes" : 3 },
+
+        "@cell[46,0-9]" : {}        
+        
+    } // end @table[Tbl5_15]
+
+}

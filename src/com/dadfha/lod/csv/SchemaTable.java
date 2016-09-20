@@ -8,6 +8,9 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 /**
  * SchemaTable stores metadata for CSV's tabular structure.
  * 
@@ -17,6 +20,8 @@ import java.util.regex.Pattern;
  * @author Wirawit
  */
 public class SchemaTable extends SchemaEntity {
+	
+	private static final Logger logger = LogManager.getLogger();
 
 	/**
 	 * Class IRI for schema table.
@@ -445,8 +450,9 @@ public class SchemaTable extends SchemaEntity {
 	 * @param val CSV's cell value
 	 * @param mode
 	 * @return boolean true if the validate is success or false otherwise.
+	 * @throws Exception 
 	 */
-	public boolean validate(int sRow, int sCol, String val, int mode) {
+	public boolean validate(int sRow, int sCol, String val, int mode) throws Exception {
 		
 		// initialize processing mode
 		boolean ignoreErrMsg = ((SchemaProcessor.MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
@@ -458,23 +464,40 @@ public class SchemaTable extends SchemaEntity {
 		// check dimension, whether there is schema cell definition at specified row and column
 		SchemaCell c = getCell(sRow, sCol);		
 		if(c == null) {
-			if(!ignoreErrMsg) System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + sRow + "," + sCol + "]"); 
+			if(!ignoreErrMsg) {
+				logger.warn("Dimension MISMATCHED - There is no schema definition in {} at: [{},{}]", this, sRow, sCol);
+				//System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + sRow + "," + sCol + "]"); 
+			}
 			return false;
+		} else {
+			logger.debug("Dimension MATCHED with schema definition at: {}", c);
 		}
 		
 		// search in ignore values set, exit if found
-		if(isIgnoreValue(val)) return true; // IMP should print out INFO msg on this, since it may change the validation result without notice.
+		if(isIgnoreValue(val)) {
+			logger.info("Ignoring validation of value '{}' since it's in the ignore list of {}", val, this);
+			return true;
+		}
 		
 		// check if the cell is a valid Empty Cell
 		if(c.isEmpty()) {
-			if(val == null) return true;
+			if(val == null) {
+				logger.debug("Schema MATCHED: Empty Cell meets null value");
+				return true;
+			}
 			else {
-				if(!ignoreErrMsg) System.err.println("Error: Schema Mismatched - Expecting EmptyCell but found cell value '" + val + "' at: [" + sRow + "," + sCol + "]");
+				if(!ignoreErrMsg) {
+					logger.warn("Schema MISMATCHED: Expecting EmptyCell at schema {} but found cell value '{}'", c, val);
+					//System.err.println("Error: Schema Mismatched - Expecting EmptyCell but found cell value '" + val + "' at: [" + sRow + "," + sCol + "]");
+				}
 				return false;		
 			}
 		} else { // in case the schema cell is not Empty Cell, the value must not be null
 			if(val == null) {
-				if(!ignoreErrMsg) System.err.println("Error: There is no cell value, i.e. null, to validate against schema cell at: [" + sRow + "," + sCol + "]");
+				if(!ignoreErrMsg) {
+					logger.warn("Schema MISMATCHED: There is no cell value, i.e. null, to validate against schema {}", c);
+					//System.err.println("Error: There is no cell value, i.e. null, to validate against schema cell at: [" + sRow + "," + sCol + "]");
+				}
 				return false;
 			}
 		}		
@@ -526,6 +549,11 @@ public class SchemaTable extends SchemaEntity {
 			case "date":
 				break;
 			case "g":
+			case "gYearMonth":
+			case "gYear":
+			case "gMonthDay":
+			case "gDay":
+			case "gMonth":
 				break;
 			case "anySimpleType":
 				break;
@@ -534,7 +562,8 @@ public class SchemaTable extends SchemaEntity {
 			case "NOTATION":
 				break;				
 			default:
-				throw new RuntimeException("Unsupported datatype: " + datatype);
+				logger.error("Unsupported datatype: {}", datatype);
+				throw new Exception("CSV-X unsupported datatype: " + datatype);
 			}
 			
 		}
@@ -546,11 +575,13 @@ public class SchemaTable extends SchemaEntity {
 		    Matcher m = p.matcher(val);
 		    if(!m.find()) {
 		    	if(!ignoreErrMsg) {
-		    		System.err.println("Error: Regular Expression Mismatched for schema cell: " + c);
-		    		System.err.println("Expecting pattern: " + regEx + " found: " + val);
+		    		logger.warn("RegEx MISMATCHED for trial with schema cell: {} \n Expecting pattern: '{}' but found '{}'.", c, regEx, val);
+		    		// IMP we need to also provide actual location of value in csv too for context, this's one of the reason to move validation() to SchemaProcessor
+		    		//logger.debug("Regular expression mismatched for trial with schema cell: {} \n Expecting pattern: '{}' but found '{}' at row {} col {} of the csv.", c, regEx, val);
 		    	}
 		    	return false;			
 		    }
+		    logger.debug("RegEx '{}' MATCHED for schema {} with value '{}'.", regEx, c, val);
 		}
 		
 		return true;

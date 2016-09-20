@@ -2,6 +2,7 @@ package com.dadfha.lod.csv;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -63,10 +64,37 @@ public class Schema {
 	/**
 	 * Map between table name and schema table.
 	 * 
-	 * Since a schema table always has a name, this also serve as the variable registry 
-	 * for schema table inside the schema.
+	 * The order in which the table is declared is significant and preserved, 
+	 * as the matching of multiple tables inside a csv should be tried in the order 
+	 * its declared, one after the other in succession, in order to reduce number 
+	 * of trials and errors. Says, if schema table 1 and 2 are defined, at the time
+	 * of csv matching, the once the first table done matching, the parser will try 
+	 * using schema table 2 to match next csv content. 
+	 * 
+	 * However, at current implementation, SchemaProcessor.parseCsvWithSchema() will retry all
+	 * schema tables from the beginning after a successful parse of table rather than continuing
+	 * to the next schema table because there's a chance that the next csv content could be 
+	 * that of the earlier table.
+	 *     
+	 * There is also no simple way of reordering schema tables collection while iterating without 
+	 * modifying the original collection. The only way is to make a copy of the whole collection
+	 * and re-arrange its order as we parse. If the order of schema table in actual csv content
+	 * is so random, this scheme would create insignificant performance gain. Thus, I decide 
+	 * to keep it this way.
+	 * 
+	 * Again, there may be an efficient way to implement this using Ring Buffer collection which
+	 * has the nature of looping through all elements in order but a special counter must be 
+	 * introduced to signify the begin and end of loop as per parsing trials. 
+	 * This feature is deferred to the future version.
+	 * 
+	 * Since a schema table always has a name, this also serve as the registry 
+	 * for schema table inside the schema. IMP However, referencing table inside the table 
+	 * itself is done via variable name defined using '@name'. This is to support cross-
+	 * referencing between table "instance" in future version, where table name only 
+	 * designates a table "prototype" but each actual instance MUST has a uniquely addressable
+	 * name. This could be achieved using dynamic variable naming via context var(s). 
 	 */
-	private Map<String, SchemaTable> sTables = new HashMap<String, SchemaTable>();
+	private Map<String, SchemaTable> sTables = new LinkedHashMap<String, SchemaTable>();
 	
 	/**
 	 * Associate the dataset with an RDF-based schema via context as in JSON-LD

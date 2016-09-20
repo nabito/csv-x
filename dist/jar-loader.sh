@@ -5,5 +5,6 @@ java=java
 if test -n "$JAVA_HOME"; then
     java="$JAVA_HOME/bin/java"
 fi
+java_args=-Dlog4j.configurationFile=log4j2.xml
 exec "$java" $java_args -jar $MYSELF "$@"
 exit 1 
