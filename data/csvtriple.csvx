@@ -1,0 +1,90 @@
+{
+    "@delimiter" : " ",
+
+    "@row[0]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[0,0]" : 
+    {
+        "@name" : "subject_{subrow}"
+    },
+
+    "@cell[0,1]" : 
+    {
+        "@name" : "predicate_{subrow}"
+    },
+
+    "@cell[0,2]" : 
+    {
+        "@name" : "object_{subrow}"
+    },
+
+    "@cell[0,3]" : 
+    {
+        "@name" : "prov_doc1_{subrow}",
+        "@regex" : "D\\d{5}"
+    },
+
+    "@cell[0,4]" : 
+    {
+        "@name" : "prov_pgs_offset1_{subrow}_{subcol}",
+        "@regex" : "\\d{3}-\\d{3}"
+    },
+
+    "@cell[0,5]" : 
+    {
+        "@name" : "prov_prob1_{subrow}",
+        "@regex" : "\\d\\.\\d"
+    },
+
+    "@cell[0,6]" : 
+    {
+        "@name" : "prov_doc2_{subrow}",
+        "@regex" : "D\\d{5}"
+    },
+
+    "@cell[0,7]" : 
+    {
+        "@name" : "prov_pgs_offset2_{subrow}_{subcol}",
+        "@regex" : "\\d{3}-\\d{3}"
+    },
+
+    "@cell[0,8]" : 
+    {
+        "@name" : "prov_prob2_{subrow}",
+        "@regex" : "\\d\\.\\d"
+    },
+
+    "@col[3]" : 
+    {        
+        "@repeatTimes" : -1
+    },  
+
+    "@col[4]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@col[5]" : 
+    {
+        "@repeatTimes" : -1
+    },  
+
+    "@col[6]" : 
+    {
+        "@repeatTimes" : -1
+    },  
+
+    "@col[7]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@col[8]" : 
+    {
+        "@repeatTimes" : -1
+    }
+
+}

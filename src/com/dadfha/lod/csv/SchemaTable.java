@@ -10,6 +10,25 @@ import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.xerces.impl.dv.xs.AnyURIDV;
+import org.apache.xerces.impl.dv.xs.Base64BinaryDV;
+import org.apache.xerces.impl.dv.xs.BooleanDV;
+import org.apache.xerces.impl.dv.xs.DateDV;
+import org.apache.xerces.impl.dv.xs.DateTimeDV;
+import org.apache.xerces.impl.dv.xs.DayDV;
+import org.apache.xerces.impl.dv.xs.DecimalDV;
+import org.apache.xerces.impl.dv.xs.DoubleDV;
+import org.apache.xerces.impl.dv.xs.DurationDV;
+import org.apache.xerces.impl.dv.xs.EntityDV;
+import org.apache.xerces.impl.dv.xs.FloatDV;
+import org.apache.xerces.impl.dv.xs.HexBinaryDV;
+import org.apache.xerces.impl.dv.xs.MonthDV;
+import org.apache.xerces.impl.dv.xs.MonthDayDV;
+import org.apache.xerces.impl.dv.xs.QNameDV;
+import org.apache.xerces.impl.dv.xs.StringDV;
+import org.apache.xerces.impl.dv.xs.TimeDV;
+import org.apache.xerces.impl.dv.xs.YearDV;
+import org.apache.xerces.impl.dv.xs.YearMonthDV;
 
 /**
  * SchemaTable stores metadata for CSV's tabular structure.
@@ -29,9 +48,16 @@ public class SchemaTable extends SchemaEntity {
 	public static final String CLASS_IRI = Schema.NS_PREFIX + ":SchemaTable";
 	
 	/**
+	 * Initial size of row collection.
 	 * Set this to two times the expected number of row per section. 
 	 */
-	public static final int INIT_ROW_NUM = 200;	
+	public static final int INIT_ROW_NUM = 200;
+	
+	/**
+	 * Initial size of column collection.
+	 * Set this to two times the expected number of row per section.
+	 */
+	public static final int INIT_COL_NUM = 100;	
 	
 	/**
 	 * Parent schema of this schema table.
@@ -69,7 +95,7 @@ public class SchemaTable extends SchemaEntity {
 	 * Mapping between variable name and schema entity. 
 	 * Variable has global scope within a schema table.
 	 * 
-	 * As of v1.0 this variable map must not be used at schema parsing, but only schema generation time.
+	 * As of v0.9 this variable map must not be used at schema parsing, but only schema generation time.
 	 */
 	private Map<String, SchemaEntity> varMap = new HashMap<String, SchemaEntity>();		
 	
@@ -91,6 +117,11 @@ public class SchemaTable extends SchemaEntity {
 	 * tracking of size for each row and column. 
 	 */	
 	private Map<Integer, SchemaRow> schemaRows = new HashMap<Integer, SchemaRow>(INIT_ROW_NUM);
+	
+	/**
+	 * Map between column number and its schema.
+	 */
+	private Map<Integer, SchemaColumn> schemaCols = new HashMap<Integer, SchemaColumn>(INIT_COL_NUM);
 	
 	/**
 	 * This collection serves as property name-schema property mapping.
@@ -170,7 +201,7 @@ public class SchemaTable extends SchemaEntity {
 		// add var register for the data table itself, so other schema entity can refer to it by variable name
 		if(newTable.getName() != null) newTable.addVar(newTable.getName(), newTable);
 		
-		assert(st.varMap.size() == 0) : "As of v1.0 this variable map must not be used at schema parsing, but only schema generation time.";
+		assert(st.varMap.size() == 0) : "As of v0.9 this variable map must not be used at schema parsing, but only schema generation time.";
 
 		return newTable;
 	}
@@ -274,6 +305,15 @@ public class SchemaTable extends SchemaEntity {
 	}
 	
 	/**
+	 * Get schema column.
+	 * @param colNum
+	 * @return SchemaColumn or null if not available.
+	 */
+	public SchemaColumn getCol(int colNum) {
+		return schemaCols.get(colNum);
+	}
+	
+	/**
 	 * Get all schema rows inside this schema table.
 	 * @return Map<Integer, SchemaRow> between row number and its corresponding schema row object.
 	 */
@@ -288,6 +328,14 @@ public class SchemaTable extends SchemaEntity {
 	public void addRow(SchemaRow sr) {
 		schemaRows.put(sr.getRowNum(), sr);
 	}	
+	
+	/**
+	 * Add schema column. If there are existing SchemaColumn object it will be overwritten.
+	 * @param sc
+	 */
+	public void addCol(SchemaColumn sc) {
+		schemaCols.put(sc.getColNum(), sc);
+	}		
 	
 	/**
 	 * Get cell.
@@ -466,7 +514,6 @@ public class SchemaTable extends SchemaEntity {
 		if(c == null) {
 			if(!ignoreErrMsg) {
 				logger.warn("Dimension MISMATCHED - There is no schema definition in {} at: [{},{}]", this, sRow, sCol);
-				//System.err.println("Error: Dimension Mismatched - There is no schema definition at: [" + sRow + "," + sCol + "]"); 
 			}
 			return false;
 		} else {
@@ -488,7 +535,6 @@ public class SchemaTable extends SchemaEntity {
 			else {
 				if(!ignoreErrMsg) {
 					logger.warn("Schema MISMATCHED: Expecting EmptyCell at schema {} but found cell value '{}'", c, val);
-					//System.err.println("Error: Schema Mismatched - Expecting EmptyCell but found cell value '" + val + "' at: [" + sRow + "," + sCol + "]");
 				}
 				return false;		
 			}
@@ -496,77 +542,115 @@ public class SchemaTable extends SchemaEntity {
 			if(val == null) {
 				if(!ignoreErrMsg) {
 					logger.warn("Schema MISMATCHED: There is no cell value, i.e. null, to validate against schema {}", c);
-					//System.err.println("Error: There is no cell value, i.e. null, to validate against schema cell at: [" + sRow + "," + sCol + "]");
 				}
 				return false;
 			}
 		}		
 
-		// TODO check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
-		// also the syntax for constraints may be referred from CSVW specs
+		// check datatype and restrictions according to XML Schema Datatype 1.1 (http://www.w3.org/TR/xmlschema11-2/)
+		// TODO need comprehensive testing of datatype validation.  
+		// in future, may draw some inspiration from the syntax for constraints in CSVW specs
 		// our key point is to design CSV-X schema syntax to be able to express all datatype & restrictions
-		// then translate that into XML model for native-XML validation.
 		String datatype = c.getDatatype();
-		if(datatype != null) {			
-			switch(datatype) {
-			// mapping between XML datatype and Java datatype in defined in JAXB standard (http://docs.oracle.com/javaee/5/tutorial/doc/bnazq.html)
-			case "string":
-				break;			
-			case "integer":
-				break;
-			case "int":
-				break;
-			case "long":
-				break;
-			case "short":
-				break;
-			case "decimal":
-				break;
-			case "float":
-				break;
-			case "double":
-				break;
-			case "boolean":
-				break;
-			case "byte":
-				break;
-			case "QName":
-				break;
-			case "dateTime":
-				break;
-			case "base64Binary":
-				break;
-			case "hexBinary":
-				break;
-			case "unsignedInt":
-				break;
-			case "unsignedShort":
-				break;
-			case "unsignedByte":
-				break;
-			case "time":
-				break;
-			case "date":
-				break;
-			case "g":
-			case "gYearMonth":
-			case "gYear":
-			case "gMonthDay":
-			case "gDay":
-			case "gMonth":
-				break;
-			case "anySimpleType":
-				break;
-			case "duration":
-				break;
-			case "NOTATION":
-				break;				
-			default:
-				logger.error("Unsupported datatype: {}", datatype);
-				throw new Exception("CSV-X unsupported datatype: " + datatype);
-			}
+		if(datatype != null) {		
 			
-		}
+			try {
+				
+				switch(datatype) {
+				// Note: mapping between XML datatype and Java datatype in defined in JAXB standard (http://docs.oracle.com/javaee/5/tutorial/doc/bnazq.html)
+				case "string":
+					new StringDV().getActualValue(val, null);
+					break;			
+				case "int":
+				case "integer":
+					Integer.parseInt(val);
+					break;
+				case "long":
+					Long.parseLong(val);
+					break;
+				case "short":
+					Short.parseShort(val);
+					break;
+				case "decimal":
+					new DecimalDV().getActualValue(val, null);
+					break;
+				case "float":
+					new FloatDV().getActualValue(val, null);
+					break;
+				case "double":
+					new DoubleDV().getActualValue(val, null);
+					break;
+				case "boolean":
+					new BooleanDV().getActualValue(val, null);
+					break;
+				case "byte":
+					Byte.parseByte(val);
+					break;
+				case "QName":
+					new QNameDV().getActualValue(val, null);
+					break;
+				case "dateTime":
+					new DateTimeDV().getActualValue(val, null);
+					break;
+				case "base64Binary":
+					new Base64BinaryDV().getActualValue(val, null);
+					break;
+				case "hexBinary":
+					new HexBinaryDV().getActualValue(val, null);
+					break;
+				case "unsignedInt":
+					Integer.parseUnsignedInt(val);
+					break;
+				case "unsignedShort":
+					int us = Integer.parseUnsignedInt(val);
+					if((us >= 0) || (us < (0x1 << Short.SIZE))) throw new Exception("The value '" + val + "' violates unsigned short definition at schema: " + c);
+					break;
+				case "unsignedByte":
+					int ub = Integer.parseUnsignedInt(val);
+					if((ub >= 0) || (ub < (0x1 << Byte.SIZE))) throw new Exception("The value '" + val + "' violates unsigned byte definition at schema: " + c);				
+					break;
+				case "time":
+					new TimeDV().getActualValue(val, null);
+					break;
+				case "date":
+					new DateDV().getActualValue(val, null);
+					break;
+				case "gYearMonth":
+					new YearMonthDV().getActualValue(val, null);
+					break;
+				case "gYear":
+					new YearDV().getActualValue(val, null);
+					break;
+				case "gMonthDay":
+					new MonthDayDV().getActualValue(val, null);
+					break;
+				case "gDay":
+					new DayDV().getActualValue(val, null);
+					break;
+				case "gMonth":
+					new MonthDV().getActualValue(val, null);
+					break;
+				case "anyURI":
+					new AnyURIDV().getActualValue(val, null);
+					break;			
+				case "duration":
+					new DurationDV().getActualValue(val, null);
+					break;
+				case "NCName":
+					new EntityDV().getActualValue(val, null);
+					break;			
+//				case "NOTATION":
+//					break;				
+				default:
+					logger.error("Unsupported datatype: {}", datatype);
+					throw new Exception("CSV-X unsupported datatype: " + datatype);
+				}				
+				
+			} catch(Exception e) {
+				logger.warn("Invalid value '{}' for declared datatype '{}' at schema {}", val, datatype, c);
+				return false;
+			}						
+		} // end if datatype validation
 		
 		// validate parsed CSV record against CSV-X cell schema's regular expression.
 		String regEx = c.getRegEx();

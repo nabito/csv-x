@@ -24,12 +24,25 @@ import org.apache.logging.log4j.Logger;
 
 import com.dadfha.lod.JSONMinify;
 import com.github.jsonldjava.utils.JsonUtils;
+import com.univocity.parsers.common.AbstractParser;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
+import com.univocity.parsers.tsv.TsvParser;
+import com.univocity.parsers.tsv.TsvParserSettings;
 
 public class SchemaProcessor {	
 	
 	private static final Logger logger = LogManager.getLogger();
+	
+	/**
+	 * Meta property for CSV delimiter.
+	 */
+	public static final String METAPROP_DELIMITER = "@delimiter";	
+	
+	/**
+	 * Meta property for CSV line separator.
+	 */
+	public static final String METAPROP_LINE_SEPARATOR = "@lineSeparator";
 	
 	/**
 	 * Meta property to regard cell value with only whitespace characters as empty (null).
@@ -40,6 +53,47 @@ public class SchemaProcessor {
 	 * Whether or not to trim CSV value.
 	 */
 	public static final String METAPROP_TRIM = "@trim";
+	
+	/**
+	 * Whether or not to skip processing for blank rows (Rows with not even a single cell).
+	 * Default to true.
+	 */
+	public static final String METAPROP_SKIP_BLANK_ROWS = "@skipBlankRows";	
+	
+	/**
+	 * Meta property for CSV comment prefix.
+	 */
+	public static final String METAPROP_COMMENT_PREFIX = "@commentPrefix";	
+	
+	/**
+	 * The base IRI (or other addressing scheme) for all schema entity.
+	 * Any '@id' in each schema entity will override the base. Therefore, prefix must be used 
+	 * to define unique local name over a base.  
+	 * 
+	 * If '@base' not defined in a schema, it'll be default to empty string. 
+	 * 
+	 */
+	public static final String METAPROP_BASE = "@base";	
+	
+	/**
+	 * Meta property for schema entity's ID. (Optional, default to CSV-X filename)
+	 */
+	public static final String METAPROP_ID = "@id";
+	
+	/**
+	 * Meta property specifying Target CSVs. (Optional)
+	 */
+	public static final String METAPROP_TARGET_CSVS = "@targetCSVs";
+	
+	/**
+	 * Repeating times of a schema entity. At v0.9 only applicable to schema row and column.
+	 */
+	public static final String METAPROP_REPEAT_TIMES = "@repeatTimes";
+	
+	/**
+	 * CSV file encoding (Optional, default to UTF-8).
+	 */
+	public static final String METAPROP_ENCODING = "@encoding";
 	
 	/**
 	 * Processing mode to ignore error message, creating no log nor print.
@@ -100,7 +154,9 @@ public class SchemaProcessor {
 	     * Current milestone row.
 	     */
 	    Integer milestoneRow = 0;
-		String currVal = null;		
+		String currVal = null;
+		boolean currRowConsumed = true;
+		String[] currRowData = null;		
 		/**
 		 * Reset context variables needed for parsing in new data table 
 		 * (preserving currRow, milestoneRow, and currSchema).
@@ -112,6 +168,8 @@ public class SchemaProcessor {
 			repeatTimes = 0;
 			currVal = null;		
 			currSchemaTable = null;
+			currRowConsumed = true;
+			currRowData = null;
 		}
 	}
 	
@@ -166,15 +224,26 @@ public class SchemaProcessor {
 		
 		CsvParserSettings settings = new CsvParserSettings();
 		
+		// delimiter
+		if(schema.getProperty(METAPROP_DELIMITER) != null) settings.getFormat().setDelimiter(((String) schema.getProperty(METAPROP_DELIMITER)).charAt(0));			
+		
 		// line separator, MacOS uses '\r'; and Windows uses '\r\n'.
-		if(schema.getProperty("@lineSeparator") != null) settings.getFormat().setLineSeparator((String) schema.getProperty("@lineSeparator"));
+		if(schema.getProperty(METAPROP_LINE_SEPARATOR) != null) settings.getFormat().setLineSeparator((String) schema.getProperty(METAPROP_LINE_SEPARATOR));
 		else settings.setLineSeparatorDetectionEnabled(true);
+		
+		// CSV comment format (default: none)
+		if(schema.getProperty(METAPROP_COMMENT_PREFIX) != null) settings.getFormat().setComment(((String) schema.getProperty(METAPROP_COMMENT_PREFIX)).charAt(0)); 
+		else settings.getFormat().setComment('\0');
+		
+		// skip blank rows (default: true)
+		if(schema.getProperty(METAPROP_SKIP_BLANK_ROWS) != null) settings.setSkipEmptyLines((Boolean) schema.getProperty(METAPROP_SKIP_BLANK_ROWS)); 
+		else settings.setSkipEmptyLines(true);
 		
 		// define empty string ("") fill & empty value fill to be as is, as we'll handle the filling logic by ourselves
 		settings.setEmptyValue("");
 		//settings.setNullValue(null);
 		
-		// header extraction, anyone?
+		// header extraction, anyone? nah..thx
 		settings.setHeaderExtractionEnabled(false);
 		
 		return settings;
@@ -198,7 +267,7 @@ public class SchemaProcessor {
 		Schema s = null;
 		try {
 			s = parseCsvXSchema(schemaPath);
-			schemas.put((String) s.getProperty("@id"), s);
+			schemas.put((String) s.getProperty(METAPROP_ID), s);
 		} catch(Exception e) {
 			logger.error("There's a problem in loading/parsing schema file {}: \n {}", schemaPath, e.getMessage());			
 			logger.debug("StackTrace:", e);
@@ -225,8 +294,8 @@ public class SchemaProcessor {
 				for(String targetCsvId : s.getTargetCsvs()) { // for each target
 					
 					if(targetCsvId.equals(csvId)) { // if target csv matched csv id, return matched schema id
-						System.out.println("Found csv id specified in a schema id : " + s.getProperty("@id"));
-						return (String) s.getProperty("@id");
+						logger.info("Found csv id specified in a schema id: {}", s.getProperty(METAPROP_ID));
+						return (String) s.getProperty(METAPROP_ID);
 					} else continue; // if not matched (yet), continue checking the next target
 
 				} // end loop through all csv target(s)
@@ -240,16 +309,37 @@ public class SchemaProcessor {
 		return null;
 	}
 	
-	private CsvParser prepareCsvParser(Schema schema, String csvPath, int startFromLine) {
+	//private CsvParser prepareCsvParser(Schema schema, String csvPath, int startFromLine) {
+	private AbstractParser prepareCsvParser(Schema schema, String csvPath, int startFromLine) {
 		
 		// Prepare parser & settings according to schema table
 		CsvParserSettings settings = getCsvParserSettings(schema);
-		CsvParser parser = new CsvParser(settings);
+		
+		AbstractParser parser = null;
+		
+		if((String) schema.getProperty(METAPROP_DELIMITER) != null) {
+			switch((String) schema.getProperty(METAPROP_DELIMITER)) {
+			case "\t": // IMP currently only support TSV with limited settings 
+				parser = new TsvParser(new TsvParserSettings());
+				break;
+			case " ":
+				logger.trace("SSV parser created!");
+				parser = new SsvParser(settings);
+				break;
+			default:
+				parser = new CsvParser(settings);
+			}			
+		} else {
+			parser = new CsvParser(settings);
+		}
+		
+		//CsvParser parser = new CsvParser(settings);
 		
 		Reader csvReader;			
 		FileInputStream fs;
 		//FileChannel fc; // IMP CsvParser always closes the FileChannel disabling seeking fn. Must have our own parser. 
-		String csvEncoding = (String) schema.getProperty("@encoding");			
+		String csvEncoding = (String) schema.getProperty(METAPROP_ENCODING);
+		if(csvEncoding == null) csvEncoding = "UTF-8";	
 		try {
 			fs = new FileInputStream(csvPath);
 			//fc = fs.getChannel();
@@ -285,73 +375,7 @@ public class SchemaProcessor {
 	 * @param retType the desire return type
 	 * @return Object
 	 * @throws Exception 
-	 */
-	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context, ReturnType retType) throws Exception {
-		
-		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
-		
-		// Initialize variables & prepare collection to hold result		
-		context.currSchema = schema;
-		SchemaTable dTable = null;
-		CsvParser parser = null;
-		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();		
-		Schema dSchema = Schema.createDataObject(schema); // schema object holding all expanded table schema 
-
-		while(true) {			
-			
-			// for each schema table
-			for(SchemaTable sTable : schema.getSchemaTables().values()) {
-				
-				context.currSchemaTable = sTable;
-				
-				// Create new parser to restart from milestoneRow
-				parser = prepareCsvParser(schema, csvPath, context.milestoneRow);
-				
-				// try parsing with a schema table
-				// IMP In case where there are more than one pattern (schema table) inside a CSV,  
-				// CSV comment should have directive annotation to which schema table it's applicable to
-				// to reduce trial'n'error effort.				
-				dTable = parseCsvWithSchemaTable(parser, dSchema, sTable, context);
-				
-				// check if the parse yield result
-				if(dTable != null) {
-					dataTables.add(dTable);
-					context.milestoneRow = context.currRow;
-					break;
-				} else { // if this parse fails, try other schema table(s)
-					context.currRow = context.milestoneRow;
-					context.reset4NewTable();
-					parser.stopParsing(); // this is needed before creating new parser to release resources
-					continue;
-				}
-			} // end for each schema table			
-			
-			if(dTable == null) { // check if schemas trials yield result
-				logger.warn("Can't matched this CSV with the schema: {}", schema);
-				//System.err.println("Can't matched this CSV with the schema: " + schema);
-				return null;
-			}
-			
-			// check if there're more CSV line to parse
-			if(parser.parseNext() != null) { 
-				context.reset4NewTable();
-				parser.stopParsing();
-				continue;
-			} else {
-				break;
-			}
-		} // end while(true)
-		
-		switch(retType) {
-		case DATA_SCHEMA:
-			return dSchema;
-		case TABLE_LIST:
-			return dataTables;
-		default:
-			return dSchema;
-		}
-		
-/*		 
+	 * 
  		Algorithm Summary:
  			
  		 declare variable for data table and parser
@@ -381,8 +405,76 @@ public class SchemaProcessor {
 
 		 end while(true)
 		 return whole data collection! Bravo! Congratulation!
-		 	
-*/		
+	 * 
+	 */
+	private Object parseCsvWithSchema(String csvPath, Schema schema, Context context, ReturnType retType) throws Exception {
+		
+		if(schema == null) throw new IllegalArgumentException("schema must not be null.");
+		
+		// Initialize variables & prepare collection to hold result		
+		context.currSchema = schema;
+		SchemaTable dTable = null;
+		//CsvParser parser = null;
+		AbstractParser parser = null;
+		List<SchemaTable> dataTables = new ArrayList<SchemaTable>();		
+		Schema dSchema = Schema.createDataObject(schema); // schema object holding all expanded table schema 
+
+		while(true) {						
+			// for each schema table
+			for(SchemaTable sTable : schema.getSchemaTables().values()) {				
+				context.currSchemaTable = sTable;								
+				// Create new parser to restart from milestoneRow
+				parser = prepareCsvParser(schema, csvPath, context.milestoneRow);
+				
+				logger.trace("Try matching schema table {} with csv {} starting from row {}", sTable, csvPath, context.milestoneRow);
+				
+				// try parsing with a schema table
+				// IMP In case where there are more than one pattern (schema table) inside a CSV,  
+				// CSV comment should have directive annotation to which schema table it's applicable to
+				// to reduce trial'n'error effort.				
+				dTable = parseCsvWithSchemaTable(parser, dSchema, sTable, context);
+				
+				// check if the parse yield result
+				if(dTable != null) {
+					if(context.milestoneRow == context.currRow) {
+						throw new Exception("Schema table that doesn't match any CSV content is not allowed: milestoneRow = " + context.milestoneRow + " current CSV row = " + context.currRow);
+					}
+					logger.trace("Matching csv {} with schema table {} yields schema table data {}", csvPath, sTable, dTable);
+					dataTables.add(dTable);
+					context.milestoneRow = context.currRow;
+					break;
+				} else { // if this parse fails, try other schema table(s)
+					logger.trace("Trial on matching csv {} with schema table {} failed.", csvPath, sTable);
+					context.currRow = context.milestoneRow;
+					context.reset4NewTable();
+					parser.stopParsing(); // this is needed before creating new parser to release resources
+					continue;
+				}
+			} // end for each schema table			
+			
+			if(dTable == null) { // check if schemas trials yield result
+				logger.warn("Can't matched this CSV with the schema: {}", schema);
+				return null;
+			}
+			
+			// check if there're more CSV line to parse
+			if(parser.parseNext() != null) { 
+				context.reset4NewTable();
+				parser.stopParsing();
+				continue;
+			} else {
+				break;
+			}
+		} // end while(true)
+		
+		switch(retType) {
+		case DATA_SCHEMA:
+			return dSchema;
+		case TABLE_LIST:
+			return dataTables;
+		default:
+			return dSchema;
+		}
 	}
 	
 	/**
@@ -394,48 +486,7 @@ public class SchemaProcessor {
 	 * @return SchemaTable data table object containing parsed CSV data in the form of schema table 
 	 * or null if the parse is failed.
 	 * @throws Exception 
-	 */
-	private SchemaTable parseCsvWithSchemaTable(CsvParser parser, Schema dSchema, SchemaTable sTable, Context context) throws Exception {
-		
-		// create dataTable from schemaTable with naming pattern: schema table name followed by row number
-		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, sTable.getTableName() + context.currRow);
-		String[] row;
-		
-		// get first SchemaRow object, a schema table MUST have at least one schema row
-		SchemaRow sRow = sTable.getRow(context.currSchemaRow);
-		if(sRow == null) return null;
-		
-		// read in CSV & schema line-by-line
-	    while ((row = parser.parseNext()) != null) {	    
-
-			// check if this row is a repeating row
-			if(sRow.isRepeat()) {
-				if(!parseRepeatingRow(row, parser, dTable, sRow, context)) return null;
-				// reset repeating row context vars
-				context.currSubRow = 0;
-				context.repeatTimes = 0;
-			} else { //for normal schema row, call processCsvRow()
-				if(!processCsvRow(row, dTable, sRow, context, 0)) return null;
-			}
-
-			// add successfully parsed data table to data schema & return data table object if the end of schema table is reached
-			if((sRow = sTable.getRow(context.currSchemaRow)) == null) {
-				dSchema.addSchemaTable(dTable);
-				return dTable;
-			}
-			
-	    } // end for each row
-	    
-		// if there's no more CSV row to process, check if there's no more next schema row as well
-	    assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
-		if(sTable.getRow(context.currSchemaRow) == null) {
-			dSchema.addSchemaTable(dTable);
-			return dTable;
-		} else {
-			return null;
-		}
-			    
-/*		  		
+	 * 
   		Algorithm Summary:
   		
  		create temporary data table object from schema table blueprint
@@ -452,8 +503,55 @@ public class SchemaProcessor {
 		 since there's no more CSV row to process, check if there's no more next schema row as well
 			 yes, return data table object
 			 no, return null to indicate schema mismatched.
-*/
+	 * 
+	 */
+	private SchemaTable parseCsvWithSchemaTable(AbstractParser parser, Schema dSchema, SchemaTable sTable, Context context) throws Exception {
 		
+		// create dataTable from schemaTable with naming pattern: schema table name followed by row number
+		SchemaTable dTable = SchemaTable.createDataObject(dSchema, sTable, sTable.getTableName() + context.currRow);
+		String[] row;
+		
+		// get first SchemaRow object, a schema table MUST have at least one schema row
+		SchemaRow sRow = sTable.getRow(context.currSchemaRow);
+		if(sRow == null) return null;
+		
+		// read in CSV & schema line-by-line
+	    //while ((row = parser.parseNext()) != null) {	    
+		while(true) {
+			
+			if(context.currRowConsumed) {
+				row = parser.parseNext();
+				context.currRowData = row;
+				context.currRowConsumed = false;
+				if(row == null) break;
+			} else row = context.currRowData;
+
+			// check if this row is a repeating row
+			if(sRow.isRepeat()) {
+				if(!parseRepeatingRow(row, parser, dTable, sRow, context)) return null;
+				// reset repeating row context vars
+				context.currSubRow = 0;
+				context.repeatTimes = 0;
+			} else { //for normal schema row, call processCsvRow()
+				if(!processCsvRow(row, dTable, sRow, context, 0)) return null;
+			}
+
+			// if the end of schema table is reached, add successfully parsed data table to data schema & return data table object
+			if((sRow = sTable.getRow(context.currSchemaRow)) == null) {
+				dSchema.addSchemaTable(dTable);
+				return dTable;
+			}
+			
+	    } // end for each row
+	    
+		// if there's no more CSV row to process, check if there's no more next schema row as well
+	    assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
+		if(sTable.getRow(context.currSchemaRow) == null) {
+			dSchema.addSchemaTable(dTable);
+			return dTable;
+		} else {
+			return null;
+		}
 	}
 	
 	/**
@@ -465,62 +563,7 @@ public class SchemaProcessor {
 	 * @param context parsing context variable. 
 	 * @return boolean true if the parse is successful, false otherwise.
 	 * @throws Exception 
-	 */
-	private boolean parseRepeatingRow(String[] firstRow, CsvParser parser, SchemaTable dTable, SchemaRow sRow, Context context) throws Exception {
-		
-		// Initialize subRow & context vars
-		SchemaTable sTable = sRow.getSchemaTable();
-		context.currSubRow = 0;
-		context.repeatTimes = sRow.getRepeatTimes();
-		assert(sRow.getRepeatTimes() != 0) : "RepeatTimes = 0 should never enter this method.";
-		String[] row;
-		
-		// check if the first CSV row matches with repeating row schema
-		if(!processCsvRow(firstRow, dTable, sRow, context, 0)) return false;
-		
-		while((row = parser.parseNext()) != null) {
-			// if a CSV row doesn't match with repeating row schema
-			if(!processCsvRow(row, dTable, sRow, context, 0)) {
-			//if(!processCsvRow(row, dTable, sRow, context, MODE_IGNORE_ERR_MSG)) { // temporarily commented out for development
-				// if it's NOT infinite repeating, then it's certainly schema mismatch.
-				if(context.repeatTimes > 0) return false;
-				
-				logger.warn("Verifying MISMATCHED: entering infinite repeating row exit conditions check.");
-				
-				// but if it's infinite repeating schema row, check infinite row exit condition: first, look-ahead into next schema row
-				context.currSchemaRow++;
-				assert((sRow.getRowNum() + 1) == context.currSchemaRow) : "Schema row look ahead index must be consistent.";
-				SchemaRow nextSchemaRow = sTable.getRow(context.currSchemaRow);
-				// if there's no next schema row, that new line is may be for other table, return true.
-				if(nextSchemaRow == null) return true;
-				
-				// try validating "current" line with "next" schema row to find the end of repeating row.
-				// if matches, treat this CSV line as data for this schema & return true.
-				// if not, then it's schema mismatched, return false.
-				return (processCsvRow(row, dTable, nextSchemaRow, context, 0))? true : false;
-				
-			}
-			
-			// Check exit condition:
-			if(context.repeatTimes < 0) { // for infinite repeating row: wait until mismatched is found!
-				continue;
-			} else { 
-				logger.trace("context.currSubRow {} VS context.repeatTimes {}", context.currSubRow, context.repeatTimes);
-				if(context.currSubRow >= context.repeatTimes) {
-					context.currSchemaRow++;
-					return true;	
-				}
-			}
-						
-		} // end for each CSV row
-				
-		// since there's no more CSV row to process, check if repeatingTimes is satisfied and 
-		// there's no more next schema row in the schema table. if yes, return true or false otherwise.
-		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
-		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(context.currSchemaRow) == null))? true : false;
-		
-		
-/*		 
+	 * 
  		Algorithm Summary:
  		
  		 initialize subRow as 0
@@ -546,7 +589,103 @@ public class SchemaProcessor {
 		 (end for each csv row)
 		 since there's no more CSV row to process, check if repeatingTimes is satisfied and 
 		 there's no more next schema row in the schema table. if yes, return true or false otherwise.		
-*/
+
+	 */
+	private boolean parseRepeatingRow(String[] firstRow, AbstractParser parser, SchemaTable dTable, SchemaRow sRow, Context context) throws Exception {
+		
+		// Initialize subRow & context vars
+		SchemaTable sTable = sRow.getSchemaTable();
+		context.currSubRow = 0;
+		context.repeatTimes = sRow.getRepeatTimes();
+		assert(sRow.getRepeatTimes() != 0) : "RepeatTimes = 0 should never enter this method.";
+		String[] row;
+		
+		// check if the first CSV row matches with repeating row schema
+		//if(!processCsvRow(firstRow, dTable, sRow, context, 0)) return false;
+		if(!processCsvRow(firstRow, dTable, sRow, context, 0)) {
+			// if the row has infinite repeating times, then it's NOT absolutely required to match [0..Inf] 			
+			if(context.repeatTimes < 0) {
+				context.currSchemaRow++;
+				return true;
+			} else return false;			
+			//if(context.repeatTimes < 0) return verifyRepeatingRowExit(firstRow, true, sRow, sTable, dTable, context);
+			//else return false;
+		}
+		
+		//while((row = parser.parseNext()) != null) {
+		while(true) {
+			
+			if(context.currRowConsumed) {
+				row = parser.parseNext();
+				context.currRowData = row;
+				context.currRowConsumed = false;
+				if(row == null) break;
+			} else row = context.currRowData;			
+			
+			// if a CSV row doesn't match with repeating row schema
+			if(!processCsvRow(row, dTable, sRow, context, 0)) { //if(!processCsvRow(row, dTable, sRow, context, MODE_IGNORE_ERR_MSG)) { // temporarily commented out for development			
+				// again, if it's NOT infinite repeating row, then it's certainly schema mismatch.
+				if(context.repeatTimes > 0) return false;
+				else {
+					context.currSchemaRow++;
+					return true;
+				}
+				//return verifyRepeatingRowExit(row, false, sRow, sTable, dTable, context);				
+			}
+			
+			// Check exit condition:
+			if(context.repeatTimes < 0) { // for infinite repeating row: wait until mismatched is found!
+				continue;
+			} else { 
+				logger.trace("context.currSubRow {} VS context.repeatTimes {}", context.currSubRow, context.repeatTimes);
+				if(context.currSubRow >= context.repeatTimes) {
+					context.currSchemaRow++;
+					return true;	
+				}
+			}
+						
+		} // end for each CSV row
+				
+		// since there's no more CSV row to process, check if repeatingTimes is satisfied and 
+		// there's no more next schema row in the schema table. if yes, return true or false otherwise.
+		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
+		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(context.currSchemaRow) == null))? true : false;
+	}
+	
+	/**
+	 * @deprecated there's no check here that the following row is another repeating row or not!
+	 * 
+	 *  Verify exiting condition for infinite repeating row. 
+	 *  If there's no next schema row definition, then it's safe to exit.
+	 *  Or if there's next schema row, the next line of csv data must be matched to safely exit.
+	 *  
+	 * @param row String[] of currently processing data row. 
+	 * @param sRow current schema row.
+	 * @param sTable current schema table.
+	 * @param dTable current schema table data.
+	 * @param context
+	 * @return boolean whether it's safe to exit repeating row.
+	 * @throws Exception
+	 */
+	private boolean verifyRepeatingRowExit(String[] row, boolean isFirstRow, SchemaRow sRow, SchemaTable sTable, SchemaTable dTable, Context context) throws Exception {
+		logger.warn("Verifying MISMATCHED: entering infinite repeating row exit conditions check.");
+		
+		// in infinite repeating schema row, check infinite row exit condition: first, look-ahead into next schema row
+		context.currSchemaRow++;
+		assert((sRow.getRowNum() + 1) == context.currSchemaRow) : "Schema row look ahead index must be consistent.";
+		SchemaRow nextSchemaRow = sTable.getRow(context.currSchemaRow);
+		// if there's no next schema row, that new line is may be for other table..
+		if(nextSchemaRow == null) {
+			// return true (only if this repeating row already produced some results).
+			if(!isFirstRow) return true;
+			else return false;
+		}
+		//if(nextSchemaRow == null) return true;
+		
+		// try validating "current" line with "next" schema row to find the end of repeating row.
+		// if matches, treat this CSV line as data for this schema & return true.
+		// if not, then it's schema mismatched, return false.
+		return (processCsvRow(row, dTable, nextSchemaRow, context, 0))? true : false;		
 	}
 	
 	/**
@@ -641,7 +780,7 @@ public class SchemaProcessor {
 		
 	    // if the schema has one more cell definition in this row, it's dimension mismatched
 		if(sRow.getCell(context.currCol) != null) {
-			if(!ignoreErrMsg) System.err.println("Error: Dimension Mismatched at " + sRow + " - more cell definition available at CSV [" + context.currRow + "," + context.currCol + "]");
+			if(!ignoreErrMsg) logger.warn("Dimension Mismatched at {}: more cell definition available at CSV [{},{}]", sRow, context.currRow, context.currCol);
 			return false;
 		} else {			
 			// increment row counters
@@ -649,7 +788,8 @@ public class SchemaProcessor {
 	    		context.currSubRow++;
 	    	}
 	    	else context.currSchemaRow++;
-	        context.currRow++;			
+	        context.currRow++;
+	        context.currRowConsumed = true;
 			// save data row to data table
 			dTable.addRow(dRow);
 			// reset row parsing context vars
@@ -707,7 +847,7 @@ public class SchemaProcessor {
 	 * Check '@name' meta property and verify its value, the variable name, and register it on a schema table.
 	 * The function will return an error if the variable name still has {var} expression in it. Therefore, 
 	 * this method should be called after the processing of context {var} for schema entity those may refer 
-	 * to context {var}. As of version 1.0 these are: schema row/column and schema cell.
+	 * to context {var}. As of version 0.9 these are: schema row/column and schema cell.
 	 * 
 	 * Note that nothing will happen, if the property '@name' is not defined.
 	 *  
@@ -733,7 +873,14 @@ public class SchemaProcessor {
 		// what type of field, similar to Java Bean mapping.		
 	//}
 	
-	//public Set<DataSet> getDatasets(String csvPath, String csvId, String[] schemaPaths) { 
+	/**
+	 * Get datasets from processing CSV against CSV-X.  
+	 * @param csvPath
+	 * @param csvId the ID of input CSV, can be null if not known.
+	 * @param schemaPaths 
+	 * @param retType desired data return type (ReturnType).
+	 * @return data Object as defined by ReturnType retType or null if the matching failed.
+	 */
 	public Object getDatasets(String csvPath, String csvId, String[] schemaPaths, ReturnType retType) {
 		
 		Context context = new Context();
@@ -752,7 +899,7 @@ public class SchemaProcessor {
 			try {
 				data = parseCsvWithSchema(csvPath, schema, context, retType);	
 			} catch(Exception e) {
-				logger.error("There's an exception in processing csv {} with schema {}: {}", csvPath, schema, e);
+				logger.error("There's an exception in processing csv {} with schema {}:", csvPath, schema, e);
 			}			
 		} else { 			
 			// The processor loops through known schemas until it successfully parse the CSV.
@@ -761,6 +908,7 @@ public class SchemaProcessor {
 					data = parseCsvWithSchema(csvPath, schema, context, retType);
 				} catch(Exception e) {
 					logger.warn("There's an exception in processing csv {} with schema {}: {}", csvPath, schema, e);
+					logger.debug("", e);
 				}									
 				if(data != null) {
 					logger.info("Successfully validated a csv {} with csv-x {}.", csvPath, schema);
@@ -813,101 +961,106 @@ public class SchemaProcessor {
 		
 		Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(schemaStr);
 		
-			for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {			
-				String key = e.getKey();
-				switch(key) {
-				case Schema.METAPROP_BASE:
-					s.addProperty(Schema.METAPROP_BASE, (String) e.getValue()); 
-					break;
-				case "@id":
-					s.addProperty("@id", (String) e.getValue());
-					break;
-				case "@targetCSVs":
-					for(String csvId : (ArrayList<String>) e.getValue()) {
-						s.addTargetCsv(csvId);	
-					}
-					break;
-				case "@encoding":
-					s.addProperty("@encoding", (String) e.getValue());
-					break;
-				case "@lang":
-					s.addProperty("@lang", (String) e.getValue());
-					break;
-				case METAPROP_SPACE_IS_EMPTY: 			// FIXME this should be at schema table level
-					s.addProperty(METAPROP_SPACE_IS_EMPTY, (Boolean) e.getValue());
-					break;
-				case "@delimiter":
-					s.addProperty("@delimiter", (String) e.getValue());
-					break;
-				case "@lineSeparator":
-					s.addProperty("@lineSeparator", (String) e.getValue());
-					break;
-				case "@commentPrefix":
-					s.addProperty("@commentPrefix", (String) e.getValue());					
-					break;
-				case "@quoteChar":
-					s.addProperty("@quoteChar", (String) e.getValue());
-					break;
-				case "@header":
-					s.addProperty("@header", (Boolean) e.getValue());
-					// check if headerRowCount is not yet defined, else leave it as it is
-					if(s.getProperty("@headerRowCount") == null) {
-						if((Boolean) s.getProperty("@header") == true) s.addProperty("@headerRowCount", 1);
-						else s.addProperty("@headerRowCount", 0);
-					}
-					break;
-				case "@headerRowCount":
-					Integer hrc = (Integer) e.getValue();
-					if(hrc <= 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
-					s.addProperty("@headerRowCount", hrc);
-					break;
-				case "@doubleQuote":
-					s.addProperty("@doubleQuote", (Boolean) e.getValue());
-					break;
-				case "@skipBlankRows":
-					s.addProperty("@skipBlankRows", (Boolean) e.getValue());
-					break;
-				case "@skipColumns":
-					Integer sc = (Integer) e.getValue();
-					if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
-					s.addProperty("@skipColumns", sc);
-					break;
-				case "@skipInitialSpace":
-					s.addProperty("@skipInitialSpace", (Boolean) e.getValue());
-					break;
-				case "@skipRows":
-					Integer sr = (Integer) e.getValue();
-					if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
-					s.addProperty("@skipRows", sr);
-					break;
-				case METAPROP_TRIM:
-					s.addProperty(METAPROP_TRIM, (Boolean) e.getValue());
-					break;					
-				case "@embedHeader":
-					s.addProperty("@embedHeader", (Boolean) e.getValue());
-					break;
-				default:
-					if(key.startsWith("@cell")) {
-						// for cell definition outside table scope, it'll be added to 'default' schema table
-						processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
-					} else if(key.startsWith("@row")) {
-						// row definition outside table scope will also be added to 'default' schema table
-						processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());					
-					} else if(key.startsWith("@prop")) {
-						processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
-					} else if(key.startsWith("@table")) {
-						processTableMarker(key.substring(6), (LinkedHashMap<String, Object>) e.getValue(), s);
-					} else if(key.startsWith("@template")) {
-						processTemplateMarker(key.substring(9), (LinkedHashMap<String, Object>) e.getValue(), s);
-					} else if(key.startsWith("@")) {
-						System.err.println("Unrecognized meta-property, ignoring key : " + key);
-					} else {
-						// Others are add to extra/user-defined properties map for later processing.
-						s.addProperty(key, e.getValue());
-					}
-					break;
-				}
-			} // end while loop for 1st level schema	
+        for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {            
+            String key = e.getKey();
+            switch(key) {
+            case METAPROP_BASE:
+                s.addProperty(METAPROP_BASE, (String) e.getValue()); 
+                break;
+            case METAPROP_ID:
+                s.addProperty(METAPROP_ID, (String) e.getValue());
+                break;
+            case METAPROP_TARGET_CSVS:
+                for(String csvId : (ArrayList<String>) e.getValue()) {
+                    s.addTargetCsv(csvId);  
+                }
+                break;
+            case METAPROP_ENCODING:
+                s.addProperty(METAPROP_ENCODING, (String) e.getValue());
+                break;
+            case "@lang":
+                s.addProperty("@lang", (String) e.getValue());
+                break;
+            case METAPROP_SPACE_IS_EMPTY: // TODO this should be recognized at each schema table level too, currently it's global
+                s.addProperty(METAPROP_SPACE_IS_EMPTY, (Boolean) e.getValue());
+                break;
+            case METAPROP_DELIMITER:
+                s.addProperty(METAPROP_DELIMITER, (String) e.getValue());
+                break;
+            case METAPROP_LINE_SEPARATOR:
+                s.addProperty(METAPROP_LINE_SEPARATOR, (String) e.getValue());
+                break;
+            case METAPROP_COMMENT_PREFIX:
+                s.addProperty(METAPROP_COMMENT_PREFIX, (String) e.getValue());                  
+                break;
+            case "@quoteChar":
+                s.addProperty("@quoteChar", (String) e.getValue());
+                break;
+            case "@header":
+                s.addProperty("@header", (Boolean) e.getValue());
+                // check if headerRowCount is not yet defined, else leave it as it is
+                if(s.getProperty("@headerRowCount") == null) {
+                    if((Boolean) s.getProperty("@header") == true) s.addProperty("@headerRowCount", 1);
+                    else s.addProperty("@headerRowCount", 0);
+                }
+                break;
+            case "@headerRowCount":
+                Integer hrc = (Integer) e.getValue();
+                if(hrc <= 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
+                s.addProperty("@headerRowCount", hrc);
+                break;
+            case "@doubleQuote":
+                s.addProperty("@doubleQuote", (Boolean) e.getValue());
+                break;
+            case METAPROP_SKIP_BLANK_ROWS:
+                s.addProperty(METAPROP_SKIP_BLANK_ROWS, (Boolean) e.getValue());
+                break;
+            case "@skipColumns":
+                Integer sc = (Integer) e.getValue();
+                if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
+                s.addProperty("@skipColumns", sc);
+                break;
+            case "@skipInitialSpace":
+                s.addProperty("@skipInitialSpace", (Boolean) e.getValue());
+                break;
+            case "@skipRows":
+                Integer sr = (Integer) e.getValue();
+                if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
+                s.addProperty("@skipRows", sr);
+                break;
+            case METAPROP_TRIM:
+                s.addProperty(METAPROP_TRIM, (Boolean) e.getValue());
+                break;                  
+            case "@embedHeader":
+                s.addProperty("@embedHeader", (Boolean) e.getValue());
+                break;
+            default:
+                if(key.startsWith("@cell")) {
+                    // for cell definition outside table scope, it'll be added to 'default' schema table
+                    processCellMarker(key.substring(5), (LinkedHashMap<String, String>) e.getValue(), s.getDefaultTable());
+                } else if(key.startsWith("@row")) {
+                    // row definition outside table scope will also be added to 'default' schema table
+                    processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());                  
+                } else if(key.startsWith("@col")) {
+                    processColMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
+                } else if(key.startsWith("@prop")) {
+                    processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
+                } else if(key.startsWith("@table")) {
+                    processTableMarker(key.substring(6), (LinkedHashMap<String, Object>) e.getValue(), s);
+                } else if(key.startsWith("@template")) {
+                    processTemplateMarker(key.substring(9), (LinkedHashMap<String, Object>) e.getValue(), s);
+                } else if(key.startsWith("@")) {
+                    System.err.println("Unrecognized meta-property, ignoring key : " + key);
+                } else {
+                    // Others are add to extra/user-defined properties map for later processing.
+                    s.addProperty(key, e.getValue());
+                }
+                break;
+            }
+        } // end while loop for 1st level schema    
+        
+        // if schema ID is not defined, use its filename as default
+        if(s.getProperty(METAPROP_ID) == null) s.addProperty(METAPROP_ID, Paths.get(schemaPath).getFileName().toString());
 		    
 		    
 //		} catch (FileNotFoundException e1) {
@@ -935,7 +1088,7 @@ public class SchemaProcessor {
 				sProp.setName((String) val);
 				// sTable.addVar((String) val, sProp); << as of 2-July-2016, all var declaration must be made at schema generation time, since each schema property object will also get replicated for each data table. 
 				break;
-			case "@id":
+			case METAPROP_ID:
 				sProp.setId((String) val);
 				break;
 			case "@datatype":
@@ -986,11 +1139,11 @@ public class SchemaProcessor {
 			switch(key) {
 			case "@name":
 				sData.setName((String) val);
-				// Though at v1.0 it's assumed data @data cannot refer to context {var}, the variable register 
+				// Though at v0.9 it's assumed data @data cannot refer to context {var}, the variable register 
 				// must still be done at schema generation time, coz the schema data object will refer to new data table.
 				//sTable.addVar((String) val, sData);  
 				break;
-			case "@id":
+			case METAPROP_ID:
 				sData.setId((String) val);
 				break;
 			case SchemaEntity.METAPROP_DATATYPE:
@@ -1053,6 +1206,8 @@ public class SchemaProcessor {
 					}					
 				} else if(key.startsWith("@row")) {
 					processRowMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), st);
+				} else if(key.startsWith("@col")) {
+					processColMarker(key.substring(4), (LinkedHashMap<String, Object>) e.getValue(), st);
 				} else if(key.startsWith("@prop")) {
 					processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), st);					
 				} else if(key.startsWith("@data")) {
@@ -1109,6 +1264,24 @@ public class SchemaProcessor {
 		}
 		processRowDef(sr, rowProperties);
 	}
+
+	/**
+	 * Recognize '@col' syntax and create column schema based on its properties
+	 * @param marker
+	 * @param colProperties
+	 * @param sTable
+	 */
+	private void processColMarker(String marker, Map<String, Object> colProperties, SchemaTable sTable) {
+		String s = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		s = s.replaceAll("\\s+", ""); // remove whitespaces
+		int colNum = Integer.parseInt(s);
+		SchemaColumn sc = sTable.getCol(colNum);
+		if(sc == null) {
+			sc = new SchemaColumn(colNum, sTable);
+			sTable.addCol(sc);
+		}
+		processColDef(sc, colProperties);
+	}	
 	
 	private void processPropMarker(String marker, Map<String, Object> propProperties, SchemaTable sTable) {
 		String propName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
@@ -1212,22 +1385,43 @@ public class SchemaProcessor {
 	
 	/**
 	 * Process properties defined in a schema row scope. 
+	 * TODO add cases for common metaproperties processing like '@name' too.
 	 * @param sRow
 	 * @param rowProps
 	 */
 	private void processRowDef(SchemaRow sRow, Map<String, Object> rowProps) {
 		for(Entry<String, Object> e : rowProps.entrySet()) {
 			switch(e.getKey()) {
-			case "@repeatTimes":
+			case METAPROP_REPEAT_TIMES:
 				sRow.setRepeatTimes((Integer) e.getValue());
 				break;
 			default:
-				// process the value then add to user-defined properties
+				// add to user-defined properties
 				sRow.addProperty(e.getKey(), (String) e.getValue());
 				break;
 			}
 		}
 	}
+	
+	/**
+	 * Process properties defined in a schema column scope.
+	 * TODO add cases for common metaproperties processing like '@name' too.
+	 * @param sCol
+	 * @param colProps
+	 */
+	private void processColDef(SchemaColumn sCol, Map<String, Object> colProps) {
+		for(Entry<String, Object> e : colProps.entrySet()) {
+			switch(e.getKey()) {
+			case METAPROP_REPEAT_TIMES:
+				sCol.setRepeatTimes((Integer) e.getValue());
+				break;
+			default:
+				// add to user-defined properties
+				sCol.addProperty(e.getKey(), (String) e.getValue());
+				break;
+			}
+		}
+	}	
 	
 	/**
 	 * Process context variable inside a literal.

@@ -12,7 +12,7 @@
 	"@trim" : true,
 
 	"@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
-	"@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
+	"@lineSeparator" : "\n", // End of line character. If not specified, the system default new line character should be used. (Optional)
 	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
 	"@quoteChar" : "\"",
 
@@ -349,7 +349,7 @@
 		{
 			"@mapType" : "Datapoint",			
 			"title_en" : "{msrProp} property measurement DAILY AVERAGE value at date: {msrYrMth}{msrDay{subrow}} at location: {msrLoc}",
-			"@datatype" : "integer",		
+			"@regex" : "(?:\\d*\\.)?\\d+",
 			"@value" : "n/a", // by default cell's value is associated with '@value' property but this value will be used if the cell value is empty (null)
 			"hasMsrDay" : "{msrDay{subrow}}"   
 		},	
@@ -412,7 +412,7 @@
 		{ 
 			"@mapType" : "Datapoint",
 			"title" : "{msrProp} property measurement MONTHLY AVERAGE value at month-year: {msrYrMth} at location: {msrLoc}",
-			"@datatype" : "integer"
+			"@regex" : "(?:\\d*\\.)?\\d+"
 		},
 
 		"@cell[4,26-29]" : {},		

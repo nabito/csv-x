@@ -31,7 +31,7 @@ public class SchemaRow extends SchemaEntity {
 	private int rowNum = -1;
 
 	/**
-	 * Row repeating times. Minus value indicates infinite.
+	 * Row repeating times. Minus value indicates infinite. [0..Inf]
 	 */
 	private int repeatTimes = 0;
 

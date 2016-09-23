@@ -13,7 +13,7 @@ import com.beust.jcommander.Parameters;
 public class CsvxCmd {	
 	
 	public static final String programName = "csvx";
-	public static final String version = "0.9.2";
+	public static final String version = "0.9.3";
 
 	//@Parameter(description = "input csv and csvx path respectively.", arity = 2)
 	//private List<String> files = new ArrayList<>();

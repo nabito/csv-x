@@ -52,16 +52,6 @@ public class Schema {
 	public static final String DEFAULT_TABLE_NAME = "@defaultTable";
 	
 	/**
-	 * The base IRI (or other addressing scheme) for all schema entity.
-	 * Any \@id in each schema entity will override the base. Therefore, prefix must be used 
-	 * to define unique local name over a base.  
-	 * 
-	 * If \@base not defined in a schema, it'll be default to empty string. 
-	 * 
-	 */
-	public static final String METAPROP_BASE = "@base";
-	
-	/**
 	 * Map between table name and schema table.
 	 * 
 	 * The order in which the table is declared is significant and preserved, 
@@ -130,7 +120,7 @@ public class Schema {
 	 * @param baseIri
 	 */
 	public void setBase(String base) {
-		properties.put(METAPROP_BASE, base);
+		properties.put(SchemaProcessor.METAPROP_BASE, base);
 	}
 	
 	/**
@@ -138,7 +128,7 @@ public class Schema {
 	 * @return String or null if none is defined.
 	 */
 	public String getBase() {
-		return (String) properties.get(METAPROP_BASE);
+		return (String) properties.get(SchemaProcessor.METAPROP_BASE);
 	}
 	
 	/**
@@ -162,6 +152,11 @@ public class Schema {
 		return table.getCell(row, col);
 	}
 	
+	/**
+	 * Get property object associated with the property name.
+	 * @param propName
+	 * @return Object associated with the property name or null if it's not yet registered.
+	 */
 	public Object getProperty(String propName) {
 		return properties.get(propName);
 	}
@@ -170,6 +165,11 @@ public class Schema {
 		return properties;
 	}	
 	
+	/**
+	 * Add a property-Object pair to schema, overwriting existing property with the same name. 
+	 * @param key
+	 * @param val
+	 */
 	public void addProperty(String key, Object val) {
 		properties.put(key, val);
 	}
@@ -232,12 +232,15 @@ public class Schema {
 	}
 	
 	/**
-	 * Get default schema table. One will be created if it hasn't been done yet.
+	 * Get default schema table. One will be created and registered if it hasn't been done yet.
 	 * @return SchemaTable
 	 */
 	public SchemaTable getDefaultTable() {
 		SchemaTable sTable;
-		if((sTable = sTables.get(DEFAULT_TABLE_NAME)) == null) sTable = new SchemaTable(DEFAULT_TABLE_NAME, this);
+		if((sTable = sTables.get(DEFAULT_TABLE_NAME)) == null) {
+			sTable = new SchemaTable(DEFAULT_TABLE_NAME, this);
+			sTables.put(DEFAULT_TABLE_NAME, sTable);
+		}
 		return sTable;
 	}
 	

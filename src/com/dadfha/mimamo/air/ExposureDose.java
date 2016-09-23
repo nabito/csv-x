@@ -86,7 +86,6 @@ public class ExposureDose {
 	public void computeMatch() {
 		
 	}
-	
 
 	public static void main(String[] args) {
 		
@@ -95,23 +94,17 @@ public class ExposureDose {
 		ExposureDose ed = new ExposureDose();
 		
 		SchemaProcessor sp = new SchemaProcessor();
-		//String[] schemaPaths = {"airp-csvx-var-only.json"};
-		String[] schemaPaths = {"airp-csvx-var-only-template.json"};
-		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);
-		
-		//List<SchemaTable> result = sp.getDataTableList("airpolt.csv", null, schemaPaths);		
-		//SchemaProcessor.schemaTables2Csv(result);
-		
-		//dumpSchemaTables(result);
-		
-		Schema dSchema = sp.getDataSchema("airpolt.csv", null, schemaPaths);
+		String[] schemaPaths = {"airp.csvx"};
+		Schema dSchema = sp.getDataSchema("airp.csv", null, schemaPaths);
 		//System.out.println(dSchema.serializeTtl());
 		SchemaProcessor.generateRdfFromTemplate(dSchema);
 		
+		//dataSets = sp.getDatasets("oxidant.csv", null, schemaPaths);		
+		//List<SchemaTable> result = sp.getDataTableList("airpolt.csv", null, schemaPaths);		
+		//SchemaProcessor.schemaTables2Csv(result);		
+		//dumpSchemaTables(result);
 		
-		
-		//ed.dumpDatasets();
-		
+		//ed.dumpDatasets();		
 		//ed.computeMatch();
 
 	}
