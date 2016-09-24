@@ -146,17 +146,23 @@ public class SchemaProcessor {
 		Schema currSchema;
 		SchemaTable currSchemaTable;
 	    /**
-	     * Current row to be processed.
+	     * Current * to be processed.
 	     */
-		Integer currRow = 0;
-	    Integer currSubRow = 0, currSchemaRow = 0, currCol = 0, repeatTimes = 0;
+		Integer currRow = 0, currCol = 0, currSubRow = 0, currSubCol = 0, currSchemaRow = 0, currSchemaCol = 0;
+		
+		/**
+		 * Current schema row repeating times. 
+		 * TODO remove this var and rely on sRow.getRepeatTimes() instead.
+		 */
+		Integer repeatTimes = 0;
 	    /**
 	     * Current milestone row.
 	     */
 	    Integer milestoneRow = 0;
 		String currVal = null;
 		boolean currRowConsumed = true;
-		String[] currRowData = null;		
+		boolean currCellConsumed = false;
+		String[] currRowData = null;
 		/**
 		 * Reset context variables needed for parsing in new data table 
 		 * (preserving currRow, milestoneRow, and currSchema).
@@ -186,7 +192,7 @@ public class SchemaProcessor {
 	/**
 	 * RegEx for context variable expression, {row}, {col}, and {subrow}
 	 */
-	private static final String CONTEXT_VAR_REGEX = "(\\{)(row|col|subrow)(\\})";
+	private static final String CONTEXT_VAR_REGEX = "(\\{)(row|col|subrow|subcol)(\\})";
 	
 	/**
 	 * Setting flag whether or not to try all known schemas when parsing csv.
@@ -523,7 +529,10 @@ public class SchemaProcessor {
 				row = parser.parseNext();
 				context.currRowData = row;
 				context.currRowConsumed = false;
-				if(row == null) break;
+				if(row == null) {
+					context.currSchemaRow++;
+					break;
+				}
 			} else row = context.currRowData;
 
 			// check if this row is a repeating row
@@ -545,7 +554,8 @@ public class SchemaProcessor {
 	    } // end for each row
 	    
 		// if there's no more CSV row to process, check if there's no more next schema row as well
-	    assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
+		// TODO need to add exception check for indefinite repeating row even after the data is running out.
+		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow (" + context.currSchemaRow + ") is not equal to sRow.getRowNum() + 1 (" + (sRow.getRowNum() + 1) + ")";
 		if(sTable.getRow(context.currSchemaRow) == null) {
 			dSchema.addSchemaTable(dTable);
 			return dTable;
@@ -607,9 +617,7 @@ public class SchemaProcessor {
 			if(context.repeatTimes < 0) {
 				context.currSchemaRow++;
 				return true;
-			} else return false;			
-			//if(context.repeatTimes < 0) return verifyRepeatingRowExit(firstRow, true, sRow, sTable, dTable, context);
-			//else return false;
+			} else return false;
 		}
 		
 		//while((row = parser.parseNext()) != null) {
@@ -619,7 +627,10 @@ public class SchemaProcessor {
 				row = parser.parseNext();
 				context.currRowData = row;
 				context.currRowConsumed = false;
-				if(row == null) break;
+				if(row == null) {
+					context.currSchemaRow++;
+					break;
+				}
 			} else row = context.currRowData;			
 			
 			// if a CSV row doesn't match with repeating row schema
@@ -630,7 +641,6 @@ public class SchemaProcessor {
 					context.currSchemaRow++;
 					return true;
 				}
-				//return verifyRepeatingRowExit(row, false, sRow, sTable, dTable, context);				
 			}
 			
 			// Check exit condition:
@@ -648,46 +658,13 @@ public class SchemaProcessor {
 				
 		// since there's no more CSV row to process, check if repeatingTimes is satisfied and 
 		// there's no more next schema row in the schema table. if yes, return true or false otherwise.
-		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow == (sRow.getRowNum() + 1 doesn't hold true.";
-		return ((context.currSubRow > context.repeatTimes) && (sTable.getRow(context.currSchemaRow) == null))? true : false;
+		// TODO even if there's next schema row, if it's "optional", i.e. repeatTimes = -1, it should still be valid
+		// and the dimension validation should based on cell schema, so csv isn't limited to rectangular shape.
+		logger.trace("current subRow of {} is {}", sRow, context.currSubRow);
+		assert(context.currSchemaRow == (sRow.getRowNum() + 1)) : "context.currSchemaRow (" + context.currSchemaRow + ") is not equal to sRow.getRowNum() + 1 (" + (sRow.getRowNum() + 1) + ")";
+		return ((context.currSubRow >= context.repeatTimes) && (sTable.getRow(context.currSchemaRow) == null))? true : false;
 	}
-	
-	/**
-	 * @deprecated there's no check here that the following row is another repeating row or not!
-	 * 
-	 *  Verify exiting condition for infinite repeating row. 
-	 *  If there's no next schema row definition, then it's safe to exit.
-	 *  Or if there's next schema row, the next line of csv data must be matched to safely exit.
-	 *  
-	 * @param row String[] of currently processing data row. 
-	 * @param sRow current schema row.
-	 * @param sTable current schema table.
-	 * @param dTable current schema table data.
-	 * @param context
-	 * @return boolean whether it's safe to exit repeating row.
-	 * @throws Exception
-	 */
-	private boolean verifyRepeatingRowExit(String[] row, boolean isFirstRow, SchemaRow sRow, SchemaTable sTable, SchemaTable dTable, Context context) throws Exception {
-		logger.warn("Verifying MISMATCHED: entering infinite repeating row exit conditions check.");
 		
-		// in infinite repeating schema row, check infinite row exit condition: first, look-ahead into next schema row
-		context.currSchemaRow++;
-		assert((sRow.getRowNum() + 1) == context.currSchemaRow) : "Schema row look ahead index must be consistent.";
-		SchemaRow nextSchemaRow = sTable.getRow(context.currSchemaRow);
-		// if there's no next schema row, that new line is may be for other table..
-		if(nextSchemaRow == null) {
-			// return true (only if this repeating row already produced some results).
-			if(!isFirstRow) return true;
-			else return false;
-		}
-		//if(nextSchemaRow == null) return true;
-		
-		// try validating "current" line with "next" schema row to find the end of repeating row.
-		// if matches, treat this CSV line as data for this schema & return true.
-		// if not, then it's schema mismatched, return false.
-		return (processCsvRow(row, dTable, nextSchemaRow, context, 0))? true : false;		
-	}
-	
 	/**
 	 * Process CSV row by:
 	 * 1. Substitute cell value and Empty Cell value according to schema definition.
@@ -711,7 +688,6 @@ public class SchemaProcessor {
 		
 		// initialize processing mode
 		boolean ignoreErrMsg = ((MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
-		//ignoreErrMsg = false;
 		
 		// get schema row's parent schema table & schema
 		SchemaTable sTable = sRow.getSchemaTable();
@@ -724,81 +700,183 @@ public class SchemaProcessor {
 		//process context {var} for data row & register row variable in this data table, if declared 
 		procSchmEntPropRuntime(dRow, context);		
 		
+		//assert(context.currSchemaCol == 0) : "Schema column index must be 0 at the beginning of new row processing.";
+		context.currSchemaCol = 0;
+		
 		// for each column
 		for(context.currCol = 0; context.currCol < row.length; context.currCol++) {
-			// FIXME check column repeating definition here, if found create separate counter for sCol 
-			
-			// get current cell value	
-			context.currVal = row[context.currCol];
-			
-			// check if cell with only whitespace characters are treated as empty value, a.k.a. null
-			Boolean spaceIsEmpty = (Boolean) schema.getProperty(METAPROP_SPACE_IS_EMPTY);
-			if(spaceIsEmpty != null && spaceIsEmpty && context.currVal != null) {
-				context.currVal = (context.currVal.trim().isEmpty())? null : context.currVal; 
-			}
-			
-			// fill & substitute cell value 
-			if(context.currVal == null) {
-				// fill empty cell, if a value is defined 
-				String empCellFill = sTable.getEmptyCellFill();
-				if(empCellFill != null) context.currVal = empCellFill;
-			} else {		
-
-				// trim of heading and trailing spaces or not
-				Boolean trim = (Boolean) schema.getProperty(METAPROP_TRIM);
-				if(trim != null && trim) context.currVal = context.currVal.trim();
-				
-				// replace certain value, if specified in schema table
-				if(sTable.hasReplaceValueFor(context.currVal)) context.currVal = sTable.getReplaceValue(context.currVal);							
-			}
-						
-			// validate a CSV cell value against CSV-X schema at its corresponding "schema position" 	
-			if(!sTable.validate(sRow.getRowNum(), context.currCol, context.currVal, mode)) {
-				if(!ignoreErrMsg) {
-					logger.warn("Validation Failure for schema {} against csv row {} column {} with value '{}'.", sRow.getCell(context.currCol), context.currRow, context.currCol, context.currVal);
-					//System.err.println("Error: Validation Failure at " + sRow + " column " + context.currCol + " with cell value '" + context.currVal + "'");
-				}
-				return false; 
-			}
-			
-			// get cell's schema
-			SchemaCell sCell = sRow.getCell(context.currCol);
-			assert(sCell != null) : "The SchemaCell object can't be null after successful validation.";
-			
-			// create actual data cell object
-			SchemaCell dCell = SchemaCell.createDataObject(sCell, context.currRow, context.currCol, dTable, context.currVal);
-			//System.out.print(dCell.getSchemaTable() + " --> ");
-			//System.out.println(dCell.getName());
-										
-			// for all cell's properties, process literal for context {var}, variable registration & etc.
-			if(!dCell.isEmpty()) procSchmEntPropRuntime(dCell, context);
-			
-			// save data cell to data row
-			dRow.addCell(dCell);			
-
+			SchemaColumn sCol = sTable.getCol(context.currSchemaCol);
+			if(sCol != null) {
+				if(sCol.isRepeat()) {			
+					if(!parseRepeatingCol(row, schema, sTable, sRow, sCol, dTable, dRow, context, mode)) return false;
+				} else {	
+					context.currVal = row[context.currCol];
+					if(!processCellValue(schema, sTable, sRow, dTable, dRow, context, mode)) return false;
+					// IMP process other sCol attributes as needed
+				}				
+			} else {
+				context.currVal = row[context.currCol];
+				if(!processCellValue(schema, sTable, sRow, dTable, dRow, context, mode)) return false;				
+			}			
+			// TODO create dCol and insert into dTable?
+			context.currSchemaCol++;
+			// check if the cell is actually consumed or need retrying
+			if(!context.currCellConsumed) context.currCol--;
+			else context.currCellConsumed = false;
 		} // end for each column
 		
 	    // if the schema has one more cell definition in this row, it's dimension mismatched
-		if(sRow.getCell(context.currCol) != null) {
-			if(!ignoreErrMsg) logger.warn("Dimension Mismatched at {}: more cell definition available at CSV [{},{}]", sRow, context.currRow, context.currCol);
+		// except when next schema cell is in infinite repeating column.
+		SchemaCell nextSchemaCell;
+		while((nextSchemaCell = sRow.getCell(context.currSchemaCol)) != null) {			
+			// check if the cell matching is "optional" via column definition
+			SchemaColumn nextSchemaCol;
+			if((nextSchemaCol = sTable.getCol(context.currSchemaCol)) != null) {
+				if(nextSchemaCol.getRepeatTimes() < 0) {
+					context.currSchemaCol++;
+					continue;
+				}
+			}
+			if(!ignoreErrMsg) logger.warn("Dimension MISMATCHED at CSV [{},{}]: more cell definition available: ", context.currRow, context.currCol, nextSchemaCell);
 			return false;
-		} else {			
-			// increment row counters
-	    	if(sRow.isRepeat()) {
-	    		context.currSubRow++;
-	    	}
-	    	else context.currSchemaRow++;
-	        context.currRow++;
-	        context.currRowConsumed = true;
-			// save data row to data table
-			dTable.addRow(dRow);
-			// reset row parsing context vars
-			context.currCol = 0;
-			context.currVal = null;
-		}
+		}	
+
+		// increment row counters
+		if (sRow.isRepeat()) {
+			context.currSubRow++;
+		} else context.currSchemaRow++;
+		context.currRow++;
+		context.currRowConsumed = true;
+		// save data row to data table
+		dTable.addRow(dRow);
+		// reset row parsing context vars
+		context.currCol = 0;
+		context.currVal = null;
 
 		return true;
 	}
+	
+	/**
+	 * Process value of each CSV cell according to processCsvRow().
+	 * Must be called after context.currValue has been assigned a new value.
+	 * 
+	 * @param schema
+	 * @param sTable
+	 * @param sRow
+	 * @param dTable
+	 * @param dRow
+	 * @param context
+	 * @param mode
+	 * @return boolean whether the processing goes smoothly. 
+	 * @throws Exception 
+	 */
+	private boolean processCellValue(Schema schema, SchemaTable sTable, SchemaRow sRow, SchemaTable dTable, SchemaRow dRow, Context context, int mode) throws Exception {
+		
+		// initialize processing mode
+		boolean ignoreErrMsg = ((MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;		
+		
+		// check if cell with only whitespace characters are treated as empty value, a.k.a. null
+		Boolean spaceIsEmpty = (Boolean) schema.getProperty(METAPROP_SPACE_IS_EMPTY);
+		if(spaceIsEmpty != null && spaceIsEmpty && context.currVal != null) {
+			context.currVal = (context.currVal.trim().isEmpty())? null : context.currVal; 
+		}
+		
+		// fill & substitute cell value 
+		if(context.currVal == null) {
+			// fill empty cell, if a value is defined 
+			String empCellFill = sTable.getEmptyCellFill();
+			if(empCellFill != null) context.currVal = empCellFill;
+		} else {		
+
+			// trim of heading and trailing spaces or not
+			Boolean trim = (Boolean) schema.getProperty(METAPROP_TRIM);
+			if(trim != null && trim) context.currVal = context.currVal.trim();
+			
+			// replace certain value, if specified in schema table
+			if(sTable.hasReplaceValueFor(context.currVal)) context.currVal = sTable.getReplaceValue(context.currVal);							
+		}
+					
+		// validate a CSV cell value against CSV-X schema at its corresponding "schema position" 	
+		//if(!sTable.validate(sRow.getRowNum(), context.currCol, context.currVal, mode)) {
+		if(!sTable.validate(sRow.getRowNum(), context.currSchemaCol, context.currVal, mode)) {
+			if(!ignoreErrMsg) {
+				logger.warn("Validation Failure for schema {} against csv row {} column {} with value '{}'.", sRow.getCell(context.currCol), context.currRow, context.currCol, context.currVal);
+			}
+			return false; 
+		}
+		
+		// get cell's schema
+		//SchemaCell sCell = sRow.getCell(context.currCol);
+		SchemaCell sCell = sRow.getCell(context.currSchemaCol);
+		assert(sCell != null) : "The SchemaCell object can't be null after successful validation.";
+		
+		// create actual data cell object
+		SchemaCell dCell = SchemaCell.createDataObject(sCell, context.currRow, context.currCol, dTable, context.currVal);
+		//System.out.print(dCell.getSchemaTable() + " --> ");
+		//System.out.println(dCell.getName());
+									
+		// for all cell's properties, process literal for context {var}, variable registration & etc.
+		if(!dCell.isEmpty()) procSchmEntPropRuntime(dCell, context);
+		
+		// save data cell to data row
+		dRow.addCell(dCell);
+		
+		context.currCellConsumed = true;
+		return true;
+	}
+	
+	/**
+	 * Parse repeating column.
+	 * @param row
+	 * @param schema
+	 * @param sTable
+	 * @param sRow
+	 * @param sCol
+	 * @param dTable
+	 * @param dRow
+	 * @param context
+	 * @param mode
+	 * @return boolean
+	 * @throws Exception
+	 */
+	private boolean parseRepeatingCol(String[] row, Schema schema, SchemaTable sTable, SchemaRow sRow, SchemaColumn sCol, SchemaTable dTable, SchemaRow dRow, Context context, int mode) throws Exception {
+		logger.trace("Entered parseRepeatingCol()");
+		context.currSubCol = 0;
+		
+		if(sCol.getRepeatTimes() > 0) { // if it's finite parsing times TODO need functional testing 
+			if(context.currCol + sCol.getRepeatTimes() >= row.length) {
+				logger.warn("Dimension MISMATCHED: schema column repeating times {} from current CSV column {} exceed actual CSV column length of {} at row {}", sCol.getRepeatTimes(), context.currCol, row.length, context.currRow);
+				return false;  
+			}
+			for(int i = 0; i < sCol.getRepeatTimes(); i++) {
+				context.currVal = row[context.currCol];
+				if(!processCellValue(schema, sTable, sRow, dTable, dRow, context, mode)) return false;
+				context.currCol++;
+				context.currSubCol++;
+			}			
+			logger.trace("context.currSubCol {} VS sCol.repeatTimes {}", context.currSubCol, sCol.getRepeatTimes());
+			assert(context.currSubCol == sCol.getRepeatTimes()) : "SubCol must reach sCol repeating times at this point.";			
+			return true;
+		} else { // if it's indefinite repeating column [0..Inf] (or unknown column number with the same schema, to be specific) 
+			while(true) {
+				// if the data in this row has run out
+				if(context.currCol >= row.length) {
+					logger.debug("No more CSV column to process at schema {} and CSV[{},{}]", sCol, context.currRow, context.currCol);
+					// Schema column won't be used to evaluate CSV dimension if there's no data nor
+					// schema cell at the location. Just as schema row doesn't need to be declared for every row. 
+					// The dimensionality check is relied solely upon schema cell declaration.  
+					return true;
+				}				
+				context.currVal = row[context.currCol];
+				if(!processCellValue(schema, sTable, sRow, dTable, dRow, context, mode)) {
+					context.currCellConsumed = false;
+					return true;
+				}
+				context.currCol++;
+				context.currSubCol++;				
+			}
+		}
+	}	
 	
 	/**
 	 * Process Schema Entity Property at Run-Time.
@@ -1425,14 +1503,18 @@ public class SchemaProcessor {
 	
 	/**
 	 * Process context variable inside a literal.
-	 * There are 3 types of context variable:
+	 * There are 4 types of context variable:
 	 * {row} 
 	 * {col}
-	 * {subrow} <--- you can't replace this at the time of schema parsing, since we still don't know 
-	 * how many subrow there will be at run-time. But there's a need to declare var name using this context var
-	 * for cells within a repeating row. Therefore, var declaration for cells within a repeating row, 
-	 * including other context var as well for consistency,
-	 * should be processed at CSV parsing time. 
+	 * {subrow}
+	 * {subcol}
+	 * You can't replace these vars at the time of schema parsing, since we still don't know 
+	 * how many subrow/subcol there will be at run-time. In other word, schema row/col number
+	 * is NOT always equal to actual CSV row/col number.
+	 * 
+	 * There's a need to declare var name using this context var for cells within a repeating row. 
+	 * Therefore, var declaration for cells within a repeating row, including other context var as 
+	 * well for consistency, should be processed at CSV parsing time. 
 	 * 
 	 * At the moment, context {var} replacement and variable registration (association a variable name with a schema entity)
 	 * happens during CSV parsing time. 
@@ -1492,7 +1574,7 @@ public class SchemaProcessor {
 	 * However, parsing SERE is quite a task to complete for now, and introducing both {var}
 	 * & SERE will complicate the value dereferencing & circular reference checking.  
 	 * 
-	 * IMP In the future, adding support for SERE is expected.
+	 * IMP In the future, adding support for SERE should be considered.
 	 *  
 	 * @param literal
 	 * @param context
@@ -1520,6 +1602,10 @@ public class SchemaProcessor {
     			if(context.currSubRow != null) m.appendReplacement(sb, context.currSubRow.toString());
     			else throw new IllegalArgumentException("Referring to null value for currSubRow.");
     			break;
+    		case "subcol":
+    			if(context.currSubCol != null) m.appendReplacement(sb, context.currSubCol.toString());
+    			else throw new IllegalArgumentException("Referring to null value for currSubCol.");
+    			break;    			
     		default:
     			assert(false) : "non-context var shouldn't get matched here: " + varName; 
     			break;

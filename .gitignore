@@ -66,3 +66,6 @@ local.properties
 # Code Recommenders
 .recommenders/
 /target/
+
+# TestNG output folder
+test-output/

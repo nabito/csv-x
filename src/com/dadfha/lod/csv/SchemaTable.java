@@ -504,7 +504,6 @@ public class SchemaTable extends SchemaEntity {
 		
 		// initialize processing mode
 		boolean ignoreErrMsg = ((SchemaProcessor.MODE_IGNORE_ERR_MSG & mode) != 0)? true : false;
-		//ignoreErrMsg = false;
 		
 		// check inputs
 		if(sRow < 0 || sCol < 0) throw new IllegalArgumentException("Row and Col value must NOT be negative.");

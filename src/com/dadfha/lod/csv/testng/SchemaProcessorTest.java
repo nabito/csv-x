@@ -18,7 +18,6 @@ public class SchemaProcessorTest {
 
 	@Test
 	public void airP() {
-		
 		SchemaProcessor sp = new SchemaProcessor();
 		String[] schemaPaths = {"data/airp.csvx"}; 		
 		Schema dSchema = sp.getDataSchema("data/airp.csv", null, schemaPaths);
@@ -35,5 +34,13 @@ public class SchemaProcessorTest {
 		Schema dSchema = sp.getDataSchema("data/uktelecom.csv", null, schemaPaths);
 		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/uktelecom.csv");		
 	}
+	
+	@Test
+	public void csvTriple() {
+		SchemaProcessor sp = new SchemaProcessor();
+		String[] schemaPaths = {"data/csvtriple.csvx"};
+		Schema dSchema = sp.getDataSchema("data/csvtriple.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/csvtriple.csv");		
+	}	
 	
 }

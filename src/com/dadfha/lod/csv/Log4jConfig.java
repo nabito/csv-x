@@ -31,7 +31,7 @@ public class Log4jConfig extends ConfigurationFactory {
 		builder.add(appenderBuilder);
 		builder.add(builder.newLogger("org.apache.logging.log4j", Level.DEBUG).add(builder.newAppenderRef("Stdout"))
 				.addAttribute("additivity", false));
-		builder.add(builder.newRootLogger(Level.TRACE).add(builder.newAppenderRef("Stdout")));
+		builder.add(builder.newRootLogger(Level.DEBUG).add(builder.newAppenderRef("Stdout")));
 		return builder.build();
 	}
 

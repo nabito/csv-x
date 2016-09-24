@@ -17,7 +17,6 @@ public abstract class SchemaEntity {
 	public static final String METAPROP_NAME = "@name";
 	
 	public static final String METAPROP_NAME_PRED = Schema.NS_PREFIX + ":name";
-	
 
 	/**
 	 * The value defined by '@value' property for each schema entity. 
