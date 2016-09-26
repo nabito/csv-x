@@ -1,0 +1,244 @@
+{
+    "@delimiter" : " ",
+
+    "@cell[0,0]" : 
+    {
+        "@regex" : "HEADER"
+    },
+
+    "@col[1]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@col[2]" :
+    {
+        "@repeatTimes" : -1
+    },    
+
+    "@col[3]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@col[4]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[0,1]" :
+    {
+        "@name" : "data_header_{subcol}",
+        "@regex" : "(?:(?!(\\d{2}-.{3}-\\d{2})).)*" // not @cell[0,2]
+    },
+
+    "@cell[0,2]" :
+    {
+        "@regex" : "\\d{2}-.{3}-\\d{2}"
+    },
+
+    "@cell[0,3]" :
+    {
+        "@datatype" : "string"
+    },    
+
+    "@row[1]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[1,0]" :
+    {
+        "@regex" : "TITLE"
+    },
+
+    "@cell[1,1]" :
+    {
+        "@name" : "data_title_{subrow}_{subcol}"
+    },    
+
+    "@cell[2,0]" : 
+    {
+        "@regex" : "\\.\\.\\."
+    },
+
+    "@cell[3,0]" :
+    {
+        "@regex" : "EXPDTA"
+    },
+
+    "@cell[3,1]" :
+    {
+        "@name" : "expdata_title_{subcol}"
+    },
+
+    "@row[4]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[4,0]" :
+    {
+        "@regex" : "AUTHOR"
+    },
+
+    "@cell[4,1]" :
+    {
+        "@name" : "author_list_{subrow}_{subcol}"
+    },
+
+    "@cell[5,0]" :
+    {
+        "@regex" : "\\.\\.\\."
+    },
+
+    "@row[6]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[6,0]" : 
+    {
+        "@regex" : "REMARK"
+    },
+
+    "@cell[6,1]" : 
+    {
+        "@datatype" : "integer"
+    },
+
+    "@cell[6,2]" : 
+    {
+        "@name" : "remark_attr_{subrow}_{subcol}",
+        "@regex" : "(?:(?!.*,|.*(?:\\d+\\.)?\\d+).)*" // not csv or integer or floating point
+    },
+
+    "@cell[6,3]" : // repeating row of values
+    {
+        "@name" : "remark_val_{subrow}_{subcol}"
+    },
+
+    "@cell[7,0]" :
+    {
+        "@regex" : "\\.\\.\\."
+    },    
+
+    "@row[8]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[8,0]" :
+    {
+        "@regex" : "SEQRES"
+    },
+
+    "@cell[8,1]" :
+    {
+        "@datatype" : "integer",
+        "@regex" : "(?:(?!.*[a-zA-Z]).)*" // not alphabet
+    },   
+
+    "@cell[8,2]" :
+    {
+        "@regex" : "(?:(?!.*\\d+).)*" // not integer
+    },      
+
+    "@cell[8,3]" :
+    {
+        "@datatype" : "integer",
+        "@regex" : "(?:(?!.*PRO).)*" // not 'PRO'
+    },
+
+    "@cell[8,4]" :
+    {
+        "@name" : "seqres_val_{subrow}_{subcol}",
+        "@regex" : "PRO|GLY"
+    },
+
+    "@cell[9,0]" :
+    {
+        "@regex" : "\\.\\.\\."
+    },
+
+    "@row[10]" : 
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[10,0]" :
+    {
+        "@regex" : "ATOM"
+    },
+
+    "@cell[10,1]" :
+    {
+        "@datatype" : "integer"
+        //"@regex" : "(?:(?!.*(N|CA|C|O|CB|OXT)).)*" // not any of N, CA, C, O, CB, OXT
+    },
+
+    "@cell[10,2]" :
+    {
+        "@regex" : "\\b(N|CA|C|O|CB|OXT)\\b" // only N, CA, C, O, CB, OXT
+    },
+
+    "@cell[10,3]" :
+    {
+        "@regex" : "\\b(PRO|A|1)\\b" // only 'PRO', 'A', and '1'
+    },
+
+    "@cell[10,4]" :
+    {
+        "@name" : "atom_val_{subrow}_{subcol}",
+        "@regex" : "\\d+\\.\\d+" // only decimal
+    },
+
+    "@cell[10,5]" :
+    {
+        "@name" : "atom_pair_{subrow}",
+        "@regex" : "\\b(N|CA|C|O|CB|OXT)\\b" // only N, CA, C, O, CB, OXT
+    },    
+
+    "@cell[11,0]" :
+    {
+        "@regex" : "\\.\\.\\."
+    },    
+
+    "@row[12]" :
+    {
+        "@repeatTimes" : -1
+    },
+
+    "@cell[12,0]" :
+    {
+        "@regex" : "HETATM"
+    },
+
+    "@cell[12,1]" :
+    {
+        "@datatype" : "integer"
+    },
+
+    "@cell[12,2]" :
+    {
+        "@regex" : "\\b(N|CA|C|O|CB|OXT)\\b" // only N, CA, C, O, CB, OXT
+    },
+
+    "@cell[12,3]" :
+    {
+        "@regex" : "\\b(ACY|401)\\b" // only ACY and 401
+    },    
+
+    "@cell[12,4]" :
+    {
+        "@name" : "hetatm_val_{subrow}_{subcol}",
+        "@regex" : "\\d+\\.\\d+" // only decimal
+    },
+
+    "@cell[12,5]" :
+    {
+        "@name" : "hetatm_pair_{subrow}",
+        "@regex" : "\\b(N|CA|C|O|CB|OXT)\\b" // only N, CA, C, O, CB, OXT
+    }   
+
+}

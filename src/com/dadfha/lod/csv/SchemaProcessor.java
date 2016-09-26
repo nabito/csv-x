@@ -1000,7 +1000,6 @@ public class SchemaProcessor {
 			return data;
 		} else {
 			logger.error("The processing bears no fruit: check out error log.");
-			//System.err.println("The parse bears no fruit: check out error log.");
 			return null;
 		}
 				
@@ -1128,7 +1127,7 @@ public class SchemaProcessor {
                 } else if(key.startsWith("@template")) {
                     processTemplateMarker(key.substring(9), (LinkedHashMap<String, Object>) e.getValue(), s);
                 } else if(key.startsWith("@")) {
-                    System.err.println("Unrecognized meta-property, ignoring key : " + key);
+                	logger.warn("Unrecognized meta-property, ignoring key : " + key);
                 } else {
                     // Others are add to extra/user-defined properties map for later processing.
                     s.addProperty(key, e.getValue());
