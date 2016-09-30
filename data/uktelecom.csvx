@@ -1,27 +1,15 @@
 {
-    "@base" : "http://dadfha.com/csv/", // the base for all @id value (Optional)
-    "@id" : "uk_telecom_market.csvx", // ID of this csv-x schema file which can be IRI. (Required)
+    "@base" : "http://dadfha.com/csv-x/uktelecom", // the base for all @id value (Optional)
+    "@id" : "uktelecom.csvx", // ID of this csv-x schema file which can be IRI. (Required)
     "@targetCSVs" : [ "http://stakeholders.ofcom.org.uk/binaries/research/cmr/telecoms/Q3-2015.csv" ], // ID of CSV file(s) this schema is describing. (Optional)
     "@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
     
-    //"@spaceIsEmpty" : true, // Meta property to regard cell value with only whitespace characters as empty (a.k.a. null).
-    
-    // adopted CSV dialects from CSVW?
     "@trim" : true,
 
     "@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
     "@lineSeparator" : "\n\r", // End of line character. If not specified, the system default new line character should be used. (Optional)
     "@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
     "@quoteChar" : "\"",
-
-    // TODO check if we really use all of this?
-    "@header" : false,
-    //"@headerRowCount" : 1,
-    "@doubleQuote" : true,
-    "@skipBlankRows" : true,
-    "@skipColumns" : 1,
-    "@skipInitialSpace" : true,
-    "@skipRows" : 2,
 
     // user's properties 
     "source" : "https://data.gov.uk/dataset/telecommunications-market-quarterly-data-tables",
@@ -50,6 +38,7 @@
     {       
         "description" : "{tblDesc}",
         
+        // leave the comment just when it's needed
         // "@replaceValueMap" :
         // {
         //     "*****" : ""
@@ -59,7 +48,6 @@
         
         // "@commonProps" : 
         // {
-
         // },
 
         "@cell[0,0]" : 

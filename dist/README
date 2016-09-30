@@ -1,1 +1,10 @@
 jar-loader technique is from https://coderwall.com/p/ssuaxa/how-to-make-a-jar-file-linux-executable
+
+TODO:
+
+1) make a build automation to do all these using maven (or ant?)
+
+http://stackoverflow.com/questions/2022032/building-a-runnable-jar-with-maven-2
+http://stackoverflow.com/questions/574594/how-can-i-create-an-executable-jar-with-dependencies-using-maven
+https://maven.apache.org/plugins/maven-shade-plugin/examples/executable-jar.html
+

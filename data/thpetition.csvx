@@ -1,0 +1,310 @@
+{
+    "@lang" : "th",
+    "@table[main]" : 
+    {
+        "@cell[0,0]" :
+        {
+            "@datatype" : "string"
+        },
+
+        "@cell[0,1-2]" : {},
+
+        "@cell[1,0]" :
+        {
+            "@datatype" : "string"
+        },
+
+        "@cell[1,1-2]" : {},
+
+        "@cell[2,0]" :
+        {
+            "@name" : "header_1_main_topic",
+            "@datatype" : "string"
+        },
+
+        "@cell[2,1]" :
+        {
+            "@name" : "header_2_sub_topic",
+            "@datatype" : "string"
+        },
+
+        "@cell[2,2]" :
+        {
+            "@name" : "header_3_case_nr",
+            "@datatype" : "string"
+        },
+
+        // #1
+        "@row[3]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[3,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[3,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[3,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[4,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[4,1]" : {},
+
+        "@cell[4,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #2
+        "@row[5]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[5,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[5,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[5,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[6,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[6,1]" : {},
+
+        "@cell[6,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #3
+        "@row[7]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[7,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[7,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[7,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[8,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[8,1]" : {},
+
+        "@cell[8,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #4
+        "@row[9]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[9,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[9,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[9,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[10,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[10,1]" : {},
+
+        "@cell[10,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #5
+        "@row[11]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[11,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[11,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[11,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[12,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[12,1]" : {},
+
+        "@cell[12,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #6
+        "@row[13]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[13,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[13,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[13,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[14,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[14,1]" : {},
+
+        "@cell[14,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        // #7
+        "@row[15]" : 
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[15,0]" :
+        {
+            "@name" : "case_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[15,1]" :
+        {
+            "@name" : "case_sub_topic_{row}",
+            "@datatype" : "string"
+        },
+
+        "@cell[15,2]" :
+        {
+            "@name" : "case_freq_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*"
+        },
+
+        "@cell[16,0]" :
+        {
+            "@regex" : "รวม"
+        },
+
+        "@cell[16,1]" : {},
+
+        "@cell[16,2]" :
+        {
+            "@name" : "total_at_{row}",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        },
+
+        "@cell[17,0]" :
+        {
+            "@regex" : "รวมทั้งสิ้น"
+        },
+
+        "@cell[17,1]" : {},
+
+        "@cell[17,2]" :
+        {
+            "@name" : "grandtotal",
+            "@regex" : "[0-9]{1,3}(,[0-9]{3})*" // regex for number with thousand separator
+        }
+
+    }
+}

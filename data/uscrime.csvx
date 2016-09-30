@@ -1,0 +1,183 @@
+{ // LAPD_Crime_and_Collision_Raw_Data_for_2012.csv
+
+    "@table[LAPD_Crime_Data]" :
+    {
+        "@emptyCellFill" : "",
+
+        "@cell[0,0]" :
+        {
+            "@name" : "col{col}_attr",
+            "title" : "Date Report",
+            "@regex" : "Date Rptd"
+        },
+
+        "@cell[0,1]" :
+        {
+            "@regex" : "DR\\. NO"
+        },
+
+        "@cell[0,2]" :
+        {
+            "@regex" : "DATE OCC"
+        },
+
+        "@cell[0,3]" :
+        {
+            "@regex" : "TIME OCC"
+        },
+
+        "@cell[0,4]" :
+        {
+            "@regex" : "AREA"
+        },    
+
+        "@cell[0,5]" :
+        {
+            "@regex" : "AREA NAME"
+        },      
+
+        "@cell[0,6]" :
+        {
+            "@regex" : "RD"
+        },    
+
+        "@cell[0,7]" :
+        {
+            "@regex" : "Crm Cd"
+        },            
+
+        "@cell[0,8]" :
+        {
+            "@regex" : "Crm Cd Desc"
+        },
+
+        "@cell[0,9]" :
+        {
+            "@regex" : "Status"
+        },
+
+        "@cell[0,10]" :
+        {
+            "@regex" : "Status Desc"
+        },    
+
+        "@cell[0,11]" :
+        {
+            "@regex" : "LOCATION"
+        },    
+
+        "@cell[0,12]" :
+        {
+            "@regex" : "Cross Street"
+        },    
+
+        "@cell[0,13]" :
+        {
+            "@regex" : "Location 1"
+        },    
+
+        "@row[1]" :
+        {
+            "@repeatTimes" : -1
+        },
+
+        "@cell[1,0]" :
+        {
+            "@name" : "date_report_{subrow}",
+            "@regex" : "[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}"
+        },
+
+        "@cell[1,1]" :
+        {
+            "@name" : "id_{subrow}",
+            "@regex" : "\\d{1,9}",
+            "dateReport" : "{date_report_{subrow}}",
+            "dateOccur" : "{date_occur_{subrow}}",
+            "timeOccur" : "{time_occur_{subrow}}",
+            "areaCode" : "{area_code_{subrow}}",
+            "areaName" : "{area_name_{subrow}}",
+            "roadNumber" : "{road_number_{subrow}}",
+            "crimeCode" : "{crime_code_{subrow}}",
+            "crimeDescription" : "{crime_description_{subrow}}",
+            "statusCode" : "{status_code_{subrow}}",
+            "statusDescription" : "{status_description_{subrow}}",
+            "location" : "{location_{subrow}}",
+            "crossStreet" : "{cross_street_{subrow}}",
+            "gpsCoord" : "{gps_coord_{subrow}}"
+        },
+
+        "@cell[1,2]" :
+        {
+            "@name" : "date_occur_{subrow}",
+            "@regex" : "[0-9]{1,2}/[0-9]{1,2}/[0-9]{2,4}"
+        },
+
+        "@cell[1,3]" :
+        {
+            "@name" : "time_occur_{subrow}",
+            "@regex" : "\\d{1,4}"
+        },
+
+        "@cell[1,4]" :
+        {
+            "@name" : "area_code_{subrow}",
+            "@regex" : "\\d+"
+        },    
+
+        "@cell[1,5]" :
+        {
+            "@name" : "area_name_{subrow}",
+            "@datatype" : "string"
+        },      
+
+        "@cell[1,6]" :
+        {
+            "@name" : "road_number_{subrow}",
+            "@regex" : "\\d+"
+        },    
+
+        "@cell[1,7]" :
+        {
+            "@name" : "crime_code_{subrow}",
+            "@regex" : "\\d+"
+        },            
+
+        "@cell[1,8]" :
+        {
+            "@name" : "crime_description_{subrow}",
+            "@datatype" : "string"
+        },
+
+        "@cell[1,9]" :
+        {
+            "@name" : "status_code_{subrow}",
+            "@regex" : "[A-Z]{2}"
+        },
+
+        "@cell[1,10]" :
+        {
+            "@name" : "status_description_{subrow}",
+            "@datatype" : "string"
+        },    
+
+        "@cell[1,11]" :
+        {
+            "@name" : "location_{subrow}",
+            "@datatype" : "string"
+        },    
+
+        "@cell[1,12]" :
+        {
+            "@name" : "cross_street_{subrow}",
+            "@datatype" : "string"
+        },    
+
+        "@cell[1,13]" :
+        {
+            "@name" : "gps_coord_{subrow}",
+            "@regex" : "\\([-+]?([1-8]?\\d(\\.\\d+)?|90(\\.0+)?),\\s*[-+]?(180(\\.0+)?|((1[0-7]\\d)|([1-9]?\\d))(\\.\\d+)?)\\)"
+        }        
+
+    }
+
+}
