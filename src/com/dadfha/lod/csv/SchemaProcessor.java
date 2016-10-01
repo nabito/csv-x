@@ -66,6 +66,11 @@ public class SchemaProcessor {
 	public static final String METAPROP_COMMENT_PREFIX = "@commentPrefix";	
 	
 	/**
+	 * Meta property for quote character. Default to double-quote (").
+	 */
+	public static final String METAPROP_QUOTE_CHAR = "@quoteChar";		
+	
+	/**
 	 * The base IRI (or other addressing scheme) for all schema entity.
 	 * Any '@id' in each schema entity will override the base. Therefore, prefix must be used 
 	 * to define unique local name over a base.  
@@ -240,6 +245,9 @@ public class SchemaProcessor {
 		// CSV comment format (default: none)
 		if(schema.getProperty(METAPROP_COMMENT_PREFIX) != null) settings.getFormat().setComment(((String) schema.getProperty(METAPROP_COMMENT_PREFIX)).charAt(0)); 
 		else settings.getFormat().setComment('\0');
+		
+		// CSV quote format (default: ")
+		if(schema.getProperty(METAPROP_QUOTE_CHAR) != null) settings.getFormat().setQuote(((String) schema.getProperty(METAPROP_QUOTE_CHAR)).charAt(0));
 		
 		// skip blank rows (default: true)
 		if(schema.getProperty(METAPROP_SKIP_BLANK_ROWS) != null) settings.setSkipEmptyLines((Boolean) schema.getProperty(METAPROP_SKIP_BLANK_ROWS)); 
@@ -1070,10 +1078,10 @@ public class SchemaProcessor {
             case METAPROP_COMMENT_PREFIX:
                 s.addProperty(METAPROP_COMMENT_PREFIX, (String) e.getValue());                  
                 break;
-            case "@quoteChar":
-                s.addProperty("@quoteChar", (String) e.getValue());
+            case METAPROP_QUOTE_CHAR:
+                s.addProperty(METAPROP_QUOTE_CHAR, (String) e.getValue());
                 break;
-            case "@header":
+            case "@header": // from CSVW, but currently has no use
                 s.addProperty("@header", (Boolean) e.getValue());
                 // check if headerRowCount is not yet defined, else leave it as it is
                 if(s.getProperty("@headerRowCount") == null) {
@@ -1081,26 +1089,26 @@ public class SchemaProcessor {
                     else s.addProperty("@headerRowCount", 0);
                 }
                 break;
-            case "@headerRowCount":
+            case "@headerRowCount": // from CSVW, but currently has no use
                 Integer hrc = (Integer) e.getValue();
                 if(hrc <= 0) throw new RuntimeException("@headerRowCount must be greater than 0.");
                 s.addProperty("@headerRowCount", hrc);
                 break;
-            case "@doubleQuote":
+            case "@doubleQuote": // from CSVW, but currently has no use
                 s.addProperty("@doubleQuote", (Boolean) e.getValue());
                 break;
             case METAPROP_SKIP_BLANK_ROWS:
                 s.addProperty(METAPROP_SKIP_BLANK_ROWS, (Boolean) e.getValue());
                 break;
-            case "@skipColumns":
+            case "@skipColumns": // from CSVW, but currently has no use 
                 Integer sc = (Integer) e.getValue();
                 if(sc < 0) throw new RuntimeException("@skipColumns must be greater than 0.");
                 s.addProperty("@skipColumns", sc);
                 break;
-            case "@skipInitialSpace":
+            case "@skipInitialSpace": // from CSVW, but currently has no use
                 s.addProperty("@skipInitialSpace", (Boolean) e.getValue());
                 break;
-            case "@skipRows":
+            case "@skipRows": // from CSVW, but currently has no use
                 Integer sr = (Integer) e.getValue();
                 if(sr < 0) throw new RuntimeException("@skipRows must be greater than 0.");
                 s.addProperty("@skipRows", sr);
@@ -1108,7 +1116,7 @@ public class SchemaProcessor {
             case METAPROP_TRIM:
                 s.addProperty(METAPROP_TRIM, (Boolean) e.getValue());
                 break;                  
-            case "@embedHeader":
+            case "@embedHeader": // from CSVW, but currently has no use
                 s.addProperty("@embedHeader", (Boolean) e.getValue());
                 break;
             default:
@@ -1187,17 +1195,18 @@ public class SchemaProcessor {
 			String key = e.getKey();
 			Object val = e.getValue();			
 			switch(key) {
-			case "params":
+			case "@params":
 				tmp.addParams((ArrayList<String>) val);
 				break;
-			case "description":
-				tmp.setDescription((String) val);
+			case "@tmp":
+				tmp.setTemplate((String) val);
 				break;
-			case "ttl":
+			case "@ttl":
 				tmp.setTemplate((String) val);
 				break;
 			default:
-				throw new RuntimeException("Unrecognized template property: " + key);
+				tmp.addProperty(key, val.toString());
+				//throw new RuntimeException("Unrecognized template property: " + key);
 			}
 		}
 	}
@@ -2037,6 +2046,10 @@ public class SchemaProcessor {
 //		CsvSchemaParser parser = new CsvSchemaParser(new CsvSchemaParserSettings());
 //	    parser.beginParsing(new BufferedReader(new StringReader("CSV in String format"), CsvSchemaParser.BUFFER_SIZE));
 		
+	}
+	
+	public void hello() {
+		System.out.println("Hi there!");
 	}
 	
 

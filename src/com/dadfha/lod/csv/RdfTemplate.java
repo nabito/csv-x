@@ -3,18 +3,13 @@ package com.dadfha.lod.csv;
 import java.util.ArrayList;
 import java.util.List;
 
-public class RdfTemplate {
+public class RdfTemplate extends SchemaEntity {
 	
 	private final Schema parentSchema;
 	
 	private String templateName;
 	
 	private List<String> params = new ArrayList<String>();
-	
-	/**
-	 * Description of this template.
-	 */
-	private String desc;
 	
 	/**
 	 * The template.
@@ -40,14 +35,6 @@ public class RdfTemplate {
 	 */
 	public void addParams(List<String> params) {
 		this.params.addAll(params);
-	}
-	
-	public String getDescription() {
-		return desc;
-	}
-	
-	public void setDescription(String description) {
-		desc = description;
 	}
 	
 	public String getTemplate() {
@@ -77,6 +64,16 @@ public class RdfTemplate {
 	 */
 	public Schema getParentSchema() {
 		return parentSchema;
+	}
+
+	@Override
+	public SchemaTable getSchemaTable() {
+		return null;
+	}
+
+	@Override
+	public String getRefEx() {
+		return parentSchema.toString() + "@template[" + templateName + "]";
 	}
 
 }

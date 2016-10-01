@@ -43,4 +43,36 @@ public class SchemaProcessorTest {
 		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/csvtriple.csv");		
 	}	
 	
+	@Test
+	public void pdb() {
+		SchemaProcessor sp = new SchemaProcessor();
+		String[] schemaPaths = {"data/pdb.csvx"};
+		Schema dSchema = sp.getDataSchema("data/pdb.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/pdb.csv");		
+	}
+	
+	@Test
+	public void ukstat() {
+		SchemaProcessor sp = new SchemaProcessor();
+		String[] schemaPaths = {"data/ukstat.csvx"};
+		Schema dSchema = sp.getDataSchema("data/ukstat.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/ukstat.csv");		
+	}	
+	
+	@Test
+	public void thpetition() {
+		SchemaProcessor sp = new SchemaProcessor();
+		String[] schemaPaths = {"data/thpetition.csvx"};
+		Schema dSchema = sp.getDataSchema("data/thpetition.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/thpetition.csv");		
+	}
+	
+	@Test
+	public void uscrime() {
+		SchemaProcessor sp = new SchemaProcessor();
+		String[] schemaPaths = {"data/uscrime.csvx"};
+		Schema dSchema = sp.getDataSchema("data/uscrime.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/uscrime.csv");		
+	}	
+	
 }

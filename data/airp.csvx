@@ -7,29 +7,13 @@
 	"@encoding" : "UTF-8", // CSV character encoding, default to UTF-8 if not specified. (Optional)
 	"@lang" : "ja",	// The main language of string literals inside the file. Default to "en" if not specified. (Optional)
 	//"@spaceIsEmpty" : true, // Meta property to regard cell value with only whitespace characters as empty (a.k.a. null).
-	
-	// adopted CSV dialects from CSVW?
-	"@trim" : true,
-
+		
 	"@delimiter" : ",", // Delimited character. Default to "," if not specified. (Optional)
 	"@lineSeparator" : "\n", // End of line character. If not specified, the system default new line character should be used. (Optional)
 	"@commentPrefix" : "#", // Specify comment symbol for a CSV. (Optional)
 	"@quoteChar" : "\"",
-
-	// TODO check if we really use all of this?
-	"@header" : false,
-	//"@headerRowCount" : 1,
-	"@doubleQuote" : true,
-	"@skipBlankRows" : true,
-	"@skipColumns" : 1,
-	"@skipInitialSpace" : true,
-	"@skipRows" : 2,
-
-	// IMP pick some cool properties from univo-CSV parser
-	
-
-	// CSV-X metadata (Con't)
-	"@embedHeader" : false, // TODO check if Embedded Metadata is always required by CSVW spec, if so elaborate as weak point in our paper
+	"@skipBlankRows" : true,	
+	"@trim" : true,
 	
 	"@prop[hasMsrDay]" : // a user-defined data property with its unique name written inside the bracket[].
 	{ 
@@ -72,7 +56,7 @@
 								// all validations with an exception of dimensional check, any other validations will be missed.
 								// For example: ignoring null value will make Empty Cell check to be skipped too. So use this option with caution.
 		
-		"@commonProps" : // TODO when serialize/export a cell data, each cell must inherit these common properties into their result too
+		"@commonProps" :
 		{
 			"hasMsrMonthYear" : "{msrYrMth}",
 			"hasMsrLocation" : "{msrLoc}",
@@ -337,7 +321,7 @@
 		{
 			"@name" : "msrDataAtSubrow{subrow}Col{col}",
 			"@mapType" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
-			"@mapTemplate" : "createSensorObs('{sensor.name}', '{msrProp}', 'Atmosphere', '{@this.@value}', '{msrYrMth}{@this.hasMsrDay}{@this.hasMsrHour}')", // TODO make ref to commonprops possible by adding them to dCell first before serialize, make sure the {var} resolution allow for reference for "other" property within the schema entity, and check for circular ref for the same prop as well
+			"@mapTemplate" : "createSensorObs('{sensor.name}', '{msrProp}', 'Atmosphere', '{@this.@value}', '{msrYrMth}{@this.hasMsrDay}{@this.hasMsrHour}')",
 			"title_en" : "{msrProp} property measurement value at date/time: {msrYrMth}{msrDay{subrow}}/{msrHr{col}} at location: {msrLoc}",
 			"@datatype" : "integer",
 			"hasMsrDay" : "{msrDay{subrow}}",
@@ -353,7 +337,7 @@
 			"@value" : "n/a", // by default cell's value is associated with '@value' property but this value will be used if the cell value is empty (null)
 			"hasMsrDay" : "{msrDay{subrow}}"   
 		},	
-		// IMP next version could introduce subrow addressing scheme and property value override.
+		
 
 		"@cell[3,26]" :
 		{		
@@ -913,7 +897,7 @@
 		"@cell[6,1-17]" :
 		{
 			"@mapType" : "Datapoint",
-			"@datatype" : "double", // TODO how to express one decimal digit?
+			"@datatype" : "double",
 			"title_en" : "Percentage of wind direction {windDir{col}} in the {msrYrMth_wind}.",
 			"ofWindDirection" : "{windDir{col}}" 
 		},
@@ -928,7 +912,7 @@
 		"@cell[7,1-24]" :
 		{
 			"@mapType" : "Datapoint",
-			"@datatype" : "integer", // TODO how to set Min/Max val
+			"@datatype" : "integer",
 			"title_en" : "Measurement days at {msrHr{col}_wind} in {msrYrMth_wind}",
 			"ofMsrHour" :  "{msrHr{col}_wind}"
 		},
@@ -969,10 +953,10 @@
 
     "@template[ttlHeaders]" : 
     {
-    	"ttl" : // TODO add @ infront of all the official keywords
+    	"@ttl" :
 			"
             # the meta-directives shoukd be defined as per schema
-            
+
             @prefix : <http://www.dadfha.com/ont/ex#> .
             @prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn> .
             @prefix DUL: <http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#> .
@@ -985,12 +969,11 @@
     // created in accordance to guide in http://www.w3.org/2005/Incubator/ssn/XGR-ssn-20110628/
     "@template[createSensorDesc]" : 
     {
-        "params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],
+        "@params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],
 
         "description" : "Declare a sensor with its measuremnet properties.",
 
-        // IMP template referencing another template
-        "ttl" : 
+        "@ttl" : 
             "
             :{sensor} rdf:type ssn:SensingDevice ;
             ssn:observes :{property} ;
