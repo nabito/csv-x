@@ -19,8 +19,11 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.core.config.ConfigurationFactory;
+import org.apache.logging.log4j.core.config.Configurator;
 
 import com.dadfha.lod.JSONMinify;
 import com.github.jsonldjava.utils.JsonUtils;
@@ -32,7 +35,7 @@ import com.univocity.parsers.tsv.TsvParserSettings;
 
 public class SchemaProcessor {	
 	
-	private static final Logger logger = LogManager.getLogger();
+	private final Logger logger;
 	
 	/**
 	 * Meta property for CSV delimiter.
@@ -209,6 +212,42 @@ public class SchemaProcessor {
 	 * IMP this could be scaled to a persistent repository. 
 	 */
 	private Map<String, Schema> schemas = new HashMap<String, Schema>();
+	
+	/**
+	 * The Constructor.
+	 * Logger is ON at DEBUG level by default.
+	 */
+	public SchemaProcessor() {		
+		this(Level.DEBUG);		
+	}
+	
+	/**
+	 * The Constructor.
+	 * @param disableLogger
+	 */
+	public SchemaProcessor(boolean disableLogger) {
+		// init log4j config
+		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
+		logger = LogManager.getLogger();
+				
+		if(disableLogger) {
+			Configurator.setLevel("org.apache.logging.log4j", Level.OFF);			 
+			// You can also set the root logger:
+			Configurator.setRootLevel(Level.OFF);
+		}		
+	}
+	
+	/**
+	 * The Constructor.
+	 * Initialize schema processor at a log
+	 * @param logLevel
+	 */
+	public SchemaProcessor(Level logLevel) {
+		// init log4j config
+		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
+		logger = LogManager.getLogger();
+		Configurator.setRootLevel(logLevel);
+	}
 
 	/**
 	 * @return the tryAllSchemas
@@ -971,8 +1010,8 @@ public class SchemaProcessor {
 		
 		Context context = new Context();
 		
-		// load schema(s)
-		loadSchemas(schemaPaths);
+		// load schema(s), if specified
+		if(schemaPaths != null) loadSchemas(schemaPaths);
 
 		// check if CSV-X schema has its target CSV specified and is matched with the csv ID 
 		String sId = (tryAllSchemas)?  null : findMatchSchema(csvId);
@@ -1004,7 +1043,6 @@ public class SchemaProcessor {
 		}		
 
 		if(data != null) {
-			//return (Set<DataSet>) data;
 			return data;
 		} else {
 			logger.error("The processing bears no fruit: check out error log.");
@@ -1915,31 +1953,60 @@ public class SchemaProcessor {
 		}		
 	}
 	
-	public static void schemaTables2Csv(List<SchemaTable> dataTables) {
-		int rowNum = 0;
-		for(SchemaTable dTable : dataTables) {
-			//System.out.println("Table : " + dTable);			
-			SchemaRow dRow = dTable.getRow(rowNum);
-			while(dRow != null) {
-				//System.out.print("Row" + rowNum + ": ");				
-				int colNum = 0;
-				SchemaCell dCell = dRow.getCell(colNum);
-				boolean firstCell = true;
-				while(dCell != null) {
-					if(firstCell) firstCell = false; 
-					else System.out.print(", ");
-					String litVal = dCell.getValue();
-					litVal = processVarEx(litVal, dCell, "@value", null);							
-					System.out.print(litVal);
-					colNum++;
-					dCell = dRow.getCell(colNum);
-				}
-				System.out.println();
-				rowNum++;
-				dRow = dTable.getRow(rowNum);
-			}			
+	/**
+	 * Dump a schema table data into CSV format. 
+	 * @param dTable
+	 * @param rowNum number of row to start getting table data out.
+	 * @return int the next row number to be processed. 
+	 */
+	public static int schemaTable2Csv(SchemaTable dTable, int rowNum) {
+		//System.out.println("Table : " + dTable);			
+		SchemaRow dRow = dTable.getRow(rowNum);
+		while(dRow != null) {
+			//System.out.print("Row" + rowNum + ": ");				
+			int colNum = 0;
+			SchemaCell dCell = dRow.getCell(colNum);
+			boolean firstCell = true;
+			while(dCell != null) {
+				if(firstCell) firstCell = false; 
+				else System.out.print(", ");
+				String litVal = dCell.getValue();
+				litVal = processVarEx(litVal, dCell, "@value", null);							
+				System.out.print(litVal);
+				colNum++;
+				dCell = dRow.getCell(colNum);
+			}
+			System.out.println();
+			rowNum++;
+			dRow = dTable.getRow(rowNum);
 		}
-	}		
+		return rowNum;
+	}
+	
+	/**
+	 * Dump a list of schema table data (List<SchemaTable>) into CSV format.
+	 * @param dataTables
+	 */
+	public static void schemaTableList2Csv(List<SchemaTable> dataTables) {		
+		int rowNum = 0;
+		for(SchemaTable dTable : dataTables) {			
+			rowNum = schemaTable2Csv(dTable, rowNum);
+		}
+	}
+	
+	/**
+	 * Dump a schema data into CSV format. 
+	 * @param dSchema
+	 */
+	public static void schemaData2Csv(Schema dSchema) {
+		int rowNum = 0;
+		Map<String, SchemaTable> dTables = dSchema.getSchemaTables();		
+		for(Map.Entry<String, SchemaTable> tableE : dTables.entrySet()) {
+			//String tableName = tableE.getKey();
+			SchemaTable dTable = tableE.getValue();			
+			rowNum = schemaTable2Csv(dTable, rowNum);
+		}
+	}
 	
 	/**
 	 * Generate RDF in Turtle format from mapped template.
