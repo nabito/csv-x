@@ -27,11 +27,26 @@ Features
 - Cross-Referencing
 - RDF Serialization (Turtle)
 - Template-based Transformation
+- Commandline Interface (CLI)
+
+Requirements
+---------------------------
+
+- JRE for CLI
+- JDK 8 and Maven for build
 
 Installation
 ------------
 
-Use maven:
+Clone or download the repository, and check out /dist for jar or pre-compile binary 'csvx'.
+
+```
+git clone https://github.com/nabito/csv-x
+```
+
+or 
+
+Use in code via Maven: (Coming Soon)
 
 ```xml
 <dependency>
@@ -50,14 +65,15 @@ There are mainly 3 ways you can use CSV-X:
 
 - Use it as a library in your project. [Javadoc](http://dadfha.com/csv-x/javadoc)
 
-- Commandline (*nix tested, requierd Java 8) Ex: csvx validate input.csv schema.csvx
+...The package is an eclipse project.
 
-History
--------
+- Commandline (currently only support Mac OS X, Linux, requierd JRE) 
 
-Once upon a time, there was a legendary file format, being well-known for its ease of use in data sharing, the CSV. However, after an invent of newly, more powerful and sophisticated format like XML, JSON, and RDF, everyone thought CSV was dead.. but guess what, the facts is, it's still alive and still being used widely in open data community due to its simplicity, compactness, and universally supports by 3rd party applications. 
-
-There's undeniable truth that we've to reconsider CSV from its root and make it great again! (Nah, I'm not "his" fan in anyway, but I can't let he hijacked this phrase). And this is how it begins, CSV-X, a schema language that will change everything since CSV. 
+Ex: 
+```
+csvx -h 
+csvx validate input.csv schema.csvx
+```
 
 Publication
 -----------
