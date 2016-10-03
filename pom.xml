@@ -15,6 +15,28 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<version>2.10.4</version>
+				<configuration>
+					
+					<additionalDependencies>
+						<additionalDependency>
+							<groupId>org.testng</groupId>
+							<artifactId>testng</artifactId>
+							<version>6.9.12</version>
+						</additionalDependency>
+					</additionalDependencies>
+					
+					<additionalparam>-Xdoclint:none</additionalparam>
+					
+<!-- 					<excludePackageNames>org.testng.*:org.testng-subpackages:org.testng.annotations:org.testng.annotations.*</excludePackageNames> -->
+<!-- 					<dependencySourceExcludes> -->
+<!-- 						<dependencySourceExclude>org.testng:*</dependencySourceExclude>						 -->
+<!-- 					</dependencySourceExcludes> -->
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
