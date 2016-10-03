@@ -46,11 +46,11 @@ Usage
 
 There are mainly 3 ways you can use CSV-X:
 
-- Try our online demo/playground at <http://dadfha.com/csv-x>
+- Try our online demo/playground at <http://dadfha.com/csv-x/>
 
 - Use it as a library in your project. [Javadoc](http://dadfha.com/csv-x/javadoc)
 
-- Commandline (*nix tested, requierd Java 8)
+- Commandline (*nix tested, requierd Java 8) Ex: csvx validate input.csv schema.csvx
 
 History
 -------
@@ -59,8 +59,8 @@ Once upon a time, there was a legendary file format, being well-known for its ea
 
 There's undeniable truth that we've to reconsider CSV from its root and make it great again! (Nah, I'm not "his" fan in anyway, but I can't let he hijacked this phrase). And this is how it begins, CSV-X, a schema language that will change everything since CSV. 
 
-Published Paper
----------------
+Publication
+-----------
 
 TBD
 
