@@ -1,10 +1,10 @@
 # CSV-X
-=====================================
+=======
 
 CSV-X is a schema language, model, and processing engine for non-uniform CSV enabling annotation, validation, cross-referencing, Linked Data, RDF serialization, and transformation to other formats.
 
 ## Motivation
-------------------
+-------------
 
 Current CSV parser or schema cannot deal with non-uniform CSV, the variations of any CSV deviated from RFC4180 "memo".
 
@@ -19,7 +19,7 @@ Imagine data in JSON or XML, though its hierarchical structure may help it impli
 In contrast, the data structure only need to be described once in CSV-X schema, together with description of encoded CSV value pattern, data can be transferred with less overhead, not yet mentioning other features like datatype validation, annotation, value cross-referencing, RDF serialization, template-based transformation, and Linked Data support. All has made CSV become a Uber-CSV, by using CSV-X. 
 
 ## Features
-------------------
+-----------
 
 - Parsing (Of course!) CSV, TSV, and SSV (Space-Separated Value)
 - Annotation, IRI support, thus Linked Data enabled
@@ -29,7 +29,7 @@ In contrast, the data structure only need to be described once in CSV-X schema, 
 - Template-based Transformation
 
 ## Installation
-------------------
+---------------
 
 Use maven:
 
@@ -42,7 +42,7 @@ Use maven:
 ```
 
 ## Usage
-------------------
+--------
 
 There are mainly 3 ways you can use CSV-X:
 
@@ -53,7 +53,7 @@ There are mainly 3 ways you can use CSV-X:
 - Commandline (*nix tested, requierd Java 8)
 
 ## History
-------------------
+----------
 
 Once upon a time, there was a legendary file format, being well-known for its ease of use in data sharing, the CSV. However, after an invent of newly, more powerful and sophisticated format like XML, JSON, and RDF, everyone thought CSV was dead.. but guess what, the facts is, it's still alive and still being used widely in open data community due to its simplicity, compactness, and universally supports by 3rd party applications. 
 
@@ -65,12 +65,12 @@ There's undeniable truth that we've to reconsider CSV from its root and make it 
 TBD
 
 ## Remark
-------------------
+---------
 
 This software is a prototype implementation in my research, in other word, it's not in a production quality stage, yet. Any helps in bugs report or, better, bug fixes, feature contribution are more than welcome.
 
 ## License
-------------------
+----------
 
 [CRAPL](http://matt.might.net/articles/crapl/)--the Community Research and Academic Programming License. 
 
