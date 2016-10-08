@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
+import com.dadfha.lod.LodHelper;
+
 /**
  * A CSV-X schema are metadata describing unique syntactic, structural, contextual, and semantic information 
  * for contents described in a CSV file. A data parsed w.r.t. a schema is regarded as a dataset. 
@@ -29,6 +31,11 @@ public class Schema {
 	 * CSV-X default namespace prefix.
 	 */
 	public static final String NS_PREFIX = "csvx";
+	
+	/**
+	 * User-defined namespace prefixes.
+	 */
+	private Map<String, String> prefixes = new HashMap<String, String>();
 	
 	/**
 	 * Any schema entity besides schema table declared in global scope, i.e. is not under any table schema entity, 
@@ -111,9 +118,9 @@ public class Schema {
 	private Map<String, Function<String, Object>> userFuncs = new HashMap<String, Function<String, Object>>();
 	
 	/**
-	 * RDF template collection.
+	 * Schema template collection.
 	 */
-	private Map<String, RdfTemplate> rdfTemplates = new HashMap<String,RdfTemplate>();
+	private Map<String, SchemaTemplate> sTemplates = new HashMap<String,SchemaTemplate>();
 	
 	/**
 	 * Set base (IRI) for the whole schema. Existing value will be overwritten.
@@ -132,9 +139,30 @@ public class Schema {
 	}
 	
 	/**
+	 * Get the collection for all namespace prefixes.
+	 * @return
+	 */
+	public Map<String, String> getNsPrefixes() {
+		return prefixes;
+	}
+	
+	/**
+	 * Add a collection of namespace prefixes.
+	 * Note that prefix value can either be an IRI or relative path.
+	 * @param prefixes
+	 */
+	public void addNsPrefixes(Map<String, String> prefixes) {
+		this.prefixes.putAll(prefixes);
+	}
+	
+	/**
 	 * Create data schema to hold actual data table(s).
 	 * Every attributes in original schema will be copied to this new data schema 
-	 * except for schema table which is expected to be expanded from original schema blueprint.    
+	 * except for schema table which is expected to be expanded from original schema blueprint.
+	 * 
+	 * IMP consider creating auto-cloning method in the future, so that whenever we add new
+	 * attribute, we'd not forget to make manual copy here. 
+	 *     
 	 * @param s
 	 * @return Schema
 	 */
@@ -143,7 +171,8 @@ public class Schema {
 		newSchema.properties.putAll(s.properties);
 		newSchema.targetCsvs.addAll(s.targetCsvs);
 		newSchema.userFuncs.putAll(s.userFuncs);
-		newSchema.rdfTemplates.putAll(s.rdfTemplates);
+		newSchema.sTemplates.putAll(s.sTemplates);
+		newSchema.prefixes.putAll(s.prefixes);
 		return newSchema;
 	}	
 
@@ -262,21 +291,21 @@ public class Schema {
 	}
 	
 	/**
-	 * Get an RDF template by name.
+	 * Get a template by name.
 	 * @param name
-	 * @return RdfTemplate or null if no template with the name exists.
+	 * @return SchemaTemplate or null if no template with the name exists.
 	 */
-	public RdfTemplate getRdfTemplate(String name) {
-		return (rdfTemplates.containsKey(name))? rdfTemplates.get(name) : null;
+	public SchemaTemplate getTemplate(String name) {
+		return (sTemplates.containsKey(name))? sTemplates.get(name) : null;
 	}
 	
 	/**
-	 * Add an RDF template to the schema. 
+	 * Add a schema template to the schema. 
 	 * Already existing template with the same name will be overwritten.
 	 * @param template
 	 */
-	public void addRdfTemplate(RdfTemplate template) {
-		rdfTemplates.put(template.getName(), template);
+	public void addTemplate(SchemaTemplate template) {
+		sTemplates.put(template.getName(), template);
 	}
 
 	/* (non-Javadoc)
@@ -290,29 +319,39 @@ public class Schema {
 	/**
 	 * Serialize into RDF Turtle format.
 	 * @return
+	 * @throws Exception 
 	 */
-	public String serializeTtl() {
+	public String serializeTtl() throws Exception {
 		StringBuilder ttl = new StringBuilder();
+		
+		// declare base & prefixes
+		String base = getBase();
+		if(base != null) {
+			assert(LodHelper.isURL(base)) : "@base must be in the IRI form.";
+			ttl.append("BASE <" + base + ">" + System.lineSeparator());
+		}
+		for(Map.Entry<String, String> e : getNsPrefixes().entrySet()) {
+			String prefixName = e.getKey();
+			String prefixIri = e.getValue();
+			ttl.append("PREFIX " + prefixName + ": <" + prefixIri + ">" + System.lineSeparator());
+		}
+		
 		for(Map.Entry<String, SchemaTable> tableE : sTables.entrySet()) {
 			String tableName = tableE.getKey();
-			SchemaTable sTable = tableE.getValue();
-			
-			ttl.append(sTable.getTtl());
+			SchemaTable sTable = tableE.getValue();			
+			ttl.append(sTable.getTtl());			
 			
 			// for every row
 			for(Map.Entry<Integer, SchemaRow> rowE : sTable.getSchemaRows().entrySet()) {
 				Integer rowNum = rowE.getKey();
-				SchemaRow sRow = rowE.getValue();
-				
+				SchemaRow sRow = rowE.getValue();				
 				ttl.append(sRow.getTtl());
 				
 				// for every cell
 				for(Map.Entry<Integer, SchemaCell> cellE : sRow.getSchemaCells().entrySet()) {
 					Integer colNum = cellE.getKey();
 					SchemaCell sCell = cellE.getValue();
-					
 					ttl.append(sCell.getTtl());
-					
 				}
 			}
 			
@@ -320,24 +359,20 @@ public class Schema {
 			for(Map.Entry<String, SchemaProperty> propE : sTable.getSchemaProperties().entrySet()) {
 				String propName = propE.getKey();
 				SchemaProperty sProp = propE.getValue();
-				
 				ttl.append(sProp.getTtl());
-				
-				// TODO add statememt for which table it's belonged to for Schema Property and Schema Data
-				// TODO resolve {var} when serialize too (See CSV dump)
-				// TODO recheck handling of @base and prefix properly
-				
 			}
 			
 			// for every schema data
 			for(Map.Entry<String, SchemaData> dataE : sTable.getSchemaDataMap().entrySet()) {
 				String dataName = dataE.getKey();
 				SchemaData sData = dataE.getValue();
-				
 				ttl.append(sData.getTtl());
 			}
 			
-		}
+		} // end for each schema table
+		
+		// TODO in v1.x also serialize each @template
+		
 		return ttl.toString();
 	}
 	

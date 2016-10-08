@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -26,6 +27,7 @@ import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.apache.logging.log4j.core.config.Configurator;
 
 import com.dadfha.lod.JSONMinify;
+import com.dadfha.lod.LodHelper;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.univocity.parsers.common.AbstractParser;
 import com.univocity.parsers.csv.CsvParser;
@@ -35,7 +37,12 @@ import com.univocity.parsers.tsv.TsvParserSettings;
 
 public class SchemaProcessor {	
 	
-	private final Logger logger;
+	static {
+		// init log4j config
+		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
+	}
+	
+	private static final Logger logger = LogManager.getLogger();
 	
 	/**
 	 * Meta property for CSV delimiter.
@@ -81,7 +88,12 @@ public class SchemaProcessor {
 	 * If '@base' not defined in a schema, it'll be default to empty string. 
 	 * 
 	 */
-	public static final String METAPROP_BASE = "@base";	
+	public static final String METAPROP_BASE = "@base";
+	
+	/**
+	 * Meta property for pairs collection of namespace prefixes. 
+	 */
+	public static final String METAPROP_PREFIXES = "@prefixes";
 	
 	/**
 	 * Meta property for schema entity's ID. (Optional, default to CSV-X filename)
@@ -225,11 +237,7 @@ public class SchemaProcessor {
 	 * The Constructor.
 	 * @param disableLogger
 	 */
-	public SchemaProcessor(boolean disableLogger) {
-		// init log4j config
-		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
-		logger = LogManager.getLogger();
-				
+	public SchemaProcessor(boolean disableLogger) {				
 		if(disableLogger) {
 			Configurator.setLevel("org.apache.logging.log4j", Level.OFF);			 
 			// You can also set the root logger:
@@ -243,9 +251,6 @@ public class SchemaProcessor {
 	 * @param logLevel
 	 */
 	public SchemaProcessor(Level logLevel) {
-		// init log4j config
-		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());
-		logger = LogManager.getLogger();
 		Configurator.setRootLevel(logLevel);
 	}
 
@@ -1088,8 +1093,16 @@ public class SchemaProcessor {
             String key = e.getKey();
             switch(key) {
             case METAPROP_BASE:
-                s.addProperty(METAPROP_BASE, (String) e.getValue()); 
+            	String base = (String) e.getValue();
+            	// @base must always be in IRI form
+        		if(!LodHelper.isURL(base)) { 
+        			throw new IllegalArgumentException("@base must always be in IRI form. Found: " + base);
+        		}            	
+                s.addProperty(METAPROP_BASE, base); 
                 break;
+            case METAPROP_PREFIXES:
+            	s.addNsPrefixes((Map<String, String>) e.getValue());
+            	break;
             case METAPROP_ID:
                 s.addProperty(METAPROP_ID, (String) e.getValue());
                 break;
@@ -1228,7 +1241,7 @@ public class SchemaProcessor {
 	}
 	
 	@SuppressWarnings("unchecked")
-	private void processTemplateDef(Map<String, Object> tmpProps, RdfTemplate tmp) {
+	private void processTemplateDef(Map<String, Object> tmpProps, SchemaTemplate tmp) {
 		for(Entry<String, Object> e : tmpProps.entrySet()) {
 			String key = e.getKey();
 			Object val = e.getValue();			
@@ -1433,9 +1446,9 @@ public class SchemaProcessor {
 		String templateName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
 		templateName = templateName.replaceAll("\\s+", ""); // remove whitespaces		
 		if(templateName.equals("")) throw new RuntimeException("Template name must not be empty string.");
-		RdfTemplate tmp = new RdfTemplate(templateName, schema); 
+		SchemaTemplate tmp = new SchemaTemplate(templateName, schema); 
 		processTemplateDef(templateProperties, tmp);
-		schema.addRdfTemplate(tmp);
+		schema.addTemplate(tmp);
 	}
 	
 	private void processDataMarker(String marker, Map<String, Object> dataProperties, SchemaTable sTable) {
@@ -1493,8 +1506,8 @@ public class SchemaProcessor {
 			case "@value":
 				cell.setValue(e.getValue());
 				break;
-			case SchemaEntity.METAPROP_MAP_RDF_TEMPLATE:
-				cell.setRdfTemplateMapping(e.getValue()); 
+			case SchemaEntity.METAPROP_MAP_TEMPLATE:
+				cell.setTemplateMapping(e.getValue()); 
 				break;
 			default:
 				if(propName.startsWith("@")) {
@@ -1790,11 +1803,11 @@ public class SchemaProcessor {
 	    	if(varName.startsWith("@this")) { // check if it's a meta-reference
 	    		varSe = se;
 	    	} else if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
-	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() property name: " + propName);
-	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() process literal: " + literal);
-	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema entity: " + se);
-	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() schema table: " + st);
-	    		System.err.println("DEBUG: @SchemaProcessor::processVarEx() varMap: " + st.getVarMap().toString());
+	    		logger.debug("property name: {}", propName);
+	    		logger.debug("process literal: {}", literal);
+	    		logger.debug("schema entity: {}", se);
+	    		logger.debug("schema table: {}", st);
+	    		logger.debug("varMap: {}", st.getVarMap());
 	    		throw new RuntimeException("Reference to unknown variable: " + varName + " in the scope of schema table: " + st);
 	   		} else {	   			
 		    	// Get mapped schema entity object
@@ -1824,7 +1837,8 @@ public class SchemaProcessor {
 	    	propVal = processVarEx(propVal, varSe, varProp, rrs);
 	    	
     		// replace {var} with its ultimate value
-			m.appendReplacement(sb, propVal);	    	  	
+	    	propVal = propVal.replace("$", "\\$"); // must escape any $ sign
+			m.appendReplacement(sb, propVal); //logger.trace(propVal);
 	    	
 	    	m.appendTail(sb);
 	    	retVal = sb.toString();
@@ -2023,7 +2037,7 @@ public class SchemaProcessor {
 			//System.out.println(dTable);
 			//System.out.println(dTable.getVarMap());			
 			
-			if(dTable.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dTable));
+			if(dTable.hasTemplateMapping()) System.out.println(applyRdfTemplate(dTable));
 			
 			// for every row
 			for(Map.Entry<Integer, SchemaRow> rowE : dTable.getSchemaRows().entrySet()) {
@@ -2032,7 +2046,7 @@ public class SchemaProcessor {
 				
 				//System.out.println(dRow);				
 				
-				if(dRow.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dRow));
+				if(dRow.hasTemplateMapping()) System.out.println(applyRdfTemplate(dRow));
 				
 				// for every cell
 				for(Map.Entry<Integer, SchemaCell> cellE : dRow.getSchemaCells().entrySet()) {
@@ -2042,7 +2056,7 @@ public class SchemaProcessor {
 					//System.out.print(dCell);
 					assert(dCell.getSchemaTable() == dTable) : "dCell : " + dCell + " has inconsistent parent table.";					
 					
-					if(dCell.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(dCell));
+					if(dCell.hasTemplateMapping()) System.out.println(applyRdfTemplate(dCell));
 					
 				}
 			}
@@ -2053,7 +2067,7 @@ public class SchemaProcessor {
 				SchemaProperty sProp = propE.getValue();
 				
 				//System.out.println(sProp);
-				if(sProp.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(sProp));
+				if(sProp.hasTemplateMapping()) System.out.println(applyRdfTemplate(sProp));
 			}
 			
 			// for every schema data
@@ -2062,7 +2076,7 @@ public class SchemaProcessor {
 				SchemaData sData = dataE.getValue();
 				
 				//System.out.println(sData);
-				if(sData.hasRdfTemplateMapping()) System.out.println(applyRdfTemplate(sData));
+				if(sData.hasTemplateMapping()) System.out.println(applyRdfTemplate(sData));
 			}
 			
 		}		
@@ -2072,12 +2086,12 @@ public class SchemaProcessor {
 	public static String applyRdfTemplate(SchemaEntity se) {
 		Schema s = se.getParentSchema();
 		
-		String mapping = se.getRdfTemplateMapping();
+		String mapping = se.getTemplateMapping();
 		if(mapping == null) throw new RuntimeException("The schema entity '" + se + "' doesn't have RDF mapping.");
 		
 		// extract template name from mapping expression
 		String tmpName = mapping.substring(0, mapping.indexOf("("));
-		RdfTemplate tmp = s.getRdfTemplate(tmpName);
+		SchemaTemplate tmp = s.getTemplate(tmpName);
 		if(tmp == null) throw new RuntimeException("Referring to undefined template name: " + tmpName);
 		
 		// then extract the parameter(s)		
@@ -2088,7 +2102,7 @@ public class SchemaProcessor {
 		CsvParser parser = new CsvParser(settings);
 		String[] params = parser.parseLine(mapping.substring(mapping.indexOf("(") + 1, mapping.length() - 2));
 		
-		//System.out.println("Before: " + Arrays.toString(params));	
+		logger.debug("Before: " + Arrays.toString(params));	
 		
 		// get template parameter(s) list & check number of parameter
 		List<String> tmpParams = tmp.getParameterList();
@@ -2100,7 +2114,7 @@ public class SchemaProcessor {
 		//System.out.println(ttl);
 
 		for(int i = 0; i < params.length; i++) {
-			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_RDF_TEMPLATE, null);	
+			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_TEMPLATE, null);	
 			ttl = ttl.replaceAll("\\{" + tmpParams.get(i) + "\\}", params[i]);
 		}
 		//System.out.println("After: " + Arrays.toString(params));		

@@ -15,7 +15,7 @@ import com.beust.jcommander.Parameters;
 public class CsvxCmd {	
 	
 	public static final String programName = "csvx";
-	public static final String version = "0.9.6";
+	public static final String version = "0.9.7";
 
 	//@Parameter(description = "input csv and csvx path respectively.", arity = 2)
 	//private List<String> files = new ArrayList<>();
@@ -116,7 +116,12 @@ public class CsvxCmd {
 				csvPath = sCmd.files.get(0);
 				csvxPath = sCmd.files.get(1);									
 				dSchema = sp.getDataSchema(csvPath, null, new String[] {csvxPath});
-				JCommander.getConsole().println(dSchema.serializeTtl());
+				try {
+					JCommander.getConsole().println(dSchema.serializeTtl());
+				} catch (Exception e) {
+					JCommander.getConsole().println("[Error] There's a problem serializing: ");
+					e.printStackTrace();
+				}
 				break;
 			case "transform":
 				csvPath = tCmd.files.get(0);

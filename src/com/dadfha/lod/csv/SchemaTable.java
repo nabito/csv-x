@@ -586,6 +586,7 @@ public class SchemaTable extends SchemaEntity {
 					Byte.parseByte(val);
 					break;
 				case "QName":
+				case "NOTATION":
 					new QNameDV().getActualValue(val, null);
 					break;
 				case "dateTime":
@@ -637,9 +638,7 @@ public class SchemaTable extends SchemaEntity {
 					break;
 				case "NCName":
 					new EntityDV().getActualValue(val, null);
-					break;			
-//				case "NOTATION":
-//					break;				
+					break;					
 				default:
 					logger.error("Unsupported datatype: {}", datatype);
 					throw new Exception("CSV-X unsupported datatype: " + datatype);

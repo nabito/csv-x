@@ -1,11 +1,18 @@
 package com.dadfha.lod.csv;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.xerces.dom.ParentNode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.dadfha.lod.LodHelper;
 
 public abstract class SchemaEntity {
+	
+	private static final Logger logger = LogManager.getLogger();
 
 	/**
 	 * The name given for a schema entity. Must be unique within the scope of
@@ -104,9 +111,9 @@ public abstract class SchemaEntity {
 	/**
 	 * The meta property for RDF template mapping. 
 	 */
-	public static final String METAPROP_MAP_RDF_TEMPLATE = "@mapTemplate";
+	public static final String METAPROP_MAP_TEMPLATE = "@mapTemplate";
 	
-	public static final String METAPROP_MAP_RDF_TEMPLATE_PRED = Schema.NS_PREFIX + ":mapTemplate";
+	public static final String METAPROP_MAP_TEMPLATE_PRED = Schema.NS_PREFIX + ":mapTemplate";
 
 	/**
 	 * Schema enitity's properties. HashMap storing mapping between property's
@@ -334,27 +341,27 @@ public abstract class SchemaEntity {
 	}
 	
 	/**
-	 * Check if the schema entity has an RDF template mapping or not.
+	 * Check if the schema entity has a template mapping or not.
 	 * @return boolean
 	 */
-	public boolean hasRdfTemplateMapping() {
-		return properties.containsKey(METAPROP_MAP_RDF_TEMPLATE);
+	public boolean hasTemplateMapping() {
+		return properties.containsKey(METAPROP_MAP_TEMPLATE);
 	}
 	
 	/**
-	 * Get the mapping with an RDF template with this schema entity.
+	 * Get the mapping with a template with this schema entity.
 	 * @return String or null if there's no mapping.
 	 */
-	public String getRdfTemplateMapping() {
-		return getProperty(METAPROP_MAP_RDF_TEMPLATE);
+	public String getTemplateMapping() {
+		return getProperty(METAPROP_MAP_TEMPLATE);
 	}
 	
 	/**
-	 * Set the mapping with an RDF template with this schema entity.  
+	 * Set the mapping with a template with this schema entity.  
 	 * @param mapping
 	 */
-	public void setRdfTemplateMapping(String mapping) {
-		addProperty(METAPROP_MAP_RDF_TEMPLATE, mapping);
+	public void setTemplateMapping(String mapping) {
+		addProperty(METAPROP_MAP_TEMPLATE, mapping);
 	}
 
 	/**
@@ -369,19 +376,21 @@ public abstract class SchemaEntity {
 	/**
 	 * Serialize to RDF Turtle format.
 	 * @return String
+	 * @throws Exception 
 	 */
-	public String getTtl() {
+	public String getTtl() throws Exception {
 		
 		StringBuilder sb = new StringBuilder();		
-		String base, subject, predicate, object;		
-		Schema parentSchema = getParentSchema(); 
+		String subject = null, predicate = null, object = null;		
+		Schema parentSchema = getParentSchema();
+		SchemaTable parentTable = getSchemaTable();		
+		// for schema entity that isn't scoped in a schema table, e.g. schema template, default table is referred.
+		if(parentTable == null) parentTable = parentSchema.getDefaultTable();
 		
-		base = parentSchema.getBase();
-		if(base == null) base = "";  
-		
-		String id = getId();
-		if(id == null) subject = base + getRefEx(); // default id for every entity is its SERE
-		else subject = base + id; // use the id for triple subject if one is defined
+		// populate main subject
+		String id = getId(); // use the id for triple subject if one is defined
+		if(id == null) subject = getRefEx(); // default id for every entity is its SERE
+		else subject = id;
 				
 		// check schema entity type, denote the type in ttl too
 		predicate = "rdf:type";
@@ -390,23 +399,28 @@ public abstract class SchemaEntity {
 			object = SchemaTable.CLASS_IRI;
 		} else if(objCls.equals(SchemaRow.class)) {
 			object = SchemaRow.CLASS_IRI;
+		} else if(objCls.equals(SchemaColumn.class)) {
+			object = SchemaColumn.CLASS_IRI;			
 		} else if(objCls.equals(SchemaCell.class)) {
 			object = SchemaCell.CLASS_IRI;
 		} else if(objCls.equals(SchemaProperty.class)) {
 			object = SchemaProperty.CLASS_IRI;
 		} else if(objCls.equals(SchemaData.class)) {
 			object = SchemaData.CLASS_IRI;
+		} else if(objCls.equals(SchemaTemplate.class)) {
+			object = SchemaTemplate.CLASS_IRI;			
 		} else {
 			throw new RuntimeException("Unrecognized Schema Entity type. Should never got here.");
 		}
 		
 		// add node type annotation
-		sb.append(subject + " " + predicate + " " + object + " ." + System.lineSeparator());
+		sb.append(LodHelper.buildTtlTriple(subject, predicate, object, true));
 		
 		// for each property inside a schema entity
 		for(Map.Entry<String, String> e : properties.entrySet()) {
 			String propName = e.getKey();
 			String propVal = e.getValue();
+			String datatype = null, langCode = null;			
 			
 			switch(propName) {
 			case METAPROP_DATANAME:
@@ -414,16 +428,21 @@ public abstract class SchemaEntity {
 				break;
 			case METAPROP_DATATYPE:
 				predicate = METAPROP_DATATYPE_PRED;
+				if(propVal.indexOf(':') == -1) propVal = "xsd:" + propVal; 
 				break;
-			case METAPROP_ID: // FIXME may be this one is already used as subject
+			case METAPROP_ID:
 				predicate = METAPROP_ID_PRED;
+				datatype = "xsd:anyURI";
 				break;
-			case METAPROP_LANG: // FIXME should follow RDF i18n literal structure
+			case METAPROP_LANG:
 				predicate = METAPROP_LANG_PRED;
 				break;
 			case METAPROP_MAPTYPE:
 				predicate = METAPROP_MAPTYPE_PRED;
 				break;		
+			case METAPROP_MAP_TEMPLATE:
+				predicate = METAPROP_MAP_TEMPLATE_PRED;
+				break;						
 			case METAPROP_NAME:
 				predicate = METAPROP_NAME_PRED;
 				break;
@@ -436,30 +455,39 @@ public abstract class SchemaEntity {
 			case METAPROP_TBLNAME:
 				predicate = METAPROP_TBLNAME_PRED;
 				break;			
-			case METAPROP_VALUE:
+			case METAPROP_VALUE:				
 				predicate = METAPROP_VALUE_PRED;
-				break;							
-			default: 		
-				// FIXME it should be predicate = parent schema entity IRI + propName
-				// or just base + propName in case it's a property at root schema level.
-				// user-defined property will become predicate as is, any property with same name is the same for v1.x
-				predicate = base + propName;
-				
-				// check if there's schema property definition defined
-				SchemaProperty sProp = getSchemaTable().getSchemaProperty(propName); 
+				datatype = getDatatype();
+				if(getLang() != null) langCode = getLang();
+				else langCode = (String) parentSchema.getProperty(METAPROP_LANG);
+				break;
+			default: 					
+				predicate = getRefEx() + "/" + propName;
+				langCode = (String) parentSchema.getProperty(METAPROP_LANG);				
+				// link with schema property definition if one is defined in parent table
+				assert(parentTable != null);
+				SchemaProperty sProp = parentTable.getSchemaProperty(propName); 
 				if(sProp != null) {					
 					// declare this property type
 					String propId = sProp.getProperty(METAPROP_ID);
-					if(propId != null) sb.append(predicate + " rdf:type " + propId + " ." + System.lineSeparator());
-					else sb.append(predicate + " rdf:type " + base + sProp.getRefEx() + " ." + System.lineSeparator());
+					if(propId != null) {						
+						sb.append(LodHelper.buildTtlTriple(predicate, "rdf:type", propId));
+					} else {					
+						sb.append(LodHelper.buildTtlTriple(predicate, "rdf:type", sProp.getRefEx()));
+					}					
+					datatype = sProp.getDatatype();
+					langCode = sProp.getLang();
 				}
 				break;
-			} // end property switch case
+			} // end property switch case	
 			
-			// add statement for each property-value pair inside this schema entity
-			// FIXME need checking if propVal is IRI or literal (must type and i18n properly for latter case)
-			object = propVal;
-			sb.append(subject + " " + predicate + " " + object + " ." + System.lineSeparator()); 
+			// create object tuple, resolve {var} expression, if any
+			object = SchemaProcessor.processVarEx(propVal, this, propName, null);			
+			// TODO in v1.x, must recall original datatype of value in CSV-X schema
+			//this.getProperty(propName)
+			
+			// add statement(s) for each property-value pair inside this schema entity
+			sb.append(LodHelper.buildTtlTriple(subject, predicate, object, datatype, langCode, true)); 
 			
 		} // end for each property
 		
