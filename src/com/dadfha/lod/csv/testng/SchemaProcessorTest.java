@@ -15,10 +15,28 @@ public class SchemaProcessorTest {
 	public void beforeMethod() {
 		ConfigurationFactory.setConfigurationFactory(new Log4jConfig());		
 	}
+	
+	@Test
+	public void testApplyRdfTemplateWithBase() throws Exception {	
+		SchemaProcessor sp = new SchemaProcessor(true);
+		String[] schemaPaths = {"data/test_template_with_base.csvx"};
+		Schema dSchema = sp.getDataSchema("data/test_template.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/test_template.csv");	
+		SchemaProcessor.generateRdfFromTemplate(dSchema);
+	}	
+	
+	@Test
+	public void testApplyRdfTemplate() throws Exception {	
+		SchemaProcessor sp = new SchemaProcessor(true);
+		String[] schemaPaths = {"data/test_template.csvx"};
+		Schema dSchema = sp.getDataSchema("data/test_template.csv", null, schemaPaths);
+		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/test_template.csv");	
+		SchemaProcessor.generateRdfFromTemplate(dSchema);
+	}
 
 	@Test
 	public void airP() throws Exception {
-		SchemaProcessor sp = new SchemaProcessor(true);
+		SchemaProcessor sp = new SchemaProcessor();
 		String[] schemaPaths = {"data/airp.csvx"}; 		
 		Schema dSchema = sp.getDataSchema("data/airp.csv", null, schemaPaths);
 		if(dSchema == null) throw new RuntimeException("Error Processing: " + "data/airp.csv");		

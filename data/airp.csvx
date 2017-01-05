@@ -1,5 +1,4 @@
 {
-
 	// CSV-X native properties
 	"@base" : "http://dadfha.com/csv/", // the base for all @id value (Optional)
     "@prefixes" :
@@ -85,8 +84,10 @@
 	
 		"@cell[0,2]" : 
 		{
-			"@name" : "msrYrMth", // (variable) name of the entity (cell), should conform to QNAME  
-			"@regex" : "(平成)(\\d+)(年)(\\d+)(月)"  // Japanese year month format. Ex.平成27年1月
+			"@name" : "msrYrMth", // (variable) name of the entity (cell)
+			"@regex" : "(\\S+\\D)(\\d+)年(\\d+)月",  // Japanese year month format. Ex.平成27年1月
+			"year" : "jp2westYearConv('{$1}', '{$2}')", // TODO calling JS function (may be should be {func()}? to differentiate it from other pattern?) or they've to escape parenthesis using ()
+			"month" : "{$3}" // refer to capturing group in regex pattern. this'll be processed at {var} resolve time.
 		},
 	
 		"@cell[1,1]" : 
@@ -138,145 +139,169 @@
 		"@cell[2,1]" : 
 		{
 			"@name" : "msrHr1",
-			"@regex" : "1時"
+			"@regex" : "(1)時",
+			"hour" : "{$1}"
 		},	
 		
 		"@cell[2,2]" : 
 		{
 			"@name" : "msrHr2",
-			"@regex" : "2時"
+			"@regex" : "(2)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,3]" : 
 		{
 			"@name" : "msrHr3",
-			"@regex" : "3時"
+			"@regex" : "(3)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,4]" : 
 		{
 			"@name" : "msrHr4",
-			"@regex" : "4時"
+			"@regex" : "(4)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,5]" : 
 		{
 			"@name" : "msrHr5",
-			"@regex" : "5時"
+			"@regex" : "(5)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,6]" : 
 		{
 			"@name" : "msrHr6",
-			"@regex" : "6時"
+			"@regex" : "(6)時",
+			"hour" : "{$1}"
 		},	
 		
 		"@cell[2,7]" : 
 		{
 			"@name" : "msrHr7",
-			"@regex" : "7時"
+			"@regex" : "(7)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,8]" : 
 		{
 			"@name" : "msrHr8",
-			"@regex" : "8時"
+			"@regex" : "(8)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,9]" : 
 		{
 			"@name" : "msrHr9",
-			"@regex" : "9時"
+			"@regex" : "(9)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,10]" : 
 		{
 			"@name" : "msrHr10",
-			"@regex" : "10時"
+			"@regex" : "(10)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,11]" : 
 		{
 			"@name" : "msrHr11",
-			"@regex" : "11時"
+			"@regex" : "(11)時",
+			"hour" : "{$1}"
 		},	
 		
 		"@cell[2,12]" : 
 		{
 			"@name" : "msrHr12",
-			"@regex" : "12時"
+			"@regex" : "(12)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,13]" : 
 		{
 			"@name" : "msrHr13",
-			"@regex" : "13時"
+			"@regex" : "(13)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,14]" : 
 		{
 			"@name" : "msrHr14",
-			"@regex" : "14時"
+			"@regex" : "(14)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,15]" : 
 		{
 			"@name" : "msrHr15",
-			"@regex" : "15時"
+			"@regex" : "(15)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,16]" : 
 		{
 			"@name" : "msrHr16",
-			"@regex" : "16時"
+			"@regex" : "(16)時",
+			"hour" : "{$1}"
 		},	
 		
 		"@cell[2,17]" : 
 		{
 			"@name" : "msrHr17",
-			"@regex" : "17時"
+			"@regex" : "(17)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,18]" : 
 		{
 			"@name" : "msrHr18",
-			"@regex" : "18時"
+			"@regex" : "(18)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,19]" : 
 		{
 			"@name" : "msrHr19",
-			"@regex" : "19時"
+			"@regex" : "(19)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,20]" : 
 		{
 			"@name" : "msrHr20",
-			"@regex" : "20時"
+			"@regex" : "(20)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,21]" : 
 		{
 			"@name" : "msrHr21",
-			"@regex" : "21時"
+			"@regex" : "(21)時",
+			"hour" : "{$1}"
 		},	
 		
 		"@cell[2,22]" : 
 		{
 			"@name" : "msrHr22",
-			"@regex" : "22時"
+			"@regex" : "(22)時",
+			"hour" : "{$1}"
 		},	
 	
 		"@cell[2,23]" : 
 		{
 			"@name" : "msrHr23",
-			"@regex" : "23時"
+			"@regex" : "(23)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,24]" : 
 		{
 			"@name" : "msrHr24",
-			"@regex" : "24時"
+			"@regex" : "(24)時",
+			"hour" : "{$1}"
 		},
 	
 		"@cell[2,25]" : 
@@ -312,13 +337,33 @@
 		"@cell[3,0]" : 
 		{
 			"@name" : "msrDay{subrow}",
-			"@regex" : "(\\d+)(日)"
+			"@regex" : "(\\d+)(日)",
+			"day" : "{$1}"
 		},
 
 		"@data[sensor]" : 
 		{
 			"@name" : "sensor",
 			"name" : "{msrProp}Sensor"
+			// createSensorDesc("@params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],)
+		},
+
+		"@data[quantity]" :
+		{
+			// IMP introduce inline function so user can manipulate the data more dynamically!
+			// Ex:
+			// "@func[retVal]" : 	"
+			//						var x = {value}
+			//						if(x < 0) x = -1
+			//						return x
+			//					 	"
+			"@mapTemplate" : "defineQnt('{msrProp}Value', '{msrProp}Quantity', 'qudt:ChemistryQuantityKind', 'ppb')"
+			// QuantityKind can be more specific by using individual in QUDT vocabs, but in this case we've no information from the data itself.
+		},
+
+		"@data[unit]" :
+		{
+			"@mapTemplate" : "defineUnit('ppb', 'qudt:DimensionLessUnit')"
 		},
 	
 		// the meta-reference must be in {@this.@value} form to prevent name collision when we want to access other user-defined property which may happen to have the same name with a variable.
@@ -326,11 +371,12 @@
 		{
 			"@name" : "msrDataAtSubrow{subrow}Col{col}",
 			//"@mapType" : "Datapoint", // by declaring a type for a cell, we're implicitly saying that this cell's properties will be mapped to target data model
-			"@mapTemplate" : "createSensorObs('{sensor.name}', '{msrProp}', 'Atmosphere', '{@this.@value}', '{msrYrMth}{@this.hasMsrDay}{@this.hasMsrHour}')",
+
+			"@mapTemplate" : "createSensorObs('{row}-{col}', '{sensor.name}', '{msrProp}', 'Atmosphere', '{@this.@value}', '{msrYrMth.year}', '{msrYrMth.month}', '{@this.hasMsrDay}', '{@this.hasMsrHour}', '{msrProp}Value')",															
 			"title_en" : "{msrProp} property measurement value at date/time: {msrYrMth}{msrDay{subrow}}/{msrHr{col}} at location: {msrLoc}",
 			"@datatype" : "integer",
-			"hasMsrDay" : "{msrDay{subrow}}",
-			"hasMsrHour" : "{msrHr{col}}", // former "@cell[2,{col}]",
+			"hasMsrDay" : "{msrDay{subrow}.day}",
+			"hasMsrHour" : "{msrHr{col}.hour}", // former "@cell[2,{col}]",
 			"hasMsrVal" : "{@this}" // this is the compact way to associate this cell's value with a property of datapoint, as referring to just a schema entity will be resolved to its @value property.
 		},
 	
@@ -523,7 +569,9 @@
 		"@cell[0,2]" : 
 		{
 			"@name" : "msrYrMth_wind",
-			"@regex" : "(平成)(\\d+)(年)(\\d+)(月)"
+			"@regex" : "(\\S+\\D)(\\d+)年(\\d+)月",
+			"year" : "{$2}",
+			"month" : "{$3}" 			
 		},
 		
 		"@cell[1,1]" :
@@ -562,149 +610,150 @@
 
 		"@cell[1,7]" : {},		
 		
-		"@cell[2,1]" :
+		"@cell[2,1-24]" :
 		{
 			"@name" : "msrHr{col}_wind", // {row},{col},{subrow} are special context vars. var has to be resolved at csv parsing time to declare var.
-			"@regex" : "1時"
+			"@regex" : "(\\d+)時",
+			"hour" : "{$1}"
 		},
 		
-		"@cell[2,2]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "2時"
-		},
+		// "@cell[2,2]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "2時"
+		// },
 		
-		"@cell[2,3]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "3時"
-		},		
+		// "@cell[2,3]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "3時"
+		// },		
 		
-		"@cell[2,4]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "4時"
-		},		
+		// "@cell[2,4]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "4時"
+		// },		
 		
-		"@cell[2,5]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "5時"
-		},		
+		// "@cell[2,5]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "5時"
+		// },		
 		
-		"@cell[2,6]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "6時"
-		},		
+		// "@cell[2,6]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "6時"
+		// },		
 		
-		"@cell[2,7]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "7時"
-		},		
+		// "@cell[2,7]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "7時"
+		// },		
 		
-		"@cell[2,8]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "8時"
-		},		
+		// "@cell[2,8]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "8時"
+		// },		
 		
-		"@cell[2,9]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "9時"
-		},		
+		// "@cell[2,9]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "9時"
+		// },		
 		
-		"@cell[2,10]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "10時"
-		},		
+		// "@cell[2,10]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "10時"
+		// },		
 		
-		"@cell[2,11]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "11時"
-		},		
+		// "@cell[2,11]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "11時"
+		// },		
 		
-		"@cell[2,12]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "12時"
-		},		
+		// "@cell[2,12]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "12時"
+		// },		
 		
-		"@cell[2,13]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "13時"
-		},		
+		// "@cell[2,13]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "13時"
+		// },		
 		
-		"@cell[2,14]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "14時"
-		},		
+		// "@cell[2,14]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "14時"
+		// },		
 		
-		"@cell[2,15]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "15時"
-		},		
+		// "@cell[2,15]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "15時"
+		// },		
 		
-		"@cell[2,16]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "16時"
-		},		
+		// "@cell[2,16]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "16時"
+		// },		
 		
-		"@cell[2,17]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "17時"
-		},		
+		// "@cell[2,17]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "17時"
+		// },		
 		
-		"@cell[2,18]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "18時"
-		},		
+		// "@cell[2,18]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "18時"
+		// },		
 		
-		"@cell[2,19]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "19時"
-		},		
+		// "@cell[2,19]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "19時"
+		// },		
 		
-		"@cell[2,20]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "20時"
-		},		
+		// "@cell[2,20]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "20時"
+		// },		
 		
-		"@cell[2,21]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "21時"
-		},		
+		// "@cell[2,21]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "21時"
+		// },		
 		
-		"@cell[2,22]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "22時"
-		},		
+		// "@cell[2,22]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "22時"
+		// },		
 		
-		"@cell[2,23]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "23時"
-		},		
+		// "@cell[2,23]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "23時"
+		// },		
 		
-		"@cell[2,24]" :
-		{
-			"@name" : "msrHr{col}_wind",
-			"@regex" : "24時"
-		},	
+		// "@cell[2,24]" :
+		// {
+		// 	"@name" : "msrHr{col}_wind",
+		// 	"@regex" : "24時"
+		// },	
 		
 		"@cell[2,25]" :
 		{
@@ -742,7 +791,8 @@
 		"@cell[3,0]" :
 		{
 			"@name" : "msrDay{subrow}_wind",  
-			"@regex" : "(\\d+)(日)"
+			"@regex" : "(\\d+)(日)",
+			"day" : "{$1}"
 		},
 		
 		"@cell[3,1-24]" :
@@ -960,92 +1010,162 @@
     {
     	"@ttl" :
 			"
-            # the meta-directives shoukd be defined as per schema
+            # the meta-directives should be defined as per schema
+            @base <http://www.dadfha.com/ont/ex> .
 
             @prefix : <http://www.dadfha.com/ont/ex#> .
+
+            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+            @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
             @prefix ssn: <http://purl.oclc.org/NET/ssnx/ssn> .
             @prefix DUL: <http://www.ontologydesignpatterns.org/ont/dul/DUL.owl#> .
-            @prefix qu <http://www.omgwiki.org/SysML-QUDV-SI.owl#> .
-            @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-            @base <http://www.dadfha.com/ont/ex> .				
+
+            # OMG unit ontology http://www.omgwiki.org/OMGSysML/doku.php?id=sysml-qudv:quantities_units_dimensions_values_qudv
+            @prefix qu: <http://www.omgwiki.org/SysML-QUDV-SI.owl#> .
+
+            # NASA & TopQuadrant unit ontology			
+			@prefix qudt: <http://qudt.org/1.1/schema/qudt> .
+			@prefix unit: <http://qudt.org/1.1/vocab/unit> .
+            @prefix dimu: <http://qudt.org/1.1/vocab/dimensionalunit> .
+
+            @prefix time: <http://www.w3.org/2006/time> .
+            @prefix gn: <http://www.geonames.org/ontology#> .
+            @prefix dbo: <http://dbpedia.org/ontology/> .
+            @prefix schema: <http://schema.org/> .
+            @prefix event: <http://purl.org/NET/c4dm/event.owl#> .
 			"
     },
 
     // created in accordance to guide in http://www.w3.org/2005/Incubator/ssn/XGR-ssn-20110628/
     "@template[createSensorDesc]" : 
     {
-        "@params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location"],
-
+        "@params" : [ "sensor", "msrCap", "property", "unit", "frequency", "precision", "location" ],
         "description" : "Declare a sensor with its measuremnet properties.",
-
         "@ttl" : 
             "
-            :{sensor} rdf:type ssn:SensingDevice ;
-            ssn:observes :{property} ;
-            ssn:onPlatform ?plat1 ;
-            ssn:hasMeasurementCapability :{msrCap} .
+            <{sensor}> rdf:type ssn:SensingDevice ;
+            ssn:observes <{property}> ;
+            ssn:onPlatform ?platform ; # this is the same as writing <platform#{@uid#}>
+            ssn:hasMeasurementCapability <{msrCap}> .
 
             # define measurement property
-            :{property} rdf:type ssn:Property ;
+            <{property}> rdf:type ssn:Property ;
             rdf:type qu:QuantityKind ;
-            qu:unitKind :{unit} .
-            :{unit} rdf:type qu:Unit .
+            qu:unitKind <{unit}> .
+            <{unit}> rdf:type qu:Unit .
 
             # measurement properties
-            :{msrCap} ssn:hasMeasurementProperty ?f1, ?p1 .
+            <{msrCap}> ssn:hasMeasurementProperty ?frequency, ?precision .
 
-            ?f1 rdf:type ssn:Frequency ;
+            ?frequency rdf:type ssn:Frequency ;
             ssn:hasValue ?freqPropVal .
             ?freqPropVal rdf:type DUL:Amount ;
-            DUL:isClassifiedBy :timesPerDay ;
+            DUL:isClassifiedBy <timesPerDay> ;
             DUL:hasDataValue {frequency} .
-            :timesPerDay rdf:type DUL:UnitOfMeasure .
+            <timesPerDay> rdf:type DUL:UnitOfMeasure .
             
-            ?p1 rdf:type ssn:Precision ;
+            ?precision rdf:type ssn:Precision ;
             ssn:hasValue ?precPropVal .
             ?precPropVal rdf:type DUL:Amount ;
             DUL:hasDataValue {precision} .
 
             # sensor platform location
-            ?plat1 rdf:type ssn:Platform ;
-            DUL:hasLocation {location} .
-            {location} rdf:type DUL:PhysicalPlace .                
+            ?platform rdf:type ssn:Platform ;
+            DUL:hasLocation ?loc ;
+            dbo:location ?loc .
+            ?loc rdf:type DUL:PhysicalPlace ;
+            rdf:type schema:Place ;
+            rdf:type event:place ;
+            rdfs:label {location} ;
+            gn:name {location} .
             "
 
     }, 
 
     "@template[createSensorObs]" : 
     {
-        "@params" : [ "sensor", "property", "feature", "value", "time" ],
-
+        "@params" : [ "id", "sensor", "property", "feature", "value", "year", "month", "day", "hour", "qntVal" ],
         "description" : "Template for each sensor observation.",
-
-        "@ttl" : 
+        "@ttl" : // using {$x} or {?x} in ttl template will automagically converted to uid within the scope of the schema and template respectively
             "
-            ?o rdf:type ssn:Observation ;
-            ssn:observedBy {sensor} ;
-            ssn:featureOfInterest {feature} ;
-            ssn:observedProperty {property} ;
-            ssn:observationSamplingTime {time} ;
-            ssn:observationResult ?so .
+            <observation#{id}> rdf:type ssn:Observation ;
+            ssn:observedBy <{sensor}> ;
+            ssn:featureOfInterest <{feature}> ;
+            ssn:observedProperty <{property}> ;
+            ssn:observationSamplingTime <timeInstant#{@uid}> ; # instead of using blank node, defining an IRI is more informative
+            ssn:observationResult <sensorOutput#{@uid}> . 
 
-            {property} ssn:isPropertyOf {feature} .
+            <{property}> ssn:isPropertyOf <{feature}> .
+
+            # define time instant. Ref: https://knowledgecraver.blogspot.jp/2014/07/guidelines-for-using-w3c-time-ontology.html
+
+            <timeInstant#{@uid}> rdf:type time:Instant ;
+            time:inXSDDateTime '{year}-{month}-{day}T{hour}:00:00'^^xsd:dateTime ;
+            time:inDateTime <dateTimeDesc#{@uid}> .
+            <dateTimeDesc#{@uid}> rdf:type time:DateTimeDescription ;
+            time:unitType time:unitHour ;
+            time:year '{year}' ;
+            time:month '{month}' ;
+            time:day '{day}' ;
+            time:hour '{hour}' .
 
             # express value
-            ?so rdf:type ssn:SensorOutput ;
-            ?so ssn:isProducedBy {sensor} ;
-            ssn:hasValue ?obsVal .
-            ?obsVal rdf:type ssn:ObservationValue ;
-            ?obsVal DUL:hasDataValue {value} .
-
-            # if a sensor type define a specific property type to observe in the ontology, 
-            # this statement can help in verifying inconsistency in annotating 
-            # a sensor type for wrong property type.
-
-            {sensor} ssn:observes {property} .
+            <sensorOutput#{@uid}> rdf:type ssn:SensorOutput ;
+            ssn:isProducedBy <{sensor}> ;
+            ssn:hasValue <obsVal#{@uid}> .
+            <obsVal#{@uid}> rdf:type ssn:ObservationValue ;
+            DUL:hasDataValue {value} ;
+            
+            # measurement value and unit expressed using QUDT
+            <hasQuantityValue> <quantityValue#{@uid}> . 
+            <quantityValue#{@uid}> rdf:type <{qntVal}> ;
+            qudt:numericValue {value} .
             "
-    }
+    },
 
+    "@template[defineQnt]" : 
+    {
+    	"@params" : [ "valName", "quantity", "qntKind", "unit" ],
+    	"description" : "Define a quantity and its kind, quantity value and its unit. QUDT has plenty of pre-defined Quantity Kind and Unit that we can re-use in the ontology.",
+    	"@ttl" : 
+	    	"
+	    	<{valName}> rdf:type qudt:QuantityValue ;
+	    	qudt:unit <{unit}> ;
+	    	qudt:valueQuantity <{quantity}> .
+	    	<{quantity}> qudt:quantityKind <{qntKind}> . # have a look at qudt:ChemistryQuantityKind 	    	
+	    	"
+    },
+
+    "@template[defineUnit]" :
+    {
+    	"@params" : [ "unitIRI", "typeIRI" ],
+    	"@ttl" : 
+    		"
+    		<{unitIRI}> rdf:type <{typeIRI}> .
+    		"
+    },
+
+    "@template[defineJpTimeUnit]" : 
+    {
+    	"@params" : [ "name" ],
+    	"description" : "Define Japanese date time format.",
+    	"@ttl" : 
+	    	"
+	    	<{name}> rdf:type time:TemporalUnit .
+	    	<hasFormat> '平成YY年MM月DD日HH時' .
+	    	"
+    },
+
+	"@func[jp2westYearConv]" : 
+	{ 
+		"@params" : [ "period", "year" ],
+		"@script" : "
+					// convert Japanese year to Western year. Ref: http://www.sljfaq.org/afaq/dates.html
+					if(period === '平成') year += 1988;
+					eles if(period === '昭和') year += 1925;
+					return year;
+					"
+	}    
 
 } // end of schema
 

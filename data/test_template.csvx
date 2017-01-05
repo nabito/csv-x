@@ -1,0 +1,23 @@
+{
+
+    "@row[0]" : { "@repeatTimes" : -1 },
+
+    "@cell[0,0]" : { "@name" : "name_{subrow}", 
+		     "@mapTemplate" : "output('{@this.@value}', '{salary_{subrow}}')" },
+
+    "@cell[0,1]" : { "@name" : "salary_{subrow}",
+		     "@datatype" : "integer" },
+
+    "@template[output]" : {
+        "@params" : ["name", "salary"],
+        "@ttl" :
+            "
+	    _:x <#isPartOf> $x .
+	    _:x <#linkTo> ?y .
+        ?y rdf:type <Company> .
+	    _:x foaf:name {name} .
+	    _:x <#hasSalary> {salary} .
+	    "
+    } 
+
+}

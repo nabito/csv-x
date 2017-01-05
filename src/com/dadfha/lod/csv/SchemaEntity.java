@@ -105,6 +105,20 @@ public abstract class SchemaEntity {
 	public static final String METAPROP_PROPNAME = "@propName";	
 	
 	public static final String METAPROP_PROPNAME_PRED = Schema.NS_PREFIX + ":propName";
+	
+	/**
+	 * The meta property storing name to identify schema function.
+	 */
+	public static final String METAPROP_FUNCNAME = "@funcName";	
+	
+	public static final String METAPROP_FUNCNAME_PRED = Schema.NS_PREFIX + ":funcName";	
+	
+	/**
+	 * The meta property for script.
+	 */
+	public static final String METAPROP_FUNC_SCRIPT = "@script";	
+	
+	public static final String METAPROP_FUNC_SCRIPT_PRED = Schema.NS_PREFIX + ":script";		
 
 	/**
 	 * The meta property for RDF template mapping. 

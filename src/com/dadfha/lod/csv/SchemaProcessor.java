@@ -17,6 +17,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -26,8 +27,11 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.apache.logging.log4j.core.config.Configurator;
 
+import com.dadfha.Helper;
 import com.dadfha.lod.JSONMinify;
 import com.dadfha.lod.LodHelper;
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonParseException;
 import com.github.jsonldjava.utils.JsonUtils;
 import com.univocity.parsers.common.AbstractParser;
 import com.univocity.parsers.csv.CsvParser;
@@ -114,6 +118,16 @@ public class SchemaProcessor {
 	 * CSV file encoding (Optional, default to UTF-8).
 	 */
 	public static final String METAPROP_ENCODING = "@encoding";
+	
+	/**
+	 * Meta property to define transformation template.
+	 */
+	public static final String METAPROP_TEMPLATE = "@template";	
+	
+	/**
+	 * Meta property for JavaScript function declaration. 
+	 */
+	public static final String METAPROP_FUNC = "@func";
 	
 	/**
 	 * Processing mode to ignore error message, creating no log nor print.
@@ -207,12 +221,22 @@ public class SchemaProcessor {
 	/**
 	 * RegEx for variable expression, {var} and {var.attr} 
 	 */
-	private static final String VAR_REGEX = "(\\{)([@a-zA-Z_][a-zA-Z0-9_]*)(?:(\\.)([@a-zA-Z_][a-zA-Z0-9_]*))?(\\})";
+	private static final String VAR_REGEX = "(\\{)([@a-zA-Z_$][a-zA-Z0-9_]*)(?:(\\.)([@a-zA-Z_][a-zA-Z0-9_]*))?(\\})";
 	
 	/**
-	 * RegEx for context variable expression, {row}, {col}, and {subrow}
+	 * RegEx for context variable expression. E.g. {row}, {col}, and {subrow}
 	 */
 	private static final String CONTEXT_VAR_REGEX = "(\\{)(row|col|subrow|subcol)(\\})";
+	
+	/**
+	 * RegEx for template variable, e.g. ?x
+	 */
+	private static final String TURTLE_VAR_REGEX = "([\\?\\$])([a-z0-9]+)";
+	
+	/**
+	 * Template UID variable expression. E.g. {@uid}, {@uid1}, {@uid7} ..
+	 */
+	private static final String TMPUID_VAR_REGEX = "\\{@uid(\\d*)\\}";
 	
 	/**
 	 * Setting flag whether or not to try all known schemas when parsing csv.
@@ -327,7 +351,9 @@ public class SchemaProcessor {
 			s = parseCsvXSchema(schemaPath);
 			schemas.put((String) s.getProperty(METAPROP_ID), s);
 		} catch(Exception e) {
-			logger.error("There's a problem in loading/parsing schema file {}: \n {}", schemaPath, e.getMessage());			
+			String errMsg = "There's a problem in loading/parsing schema file " + schemaPath + ": \n " + e.getMessage();
+			System.err.println(errMsg);
+			logger.error(errMsg);					
 			logger.debug("StackTrace:", e);
 			return null;
 		}
@@ -1077,17 +1103,22 @@ public class SchemaProcessor {
 		
 		// read in the csv schema file and strip out all comments
 		String schemaStr = JSONMinify.minify(new String(Files.readAllBytes(Paths.get(schemaPath)), StandardCharsets.UTF_8));		
-		logger.trace(schemaStr);
+		logger.trace(schemaStr);			
 		
-//		StringBuilder jsonStrBld = new StringBuilder(1000);
-//		try (BufferedReader br = new BufferedReader(new FileReader(schemaPath))) {
-//		    String line;		    
-//		    while ((line = br.readLine()) != null) {
-//		    	jsonStrBld.append(JSONMinify.minify(line));
-//		    }	
-//			Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(jsonStrBld.toString());			
-		
-		Map<String, Object> csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(schemaStr);
+		Map<String, Object> csvSchemaMap = null;
+		try {
+			csvSchemaMap = (LinkedHashMap<String, Object>) JsonUtils.fromString(schemaStr);
+		} catch (JsonParseException ex) {			
+			StringBuffer sb = new StringBuffer();
+			JsonLocation jLoc = ex.getLocation();
+			int charIdx = (int) jLoc.getCharOffset(); // lossy down-casting						
+			sb.append(ex.getOriginalMessage() + System.lineSeparator());
+			sb.append("+/- 10 characters around error location:" + System.lineSeparator());
+			sb.append(schemaStr.substring(charIdx - 10, charIdx + 10) + System.lineSeparator());
+			logger.error(ex);
+			logger.debug("StackTrace:", ex);
+			throw new Exception(sb.toString());
+		}
 		
         for(Map.Entry<String, Object> e : csvSchemaMap.entrySet()) {            
             String key = e.getKey();
@@ -1183,8 +1214,10 @@ public class SchemaProcessor {
                     processPropMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s.getDefaultTable());
                 } else if(key.startsWith("@table")) {
                     processTableMarker(key.substring(6), (LinkedHashMap<String, Object>) e.getValue(), s);
-                } else if(key.startsWith("@template")) {
+                } else if(key.startsWith(METAPROP_TEMPLATE)) {
                     processTemplateMarker(key.substring(9), (LinkedHashMap<String, Object>) e.getValue(), s);
+                } else if(key.startsWith(METAPROP_FUNC)) {
+                    processFuncMarker(key.substring(5), (LinkedHashMap<String, Object>) e.getValue(), s);
                 } else if(key.startsWith("@")) {
                 	logger.warn("Unrecognized meta-property, ignoring key : " + key);
                 } else {
@@ -1220,7 +1253,7 @@ public class SchemaProcessor {
 			String key = e.getKey();
 			Object val = e.getValue();
 			switch(key) {
-			case "@name":
+			case SchemaEntity.METAPROP_NAME:
 				sProp.setName((String) val);
 				// sTable.addVar((String) val, sProp); << as of 2-July-2016, all var declaration must be made at schema generation time, since each schema property object will also get replicated for each data table. 
 				break;
@@ -1250,17 +1283,36 @@ public class SchemaProcessor {
 				tmp.addParams((ArrayList<String>) val);
 				break;
 			case "@tmp":
-				tmp.setTemplate((String) val);
+				tmp.setTemplate((String) val, false);
 				break;
 			case "@ttl":
-				tmp.setTemplate((String) val);
+				tmp.setTemplate((String) val, true);
 				break;
 			default:
+				if(key.startsWith("@")) throw new RuntimeException("Unrecognized meta property: " + key);
 				tmp.addProperty(key, val.toString());
-				//throw new RuntimeException("Unrecognized template property: " + key);
 			}
 		}
 	}
+	
+	@SuppressWarnings("unchecked")
+	private void processFuncDef(Map<String, Object> funcProps, SchemaFunction func) {
+		for(Entry<String, Object> e : funcProps.entrySet()) {
+			String key = e.getKey();
+			Object val = e.getValue();			
+			switch(key) {
+			case "@params":
+				func.addParams((ArrayList<String>) val);
+				break;
+			case "@script":
+				func.setScript((String) val);
+				break;
+			default:
+				if(key.startsWith("@")) throw new RuntimeException("Unrecognized meta property: " + key);
+				func.addProperty(key, val.toString());
+			}
+		}
+	}	
 	
 	/**
 	 * IMP refactor this kind of methods into processSchemaEntityDef() 
@@ -1274,7 +1326,7 @@ public class SchemaProcessor {
 			String key = e.getKey();
 			Object val = e.getValue();
 			switch(key) {
-			case "@name":
+			case SchemaEntity.METAPROP_NAME:
 				sData.setName((String) val);
 				// Though at v0.9 it's assumed data @data cannot refer to context {var}, the variable register 
 				// must still be done at schema generation time, coz the schema data object will refer to new data table.
@@ -1310,7 +1362,7 @@ public class SchemaProcessor {
 			case SchemaEntity.METAPROP_MAPTYPE:				
 				st.setMapType((String) e.getValue());
 				break;
-			case "@name":
+			case SchemaEntity.METAPROP_NAME:
 				String tableVarName = (String) e.getValue();
 				st.setName(tableVarName); 				
 				//st.addVar(tableVarName, st); // as of 2-July-2016, all variable must get registered in a table at schema generation time (CSV-parsing) for consistency.  
@@ -1461,6 +1513,15 @@ public class SchemaProcessor {
 		assert(sTable.hasSchemaData(dataName)) : "At the end of processDataMarker() the schema data's name must have been already registered.";
 	}
 	
+	private void processFuncMarker(String marker, Map<String, Object> funcProperties, Schema schema) {
+		String funcName = marker.replaceAll("\\[|\\]", ""); // remove '[' and ']'
+		funcName = funcName.replaceAll("\\s+", ""); // remove whitespaces
+		if(funcName.equals("")) throw new RuntimeException("Function name must not be empty string.");
+		SchemaFunction sFunc = new SchemaFunction(funcName, schema);
+		processFuncDef(funcProperties, sFunc);
+		schema.addFunction(sFunc);
+	}
+	
 	/**
 	 * Create cell schema for [row, col], assign each cell cellProperty, and add to input schema table.
 	 * @param row
@@ -1483,13 +1544,13 @@ public class SchemaProcessor {
 		for(Entry<String, String> e : cellProps.entrySet()) {
 			String propName = e.getKey();
 			switch(propName) {
-			case "@name":
+			case SchemaEntity.METAPROP_NAME:
 				String cellName = e.getValue();
 				cell.setName(cellName);
 				assert(cell.getName() == cellName) : "The cell name is not properly set for cell schema: " + cell;
 				//s.addVar(cellName, cell); << for our policy now (2016/6/28) var must be declared at run-time as per dataset because its name may refer to context {var}
 				break;		
-			case "@regex":
+			case SchemaEntity.METAPROP_REGEX:
 				cell.setRegEx(e.getValue());
 				break;
 			case SchemaEntity.METAPROP_MAPTYPE:
@@ -1792,8 +1853,10 @@ public class SchemaProcessor {
 	    	String varName = m.group(2);
 	    	String dot = m.group(3);
 	    	String varProp = m.group(4);
+	    	int targetGroup = -1;
 	    	
-	    	assert(varName != null || varName.equals("")) : "The regular expression must not match empty variable name.";
+	    	assert(varName != null) : "Variable name in {var} expression is null.";
+	    	assert(!varName.equals("")) : "The regular expression must not match empty variable name." + m.toString();
 	    	
 	    	// if variable property is not defined, default to '@value'
 	    	if(varProp == null || varProp.equals("")) varProp = SchemaTable.METAPROP_VALUE;
@@ -1802,6 +1865,9 @@ public class SchemaProcessor {
 	    	SchemaEntity varSe;
 	    	if(varName.startsWith("@this")) { // check if it's a meta-reference
 	    		varSe = se;
+	    	} else if(varName.startsWith("$")) { // check if it's referring to a capturing group in RegEx 
+	    		varSe = se;
+	    		targetGroup = Integer.parseInt(varName.substring(1));
 	    	} else if(!st.hasVar(varName)) { // if the var is not recognized, throw an error
 	    		logger.debug("property name: {}", propName);
 	    		logger.debug("process literal: {}", literal);
@@ -1824,22 +1890,20 @@ public class SchemaProcessor {
 			
 	    	// dereference schema entity property value
 	    	String propVal = varSe.getProperty(varProp);
-//			String propVal = null;
-//	    	if(dot == null || dot.equals("")) { // if there is no 'dot' in variable expression, a.k.a. just {var}
-//	    		// get variable property value (here is '@value')
-//	    		propVal = varSe.getValue();	    		
-//	    	} else { // {var.prop} processing	    			    		
-//	    		// get variable property value	    		
-//	    		propVal = varSe.getProperty(varProp);
-//	    	}
 	    	
-	    	// do recursive call of this method to dereferenced any available nested {var}
-	    	propVal = processVarEx(propVal, varSe, varProp, rrs);
-	    	
+	    	if(targetGroup != -1) { // if it's a capturing group reference, replace it with matched group's value 
+	    		propVal = Helper.getRegExGroup(targetGroup, varSe.getProperty(SchemaEntity.METAPROP_REGEX), propVal);
+	    	} else {	    		
+		    	// do recursive call of this method to dereference any available nested {var}
+		    	propVal = processVarEx(propVal, varSe, varProp, rrs);	    			    		
+	    	}
+
     		// replace {var} with its ultimate value
-	    	propVal = propVal.replace("$", "\\$"); // must escape any $ sign
+	    	propVal = propVal.replace("\\", "\\\\"); // must escape the escape character / (backslash) 
+	    	propVal = propVal.replace("$", "\\$"); // escape all $ so appendReplacement() won't recognize it as capturing group reference
 			m.appendReplacement(sb, propVal); //logger.trace(propVal);
 	    	
+			// this unorthodox way of looping is to handle nested variable expression like {var1{var2{var#..}}}
 	    	m.appendTail(sb);
 	    	retVal = sb.toString();
 	    	m = p.matcher(retVal);
@@ -2079,10 +2143,15 @@ public class SchemaProcessor {
 				if(sData.hasTemplateMapping()) System.out.println(applyRdfTemplate(sData));
 			}
 			
-		}		
+		} // end for every schema tables
 		
 	}
 	
+	/**
+	 * Generate RDF by applying mapping definition in a schema entity.
+	 * @param se SchemaEntity.
+	 * @return String after templated.
+	 */
 	public static String applyRdfTemplate(SchemaEntity se) {
 		Schema s = se.getParentSchema();
 		
@@ -2108,17 +2177,92 @@ public class SchemaProcessor {
 		List<String> tmpParams = tmp.getParameterList();
 		if(params.length != tmpParams.size()) throw new RuntimeException("The number of argument (" + params.length + ") doesn't match template's parameter number: " + tmpParams.size());
 		
-		// resolve each {var} expression, if any, for each parameter
-		// then replace template {var} with parameters value
 		String ttl = tmp.getTemplate();
 		//System.out.println(ttl);
 
 		for(int i = 0; i < params.length; i++) {
-			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_TEMPLATE, null);	
-			ttl = ttl.replaceAll("\\{" + tmpParams.get(i) + "\\}", params[i]);
-		}
+			// resolve each {var} expression, if any, for each parameter			
+			params[i]  = processVarEx(params[i], se, SchemaEntity.METAPROP_MAP_TEMPLATE, null);
+			// for Turtle template, replace ?x by unique ID (within a scope of a schema file) prepended by base IRI  
+			if(tmp.isTurtleTemplate()) {
+				Map<String, UUID> localTtlVars = new HashMap<String, UUID>();
+				
+			    // find & replace all ?x/$x expression(s) in ttl template (? and $ keyword are not allowed in Turtle anyway)    
+			    Pattern p = Pattern.compile(TURTLE_VAR_REGEX, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);			    
+			    Matcher m = p.matcher(ttl);
+			    StringBuffer sb = new StringBuffer();			    
+			    while(m.find()) {
+			    	String varType = m.group(1);
+			    	String varName = m.group(2);			    	
+			    	UUID id = null;
+			    	
+			    	// check variable type and get UUID for template variable name found
+			    	if(varType.equals("$")) { 
+				    	id = s.addGlobalTemplateVar(varName);			    		
+			    	} else if(varType.equals("?")) {
+			    		/**
+			    		 * Generate UID for template's variable as per application of a template to a schema entity.
+			    		 * This is based on the assumption that a schema entity will always mapped to only 1 template.
+			    		 */			    		
+			    		if(localTtlVars.containsKey(varName)) { 
+			    			id = localTtlVars.get(varName);
+			    		} else {
+			    			id = s.generateSchemaUID();
+			    			localTtlVars.put(varName, id);
+			    		}
+			    	} else throw new RuntimeException("Unsupported template variable type: " + varType);			    	
+
+			    	String base = s.getBase();
+			    	String replacement = "<" + base + varName + "#" + id.toString() + ">";
+			    	replacement = replacement.replace("\\", "\\\\"); // must escape $ and \ 
+			    	replacement = replacement.replace("$", "\\$"); 			    	
+			    	m.appendReplacement(sb, replacement); 
+			    	
+			    } // end find & replace 				    
+			    m.appendTail(sb);
+			    ttl = sb.toString();				
+			} // end if(tmp.isTurtleTemplate()) { ..
+			
+			// replace all {param} expression(s) for parameter at index i
+			ttl = ttl.replaceAll("\\{" + tmpParams.get(i) + "\\}", params[i]);			
+		} // end for each parameters
+		
+		// filling {@uid#}
+		ttl = fillUID(s, ttl);
+
 		//System.out.println("After: " + Arrays.toString(params));		
 		return ttl;
+	}
+	
+	/**
+	 * Fill all {@uid#} with schema UID where # is an optional number to distinguish b.t.w. UID.
+	 * Note that {@uid} is the same as writing {@uid0}.
+	 * @param Schema s
+	 * @param String template tmp
+	 * @return String of UID filled template. 
+	 */
+	private static String fillUID(Schema s, String tmp) {		
+	    // detect {@uid#}	    
+	    Pattern p = Pattern.compile(TMPUID_VAR_REGEX, Pattern.DOTALL | Pattern.CASE_INSENSITIVE);
+	    Matcher m = p.matcher(tmp);
+	    StringBuffer sb = new StringBuffer();
+	    Map<Integer, String> uidTable = new HashMap<Integer, String>();
+	    while(m.find()) { // foreach {@uid}:
+	    	String uidIdx = m.group(1);	
+	    	String id = null;
+	    	// default to {@uid0}
+	    	if(uidIdx == null || uidIdx.isEmpty()) uidIdx = "0";
+	    	Integer uidNum = Integer.parseInt(uidIdx);	    	
+    		if(uidTable.containsKey(uidNum)) {
+    			id = uidTable.get(uidNum); 
+    		} else {
+    			id = s.generateSchemaUID().toString();
+    			uidTable.put(uidNum, id);
+    		} 		    	
+	    	m.appendReplacement(sb, id.toString());	    	
+	    } // end find & replace 	
+	    m.appendTail(sb);
+		return sb.toString();
 	}
 	
 	public void parseCsvStream() {

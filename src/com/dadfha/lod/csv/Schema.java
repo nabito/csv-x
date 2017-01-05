@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import com.dadfha.lod.LodHelper;
@@ -123,6 +124,21 @@ public class Schema {
 	private Map<String, SchemaTemplate> sTemplates = new HashMap<String,SchemaTemplate>();
 	
 	/**
+	 * Schema function collection.
+	 */
+	private Map<String, SchemaFunction> sFuncs = new HashMap<String,SchemaFunction>();	
+	
+	/**
+	 * Map between ?varname in template(s) and UUID for this Schema.
+	 */
+	private Map<String, UUID> ttlVars = new HashMap<String, UUID>();
+	
+	/**
+	 * Remember lastly generated UUID to check for possible duplicate generation.
+	 */
+	private UUID lastUUID;
+	
+	/**
 	 * Set base (IRI) for the whole schema. Existing value will be overwritten.
 	 * @param baseIri
 	 */
@@ -132,10 +148,12 @@ public class Schema {
 	
 	/**
 	 * Get base (IRI) for the schema.
-	 * @return String or null if none is defined.
+	 * @return String or empty String "" if base is never defined.
 	 */
 	public String getBase() {
-		return (String) properties.get(SchemaProcessor.METAPROP_BASE);
+		String base = (String) properties.get(SchemaProcessor.METAPROP_BASE);
+		if(base == null) base = "";
+		return base;
 	}
 	
 	/**
@@ -302,10 +320,66 @@ public class Schema {
 	/**
 	 * Add a schema template to the schema. 
 	 * Already existing template with the same name will be overwritten.
-	 * @param template
+	 * @param SchemaTemplate
 	 */
 	public void addTemplate(SchemaTemplate template) {
 		sTemplates.put(template.getName(), template);
+	}
+	
+	/**
+	 * Get a function by name.
+	 * @param name
+	 * @return SchemaFunction or null if no function with the name exists.
+	 */	
+	public SchemaFunction getFunction(String name) {
+		return (sFuncs.containsKey(name))? sFuncs.get(name) : null;
+	}
+	
+	/**
+	 * Add a schema function to the schema. 
+	 * Already existing function with the same name will be overwritten.
+	 * @param SchemaFunction
+	 */	
+	public void addFunction(SchemaFunction func) {
+		sFuncs.put(func.getName(), func);
+	}
+	
+	/**
+	 * Add template's variable name within this Schema scope (global). 
+	 * @param varName
+	 * @return newly generated UID of varName or existing one if the name has been added before. 
+	 */
+	public UUID addGlobalTemplateVar(String varName) {
+		if(ttlVars.containsKey(varName)) { // get previously generated UID
+			return ttlVars.get(varName);
+		} else { // or generate new UID
+			UUID id = generateSchemaUID();
+			ttlVars.put(varName, id);
+			return id; 
+		}
+	}
+	
+	/**
+	 * Generate UID within the processing of a schema.
+	 * Even though the chance is extremely low, we make sure that there's no duplicate UID 
+	 * by comparing with previously generated UID.
+	 * @return UUID
+	 */
+	public UUID generateSchemaUID() {
+		UUID id;
+		do {
+			id = UUID.randomUUID();								
+		} while(id.equals(lastUUID));		
+		return id;
+	}
+	
+	/**
+	 * Get template variable name, e.g. ?x, its associated UUID. 
+	 * @param varName
+	 * @return UUID or null if there is no such variable name registered.
+	 */
+	public UUID getTemplateVarUUID(String varName) {
+		return ttlVars.get(varName);
 	}
 
 	/* (non-Javadoc)
@@ -326,7 +400,7 @@ public class Schema {
 		
 		// declare base & prefixes
 		String base = getBase();
-		if(base != null) {
+		if(!base.isEmpty()) {
 			assert(LodHelper.isURL(base)) : "@base must be in the IRI form.";
 			ttl.append("BASE <" + base + ">" + System.lineSeparator());
 		}
@@ -371,7 +445,7 @@ public class Schema {
 			
 		} // end for each schema table
 		
-		// TODO in v1.x also serialize each @template
+		// TODO in v1.x also serialize each @template & @function
 		
 		return ttl.toString();
 	}

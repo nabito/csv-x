@@ -15,7 +15,7 @@ import com.beust.jcommander.Parameters;
 public class CsvxCmd {	
 	
 	public static final String programName = "csvx";
-	public static final String version = "0.9.7";
+	public static final String version = "0.10.0";
 
 	//@Parameter(description = "input csv and csvx path respectively.", arity = 2)
 	//private List<String> files = new ArrayList<>();
@@ -26,7 +26,7 @@ public class CsvxCmd {
 	@Parameter(names = { "-h", "--help" }, description = "Show some help and usage.", help = true)
 	private boolean isHelpOpt = false;
 	
-	@Parameter(names = { "-log" }, description = "Log level (all,fatal,error,warn,info,debug,trace).")
+	@Parameter(names = { "-log" }, description = "Log level (off, all,fatal,error,warn,info,debug,trace).")
 	private String logLevel;	
 	
 	private static String getHelp(JCommander jc) {
@@ -34,9 +34,9 @@ public class CsvxCmd {
 		jc.usage(sb);
 		String nl = System.lineSeparator();
 		sb.append("  Example:" + nl
-				+ "    csvx validate -log=info input.csv schema.csvx" + nl
+				+ "    csvx -log=info validate input.csv schema.csvx" + nl
 				+ "    csvx serialize input.csv schema.csvx" + nl
-				+ "    csvx transform -log=off input.csv schema.csvx");
+				+ "    csvx -log=off transform input.csv schema.csvx > output.ttl");
 		return sb.toString();
 	}
 

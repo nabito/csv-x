@@ -722,7 +722,7 @@ public class SchemaTable extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return parent.toString() + "@table[" + getTableName() + "]";
+		return parent.toString() + ".@table[" + getTableName() + "]";
 	}
 
 }

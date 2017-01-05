@@ -29,6 +29,10 @@ public class SchemaData extends SchemaEntity {
 		return dData;
 	}		
 	
+	/**
+	 * Get the name of schema data
+	 * @return String
+	 */
 	public String getDataName() {
 		return getProperty(METAPROP_DATANAME);
 	}

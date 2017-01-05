@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project csvx">
+    <!--this file was created by Eclipse Runnable JAR Export Wizard-->
+    <!--ANT 1.7 is required                                        -->
+    <!--define folder properties-->
+    <property name="dir.buildfile" value="."/>
+    <property name="dir.workspace" value="${dir.buildfile}/.."/>
+    <property name="dir.jarfile" value="${dir.buildfile}/dist"/>
+    <target name="create_run_jar">
+        <jar destfile="${dir.jarfile}/csvx.jar" filesetmanifest="mergewithoutmain">
+            <manifest>
+                <attribute name="Main-Class" value="com.dadfha.lod.csv.CsvxCmd"/>
+                <attribute name="Class-Path" value="."/>
+            </manifest>
+            <fileset dir="${dir.buildfile}/target/classes"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/logging/log4j/log4j-api/2.6.2/log4j-api-2.6.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/logging/log4j/log4j-core/2.6.2/log4j-core-2.6.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/univocity/univocity-parsers/2.2.2/univocity-parsers-2.2.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/github/jsonld-java/jsonld-java/0.8.3/jsonld-java-0.8.3.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/fasterxml/jackson/core/jackson-core/2.7.4/jackson-core-2.7.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.7.4/jackson-databind-2.7.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/fasterxml/jackson/core/jackson-annotations/2.7.0/jackson-annotations-2.7.0.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpclient-osgi/4.5.2/httpclient-osgi-4.5.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpclient/4.5.2/httpclient-4.5.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/commons-codec/commons-codec/1.9/commons-codec-1.9.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpmime/4.5.2/httpmime-4.5.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpclient-cache/4.5.2/httpclient-cache-4.5.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/fluent-hc/4.5.2/fluent-hc-4.5.2.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpcore-osgi/4.4.4/httpcore-osgi-4.4.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpcore/4.4.4/httpcore-4.4.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/apache/httpcomponents/httpcore-nio/4.4.4/httpcore-nio-4.4.4.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/slf4j/slf4j-api/1.7.21/slf4j-api-1.7.21.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/org/slf4j/jcl-over-slf4j/1.7.21/jcl-over-slf4j-1.7.21.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/commons-io/commons-io/2.5/commons-io-2.5.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/com/beust/jcommander/1.48/jcommander-1.48.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/xerces/xercesImpl/2.11.0/xercesImpl-2.11.0.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/Wirawit/.m2/repository/xml-apis/xml-apis/1.4.01/xml-apis-1.4.01.jar"/>
+        </jar>
+    </target>
+</project>

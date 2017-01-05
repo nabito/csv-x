@@ -10,6 +10,9 @@ public class SchemaTemplate extends SchemaEntity {
 	 */
 	public static final String CLASS_IRI = "csvx:SchemaTemplate";
 
+	/**
+	 * Templates belong to a parent schema.
+	 */
 	private final Schema parentSchema;
 	
 	/**
@@ -26,6 +29,11 @@ public class SchemaTemplate extends SchemaEntity {
 	 * The template.
 	 */
 	private String tmp;	
+	
+	/**
+	 * Is the template RDF/Turtle.
+	 */
+	private boolean isTurtleTemplate = false;
 	
 	public SchemaTemplate(String templateName, Schema parentSchema) {		
 		this.templateName = templateName;
@@ -60,8 +68,9 @@ public class SchemaTemplate extends SchemaEntity {
 	 * Set the content of template.
 	 * @param template
 	 */
-	public void setTemplate(String template) {
+	public void setTemplate(String template, boolean isTurtle) {
 		tmp = template;
+		isTurtleTemplate = isTurtle;
 	}
 	
 	/**
@@ -76,6 +85,14 @@ public class SchemaTemplate extends SchemaEntity {
 	 */
 	public void setName(String templateName) {
 		this.templateName = templateName;
+	}
+	
+	/**
+	 * Is the template RDF/Turtle.
+	 * @return boolean
+	 */
+	public boolean isTurtleTemplate() {
+		return isTurtleTemplate;
 	}
 
 	/**
@@ -92,7 +109,7 @@ public class SchemaTemplate extends SchemaEntity {
 
 	@Override
 	public String getRefEx() {
-		return parentSchema.toString() + "@template[" + templateName + "]";
+		return parentSchema.toString() + ".@template[" + templateName + "]";
 	}
 
 }
