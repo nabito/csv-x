@@ -21,6 +21,15 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.script.Bindings;
+import javax.script.ScriptContext;
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
+import javax.script.SimpleBindings;
+import jdk.nashorn.api.scripting.ClassFilter;
+import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -219,9 +228,15 @@ public class SchemaProcessor {
 	public static final int CSV_PARSER_BUFFER_SIZE = 8 * 1024;
 	
 	/**
-	 * RegEx for variable expression, {var} and {var.attr} 
+	 * RegEx for variable expression: {var} and {var.attr} 
 	 */
 	private static final String VAR_REGEX = "(\\{)([@a-zA-Z_$][a-zA-Z0-9_]*)(?:(\\.)([@a-zA-Z_][a-zA-Z0-9_]*))?(\\})";
+	
+	/**
+	 * RegEx for function call expression: func('', '', ..) with possibly escape character \ (backslash) in front.
+	 * Each parameter is separated by ' (single-quote) which can also be escaped using \ (backslash).
+	 */
+	private static final String FUNC_REGEX = "(?:(\\\\)|([a-zA-Z_][a-zA-Z0-9_]*)\\(((?:'(?:(?:\\\\'|[^'])*)'\\s*(?:,\\s*|(?=\\))))*))";
 	
 	/**
 	 * RegEx for context variable expression. E.g. {row}, {col}, and {subrow}
@@ -1817,6 +1832,8 @@ public class SchemaProcessor {
 	 * 
 	 * Note that {var} will be interpreted as {var.@value} within a literal.
 	 * 
+	 * In v0.10.0 the support for capturing group reference is added as {$\d+}, so called capturing group reference expression.
+	 * 
 	 * The algorithm can be summarized as follows:
 	 * 
 	 * 1. identify {var} from literal
@@ -1832,10 +1849,9 @@ public class SchemaProcessor {
 	 * @param se schema entity of the literal being processed.
 	 * @param propName property name of the literal being processed.
 	 * @param rrs Recursive Ref Stack (RRS) of LinkedHashSet<String> storing SERE as String.
-	 * @return String of {var} substituted by its recursively resolved actual value.
+	 * @return String of {var} substituted by its recursively resolved actual value. 
 	 */
-	public static String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {				
-		if(literal == null) return null;		
+	public static String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {
 		String retVal = literal;		
 		SchemaTable st = se.getSchemaTable();
 		
@@ -1891,8 +1907,11 @@ public class SchemaProcessor {
 	    	// dereference schema entity property value
 	    	String propVal = varSe.getProperty(varProp);
 	    	
-	    	if(targetGroup != -1) { // if it's a capturing group reference, replace it with matched group's value 
-	    		propVal = Helper.getRegExGroup(targetGroup, varSe.getProperty(SchemaEntity.METAPROP_REGEX), propVal);
+	    	if(targetGroup != -1) { // if it's a capturing group reference, replace it with matched group's value
+	    		String regEx =  varSe.getProperty(SchemaEntity.METAPROP_REGEX);
+	    		if(regEx == null) throw new RuntimeException("Referring to capturing group in schema entity: " + varSe + " that has no regular expression.");
+	    		propVal = Helper.getRegExGroup(targetGroup, regEx, propVal);
+	    		if(propVal == null) throw new RuntimeException("Reference to unmatched capturing group: " + targetGroup + " for schema entity: " + se + " with value: " + propVal + " and RegEx: " + regEx);
 	    	} else {	    		
 		    	// do recursive call of this method to dereference any available nested {var}
 		    	propVal = processVarEx(propVal, varSe, varProp, rrs);	    			    		
@@ -1915,6 +1934,89 @@ public class SchemaProcessor {
 	    
 	    return retVal;
 	}
+	
+	/**
+	 * Resolve call to schema function, execute its script using JS engine. 
+	 * @param literal
+	 * @param s
+	 * @return String of processed value from the function.
+	 */
+	public static String resolveFunctionCall(String literal, Schema s) {
+		String retVal = literal;
+		// find func('', '', ..) expression
+	    Pattern p = Pattern.compile(FUNC_REGEX, Pattern.DOTALL);
+	    Matcher m = p.matcher(literal);
+	    StringBuffer sb = new StringBuffer();
+	    while(m.find()) { // foreach func():
+	    	boolean isEscaped = (m.group(1).equals("\\"))? true : false;
+	    	String funcName = m.group(2);
+	    	String paramStr = m.group(3);
+	    	
+	    	if(isEscaped) continue;	    	
+	    	SchemaFunction sf = s.getFunction(funcName);	    			    		
+		    if(sf == null) throw new RuntimeException("Referring to non-defined function: " + funcName);
+
+			// then extract the parameter(s) from function call
+			CsvParserSettings settings = new CsvParserSettings();
+			settings.getFormat().setQuote('\'');
+			settings.getFormat().setQuoteEscape('\\');
+			settings.getFormat().setCharToEscapeQuoteEscaping('\\');
+			CsvParser parser = new CsvParser(settings);
+			String[] params = parser.parseLine(paramStr);
+
+			List<String> fnParams = sf.getParameterList();
+			if (fnParams.size() != params.length)
+				throw new RuntimeException("The number of parameter in function call (" + params.length
+						+ ") does not match function definition (" + fnParams.size() + ")");
+
+			 /**
+			  * get the script and prepare JS engine
+			  * More fun stuff with Nashorn:
+			  * http://winterbe.com/posts/2014/04/05/java8-nashorn-tutorial/
+			  * https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html
+			  * https://github.com/shekhargulati/java8-the-missing-tutorial/blob/master/10-nashorn.md
+			  */
+			String script = sf.getScript();
+			//ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
+			//ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn");
+	        @SuppressWarnings("restriction")
+			NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
+	        @SuppressWarnings("restriction") // disable all call to Java for security
+	        ScriptEngine nashorn = factory.getScriptEngine(new NoJavaFilter());						
+
+			Bindings bindings = new SimpleBindings();
+			// for each parameter
+			for (int i = 0; i < params.length; i++) {
+				// declare actual variable with corresponding name and value in JS env
+				// should have the same result as nashorn.getContext().setAttribute(name, value, scope);
+				bindings.put(fnParams.get(i), params[i]);
+			}
+			nashorn.setBindings(bindings, ScriptContext.GLOBAL_SCOPE);
+
+			try {
+				m.appendReplacement(sb, (String) nashorn.eval(script));
+			} catch (ScriptException e) {
+				String errMsg = "Error executing schema function (JS script): " + funcName + " in schema: " + s;
+				logger.error(errMsg);
+				logger.debug(e.getMessage());
+				throw new RuntimeException(errMsg);
+			}
+	    	
+	    	m.appendTail(sb);
+	    	retVal = sb.toString();
+	    	m = p.matcher(retVal);
+	    	sb.setLength(0); 		    		    	
+	    } // end of nested search for func()
+	    return retVal;
+	}
+	
+    @SuppressWarnings("restriction")
+	private static class NoJavaFilter implements ClassFilter{
+        @Override
+        public boolean exposeToScripts(String s) {
+            return false;
+        }
+    }	
 	
 	/**
 	 * @deprecated SERE will be processed inside {var} expression in the future, e.g. {@cell[x,y]}.
