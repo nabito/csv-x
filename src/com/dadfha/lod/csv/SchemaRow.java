@@ -130,9 +130,9 @@ public class SchemaRow extends SchemaEntity {
 	 * @param name
 	 */
 	@Override
-	public void setName(String name) {		
+	public void setVariableName(String name) {		
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema row: " + this);
-		String oldName = getName();
+		String oldName = getVariableName();
 		if(oldName != null) {			
 			if(parentTable.hasVar(oldName)) {
 				parentTable.removeVar(oldName);
@@ -142,7 +142,7 @@ public class SchemaRow extends SchemaEntity {
 				addProperty(METAPROP_NAME, name);
 			}
 		} else { // if it has never been set before, call setName()
-			super.setName(name); 			
+			super.setVariableName(name); 			
 		}	
 	}
 

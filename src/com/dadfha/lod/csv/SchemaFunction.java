@@ -6,6 +6,11 @@ import java.util.List;
 public class SchemaFunction extends SchemaEntity {
 	
 	/**
+	 * IRI for schema function entity.
+	 */
+	public static final String CLASS_IRI = "csvx:SchemaFunction";	
+	
+	/**
 	 * Functions belong to a parent schema.
 	 */
 	private final Schema parentSchema;	
@@ -20,6 +25,14 @@ public class SchemaFunction extends SchemaEntity {
 		properties.put(METAPROP_FUNCNAME, funcName);
 		parentSchema = schema;
 	}
+	
+	public String getName() {
+		throw new RuntimeException("The variable name for template is currently not supported.");
+	}
+	
+	public void setName(String name) {
+		throw new RuntimeException("The variable name for template is currently not supported.");
+	}	
 	
 	/**
 	 * Get the name of schema function.
@@ -50,7 +63,7 @@ public class SchemaFunction extends SchemaEntity {
 	 * @param params
 	 */
 	public void addParams(List<String> params) {
-		params.addAll(params);
+		this.params.addAll(params);
 	}	
 	
 	public String getScript() {

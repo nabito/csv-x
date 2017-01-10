@@ -86,7 +86,7 @@
 		{
 			"@name" : "msrYrMth", // (variable) name of the entity (cell)
 			"@regex" : "(\\S+\\D)(\\d+)年(\\d+)月",  // Japanese year month format. Ex.平成27年1月
-			"year" : "jp2westYearConv('{$1}', '{$2}')", // TODO calling JS function (may be should be {func()}? to differentiate it from other pattern?) or they've to escape parenthesis using ()
+			"year" : "jp2westYearConv('{$1}', '{$2}')", // calling JS function
 			"month" : "{$3}" // refer to capturing group in regex pattern. this'll be processed at {var} resolve time.
 		},
 	
@@ -1160,11 +1160,15 @@
 	{ 
 		"@params" : [ "period", "year" ],
 		"@script" : "
-					// convert Japanese year to Western year. Ref: http://www.sljfaq.org/afaq/dates.html
-					if(period === '平成') year += 1988;
-					eles if(period === '昭和') year += 1925;
-					return year;
-					"
+					// remember everything was String in CSV-X thus we need some type conversion
+					year = Number(year);
+					if(period === '平成') {
+						year += 1988;
+					}
+					else if(period === '昭和') year += 1925;
+					$return = year.toString(); // this is how one return the value after processing (at least for now, we'll add CSV-X helper function in JS env soon)
+					",
+		"description" : "convert Japanese year to Western year. Ref: http://www.sljfaq.org/afaq/dates.html"
 	}    
 
 } // end of schema

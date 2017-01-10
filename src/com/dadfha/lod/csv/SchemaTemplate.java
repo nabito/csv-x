@@ -76,14 +76,22 @@ public class SchemaTemplate extends SchemaEntity {
 	/**
 	 * @return the templateName
 	 */
-	public String getName() {
+	public String getTemplateName() {
 		return templateName;
+	}
+	
+	public String getName() {
+		throw new RuntimeException("The variable name for template is currently not supported.");
+	}
+	
+	public void setName(String name) {
+		throw new RuntimeException("The variable name for template is currently not supported.");
 	}
 
 	/**
 	 * @param templateName the templateName to set
 	 */
-	public void setName(String templateName) {
+	public void setTemplateName(String templateName) {
 		this.templateName = templateName;
 	}
 	

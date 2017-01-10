@@ -6,6 +6,7 @@ import com.dadfha.lod.csv.Log4jConfig;
 import com.dadfha.lod.csv.Schema;
 import com.dadfha.lod.csv.SchemaProcessor;
 
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.ConfigurationFactory;
 import org.testng.annotations.BeforeMethod;
 

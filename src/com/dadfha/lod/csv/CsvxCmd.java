@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.Logger;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.MissingCommandException;
@@ -15,7 +16,7 @@ import com.beust.jcommander.Parameters;
 public class CsvxCmd {	
 	
 	public static final String programName = "csvx";
-	public static final String version = "0.10.0"; // soon to be 0.11.0 for embed JS once tested
+	public static final String version = "0.11.0"; 
 
 	//@Parameter(description = "input csv and csvx path respectively.", arity = 2)
 	//private List<String> files = new ArrayList<>();

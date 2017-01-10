@@ -24,11 +24,8 @@ import java.util.regex.Pattern;
 import javax.script.Bindings;
 import javax.script.ScriptContext;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import javax.script.SimpleBindings;
-import jdk.nashorn.api.scripting.ClassFilter;
-import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
 
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
@@ -48,6 +45,42 @@ import com.univocity.parsers.csv.CsvParserSettings;
 import com.univocity.parsers.tsv.TsvParser;
 import com.univocity.parsers.tsv.TsvParserSettings;
 
+import jdk.nashorn.api.scripting.ClassFilter;
+import jdk.nashorn.api.scripting.NashornScriptEngineFactory;
+
+/**
+ * The Schema Processing Engine. 
+ * 
+ * It's the core processor that recognizes all syntax and expression found in CSV-X schema 
+ * and applies processing logics (parsing, validating, alteration, reference, transformation, 
+ * etc.) to the CSV content.
+ * 
+ * On support for i18n literal:
+ * 
+ * The explicit declaration for i18n value is supported via '@lang' meta-property 
+ * where alternative string may be specifically defined as another property like 'altTitle'.
+ * 
+ * On the contrary, the native support for expression of i18n and alternative string
+ * literal (like in JSON-LD or CSVW) have been dropped.
+ * 
+ * i.e. "key" : [ { "en" : "test", "ja" : "テスト" }, { "en" : "Alt val", "ja" :
+ * "代わり" } ]
+ * 
+ * By allowing an expression of any literal to have multiple language and
+ * possibly alternative terms requires that the data model accommodating them
+ * must has such a unique structure to hold i18n/alternative values as in RDF.
+ * 
+ * Since one of CSV-X's objective is to be able to describe relations between
+ * cells in non-uniform CSV, in a generic way, so it can be easily and flexibly
+ * mapped to an arbitrary data model. Therefore, making support for i18n and
+ * alternative string literal by default (as in RDF literal) will impose such
+ * structure onto target data model or making it less generic, hence more
+ * difficult, to convert it to other structure. 
+ * 
+ * @author Wirawit
+ *
+ */
+@SuppressWarnings("restriction")
 public class SchemaProcessor {	
 	
 	static {
@@ -236,7 +269,8 @@ public class SchemaProcessor {
 	 * RegEx for function call expression: func('', '', ..) with possibly escape character \ (backslash) in front.
 	 * Each parameter is separated by ' (single-quote) which can also be escaped using \ (backslash).
 	 */
-	private static final String FUNC_REGEX = "(?:(\\\\)|([a-zA-Z_][a-zA-Z0-9_]*)\\(((?:'(?:(?:\\\\'|[^'])*)'\\s*(?:,\\s*|(?=\\))))*))";
+	private static final String FUNC_REGEX = "(\\\\)*([a-zA-Z_][a-zA-Z0-9_]*)\\(((?:'(?:\\\\'|[^'])*'\\s*,\\s*)*\\s*(?:'(?:\\\\'|[^'])*'\\s*)*)\\)";
+	//private static final String FUNC_REGEX = "(?:(\\\\)|([a-zA-Z_][a-zA-Z0-9_]*)\\(((?:'(?:(?:\\\\'|[^'])*)'\\s*(?:,\\s*|(?=\\))))*))";
 	
 	/**
 	 * RegEx for context variable expression. E.g. {row}, {col}, and {subrow}
@@ -253,6 +287,8 @@ public class SchemaProcessor {
 	 */
 	private static final String TMPUID_VAR_REGEX = "\\{@uid(\\d*)\\}";
 	
+	// private static String cellRegEx = "(@cell)(\\[)([^,]+?)(,)([^,]+?)(\\])";  // @cell[row, col]
+	
 	/**
 	 * Setting flag whether or not to try all known schemas when parsing csv.
 	 */
@@ -263,6 +299,11 @@ public class SchemaProcessor {
 	 * IMP this could be scaled to a persistent repository. 
 	 */
 	private Map<String, Schema> schemas = new HashMap<String, Schema>();
+	
+	/**
+	 * A list of meta-property to be ignored in function call resolution. 
+	 */
+	public static final List<String> noFuncCallPropList = Arrays.asList(SchemaEntity.METAPROP_MAP_TEMPLATE);	
 	
 	/**
 	 * The Constructor.
@@ -1027,7 +1068,7 @@ public class SchemaProcessor {
 	 * @return boolean whether the declaration is success.
 	 */
 	private void declareVarInTable(SchemaTable table, SchemaEntity se) {		
-		String varName = se.getName();
+		String varName = se.getVariableName();
 		if(varName != null)	{
 			if(hasVarInLiteral(varName)) {				
 				throw new RuntimeException("Variable name must not has {var} expression left in it: " + varName); 
@@ -1160,8 +1201,8 @@ public class SchemaProcessor {
             case METAPROP_ENCODING:
                 s.addProperty(METAPROP_ENCODING, (String) e.getValue());
                 break;
-            case "@lang":
-                s.addProperty("@lang", (String) e.getValue());
+            case SchemaEntity.METAPROP_LANG:
+                s.addProperty(SchemaEntity.METAPROP_LANG, (String) e.getValue());
                 break;
             case METAPROP_SPACE_IS_EMPTY: // TODO this should be recognized at each schema table level too, currently it's global
                 s.addProperty(METAPROP_SPACE_IS_EMPTY, (Boolean) e.getValue());
@@ -1269,7 +1310,7 @@ public class SchemaProcessor {
 			Object val = e.getValue();
 			switch(key) {
 			case SchemaEntity.METAPROP_NAME:
-				sProp.setName((String) val);
+				sProp.setVariableName((String) val);
 				// sTable.addVar((String) val, sProp); << as of 2-July-2016, all var declaration must be made at schema generation time, since each schema property object will also get replicated for each data table. 
 				break;
 			case METAPROP_ID:
@@ -1278,7 +1319,7 @@ public class SchemaProcessor {
 			case "@datatype":
 				sProp.setDatatype((String) val);
 				break;
-			case "@lang":
+			case SchemaEntity.METAPROP_LANG:
 				sProp.setLang((String) val);
 				break;		
 			default:
@@ -1342,7 +1383,7 @@ public class SchemaProcessor {
 			Object val = e.getValue();
 			switch(key) {
 			case SchemaEntity.METAPROP_NAME:
-				sData.setName((String) val);
+				sData.setVariableName((String) val);
 				// Though at v0.9 it's assumed data @data cannot refer to context {var}, the variable register 
 				// must still be done at schema generation time, coz the schema data object will refer to new data table.
 				//sTable.addVar((String) val, sData);  
@@ -1353,7 +1394,7 @@ public class SchemaProcessor {
 			case SchemaEntity.METAPROP_DATATYPE:
 				sData.setDatatype((String) val);
 				break;
-			case "@lang":
+			case SchemaEntity.METAPROP_LANG:
 				sData.setLang((String) val);
 				break;		
 			default:
@@ -1379,7 +1420,7 @@ public class SchemaProcessor {
 				break;
 			case SchemaEntity.METAPROP_NAME:
 				String tableVarName = (String) e.getValue();
-				st.setName(tableVarName); 				
+				st.setVariableName(tableVarName); 				
 				//st.addVar(tableVarName, st); // as of 2-July-2016, all variable must get registered in a table at schema generation time (CSV-parsing) for consistency.  
 				break;
 			case "@emptyCellFill":
@@ -1561,8 +1602,8 @@ public class SchemaProcessor {
 			switch(propName) {
 			case SchemaEntity.METAPROP_NAME:
 				String cellName = e.getValue();
-				cell.setName(cellName);
-				assert(cell.getName() == cellName) : "The cell name is not properly set for cell schema: " + cell;
+				cell.setVariableName(cellName);
+				assert(cell.getVariableName() == cellName) : "The cell name is not properly set for cell schema: " + cell;
 				//s.addVar(cellName, cell); << for our policy now (2016/6/28) var must be declared at run-time as per dataset because its name may refer to context {var}
 				break;		
 			case SchemaEntity.METAPROP_REGEX:
@@ -1576,7 +1617,7 @@ public class SchemaProcessor {
 				String datatype = e.getValue();				
 				cell.setDatatype(datatype);
 				break;
-			case "@lang":
+			case SchemaEntity.METAPROP_LANG:
 				cell.setLang(e.getValue());
 				break;
 			case "@value":
@@ -1766,55 +1807,12 @@ public class SchemaProcessor {
 	}
 	
 	/**
-	 * On i18n literal:
+	 * Process any CSV-X property value, a.k.a. string literal, for any recognizable CSV-X expressions.
+	 * Specifically, resolving variable expression {var} and function call.
 	 * 
-	 * In CSV-X the native support for expression of i18n and alternative string literal have been dropped. 
+	 * 		public static String processLiteralxxx(String literal, SchemaEntity se, String propName) throws Exception {
 	 * 
-	 * 	i.e. "key" : [ { "en" : "test", "ja" : "テスト" }, { "en" : "Alt val", "ja" : "代わり" } ]
-	 * 
-	 * By allowing an expression of any literal to have multiple language and possibly alternative terms 
-	 * requires that the data model accommodating them must has such a unique structure to hold i18n/alternative 
-	 * values as in RDF. 
-	 * 
-	 * Since one of CSV-X's objective is to be able to describe relations between cells in non-uniform CSV, in a generic 
-	 * way, so it can be easily and flexibly mapped to an arbitrary data model. Therefore, making support for i18n and 
-	 * alternative string literal by default (as in RDF literal) will impose such structure onto target data model or 
-	 * making it less generic, hence more difficult, to convert it to other structure.
-	 * 
-	 * On the contrary, the explicit declaration for i18n value is still supported via '@lang' meta-property where 
-	 * alternative string may be specifically defined as another property like 'altTitle'.  
-	 *    
-	 * @param literal
-	 * @param se
-	 * @return String
-	 */
-	public String processLiteral(String literal, SchemaEntity se) {
-
-		// (6/30) We won't save references to schema objects anymore, all literal containing SERE or {var} 
-		// shouldn't get resolved to actual value until the time it's utilized/serialized.
-		
-		// identify referenced by parsing all occurrences of @cell[row, col] and save it for the time of CSV parsing
-//	    SchemaTable st = se.getSchemaTable();
-//	    String cellRegEx = "(@cell)(\\[)([^,]+?)(,)([^,]+?)(\\])";
-//	    Pattern p = Pattern.compile(cellRegEx, Pattern.DOTALL);
-//	    Matcher m = p.matcher(literal);
-//	    while(m.find()) {
-//	        String rowEx = m.group(3);
-//	        String colEx = m.group(5);
-//	        
-//	        CellIndexRange rowRange = processCellIndexRange(rowEx);
-//	        CellIndexRange colRange = processCellIndexRange(colEx);
-//	        
-//	        // since the actual value of cell is not known at this time, null is passed for value to saveRefCell()
-//	        forMarkedRowAndCol(rowRange, colRange, (int i, int j, Object o, SchemaTable sTable) -> st.saveRefCell(i, j, null), null, st);
-//	    }
-	    	    
-	    return literal;
-		
-	}
-	
-	/**
-	 * Process Variable Expression, {var} and {var.prop} (from now refer to as {var}).
+	 * 1) Process Variable Expression, {var} and {var.prop} (from now refer to as {var}).
 	 * 
 	 * Substitute all {var} in the input literal with the actual value from mapped object of each variable.
 	 * 
@@ -1832,7 +1830,9 @@ public class SchemaProcessor {
 	 * 
 	 * Note that {var} will be interpreted as {var.@value} within a literal.
 	 * 
-	 * In v0.10.0 the support for capturing group reference is added as {$\d+}, so called capturing group reference expression.
+	 * 2) In v0.10.0 the support for capturing group reference is added as {$\d+}, so called capturing group reference expression.
+	 * 
+	 * 3) Execute function call expression(s), i.e. func(), after all {var} are resolved at a level.
 	 * 
 	 * The algorithm can be summarized as follows:
 	 * 
@@ -1850,8 +1850,9 @@ public class SchemaProcessor {
 	 * @param propName property name of the literal being processed.
 	 * @param rrs Recursive Ref Stack (RRS) of LinkedHashSet<String> storing SERE as String.
 	 * @return String of {var} substituted by its recursively resolved actual value. 
+	 * @throws Exception 
 	 */
-	public static String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) {
+	public static String processVarEx(String literal, SchemaEntity se, String propName, LinkedHashSet<String> rrs) throws Exception {
 		String retVal = literal;		
 		SchemaTable st = se.getSchemaTable();
 		
@@ -1890,7 +1891,7 @@ public class SchemaProcessor {
 	    		logger.debug("schema entity: {}", se);
 	    		logger.debug("schema table: {}", st);
 	    		logger.debug("varMap: {}", st.getVarMap());
-	    		throw new RuntimeException("Reference to unknown variable: " + varName + " in the scope of schema table: " + st);
+	    		throw new Exception("Reference to unknown variable: " + varName + " in the scope of schema table: " + st);
 	   		} else {	   			
 		    	// Get mapped schema entity object
 	    		varSe = st.getVarSchemaEntity(varName);
@@ -1901,7 +1902,7 @@ public class SchemaProcessor {
 			// A->B->C->A, by keeping track of what properties of what schema entities have been referenced from 
     		// the beginning of {var} processing.			
 	    	if(rrs.contains(varSe.getRefEx() + "." + varProp)) {
-	    		throw new RuntimeException("Circular reference detected: {" + varName + "." + varProp + "} is already referenced in: " + rrs.toString());
+	    		throw new Exception("Circular reference detected: {" + varName + "." + varProp + "} is already referenced in: " + rrs.toString());
 	    	}			
 			
 	    	// dereference schema entity property value
@@ -1909,9 +1910,9 @@ public class SchemaProcessor {
 	    	
 	    	if(targetGroup != -1) { // if it's a capturing group reference, replace it with matched group's value
 	    		String regEx =  varSe.getProperty(SchemaEntity.METAPROP_REGEX);
-	    		if(regEx == null) throw new RuntimeException("Referring to capturing group in schema entity: " + varSe + " that has no regular expression.");
+	    		if(regEx == null) throw new Exception("Referring to capturing group in schema entity: " + varSe + " that has no regular expression.");
 	    		propVal = Helper.getRegExGroup(targetGroup, regEx, propVal);
-	    		if(propVal == null) throw new RuntimeException("Reference to unmatched capturing group: " + targetGroup + " for schema entity: " + se + " with value: " + propVal + " and RegEx: " + regEx);
+	    		if(propVal == null) throw new Exception("Reference to unmatched capturing group: " + targetGroup + " for schema entity: " + se + " with value: " + propVal + " and RegEx: " + regEx);
 	    	} else {	    		
 		    	// do recursive call of this method to dereference any available nested {var}
 		    	propVal = processVarEx(propVal, varSe, varProp, rrs);	    			    		
@@ -1927,9 +1928,12 @@ public class SchemaProcessor {
 	    	retVal = sb.toString();
 	    	m = p.matcher(retVal);
 	    	sb.setLength(0); 	
-	    } // END OF.. while(m.find()) {
+	    } // END OF.. while(m.find()) for each {var}
 	    
-	    // after all {var} is deref, remove the calling {var} from RRS
+	    // find and execute JS function call, ignoring some meta-property exceptions (e.g. for @mapTemplate)
+	    if(!SchemaProcessor.noFuncCallPropList.contains(propName)) retVal = resolveFunctionCall(retVal, se.getParentSchema());
+	    
+	    // after all {var} in current level is deref, remove the calling {var} from RRS
 	    rrs.remove(se.getRefEx() + "." + propName);
 	    
 	    return retVal;
@@ -1937,24 +1941,35 @@ public class SchemaProcessor {
 	
 	/**
 	 * Resolve call to schema function, execute its script using JS engine. 
+	 * This method should always be called after processVarEx(). 
+	 * 
 	 * @param literal
 	 * @param s
 	 * @return String of processed value from the function.
+	 * @throws Exception 
 	 */
-	public static String resolveFunctionCall(String literal, Schema s) {
+	public static String resolveFunctionCall(String literal, Schema s) throws Exception {
 		String retVal = literal;
 		// find func('', '', ..) expression
 	    Pattern p = Pattern.compile(FUNC_REGEX, Pattern.DOTALL);
 	    Matcher m = p.matcher(literal);
 	    StringBuffer sb = new StringBuffer();
 	    while(m.find()) { // foreach func():
-	    	boolean isEscaped = (m.group(1).equals("\\"))? true : false;
+	    	String escapeChar = m.group(1);	    	
 	    	String funcName = m.group(2);
 	    	String paramStr = m.group(3);
 	    	
-	    	if(isEscaped) continue;	    	
+	    	if(escapeChar != null) {
+	    		if(escapeChar.equals("\\")) {
+	    			logger.trace("Escaped function call found.");
+	    			continue;
+	    		}
+	    	}
+	    	
 	    	SchemaFunction sf = s.getFunction(funcName);	    			    		
-		    if(sf == null) throw new RuntimeException("Referring to non-defined function: " + funcName);
+		    if(sf == null) {
+		    	throw new Exception("Referring to non-defined function: " + funcName + " in a match: " + m.toString());
+		    }
 
 			// then extract the parameter(s) from function call
 			CsvParserSettings settings = new CsvParserSettings();
@@ -1966,24 +1981,32 @@ public class SchemaProcessor {
 
 			List<String> fnParams = sf.getParameterList();
 			if (fnParams.size() != params.length)
-				throw new RuntimeException("The number of parameter in function call (" + params.length
+				throw new Exception("The number of parameter in function call (" + params.length
 						+ ") does not match function definition (" + fnParams.size() + ")");
 
 			 /**
-			  * get the script and prepare JS engine
+			  * get the script and prepare JS engine. 
+			  * 
+			  * Currently Nashorn JS Engine has some API inconsistencies about context, scope, 
+			  * bindings, and global vars: making it impossible to reset the running context
+			  * while keeping the access to the modified binding variable.
+			  * 
+			  * Therefore, we keep recreating the engine for now.
+			  * IMP Will reconsider changing to Rhino / V8 too.
+			  * 
+			  * See also:
+			  * http://stackoverflow.com/questions/35807683/capturing-nashorns-global-variables
+			  * 
 			  * More fun stuff with Nashorn:
 			  * http://winterbe.com/posts/2014/04/05/java8-nashorn-tutorial/
 			  * https://docs.oracle.com/javase/8/docs/technotes/guides/scripting/nashorn/api.html
 			  * https://github.com/shekhargulati/java8-the-missing-tutorial/blob/master/10-nashorn.md
 			  */
-			String script = sf.getScript();
-			//ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-			//ScriptEngine nashorn = scriptEngineManager.getEngineByName("nashorn");
-	        @SuppressWarnings("restriction")
-			NashornScriptEngineFactory factory = new NashornScriptEngineFactory();
-	        @SuppressWarnings("restriction") // disable all call to Java for security
-	        ScriptEngine nashorn = factory.getScriptEngine(new NoJavaFilter());						
+			String script = sf.getScript();		
+						
+			ScriptEngine nashorn = new NashornScriptEngineFactory().getScriptEngine(new NoJavaFilter());
 
+			// reset new bindings for Nashorn execution 
 			Bindings bindings = new SimpleBindings();
 			// for each parameter
 			for (int i = 0; i < params.length; i++) {
@@ -1992,14 +2015,16 @@ public class SchemaProcessor {
 				bindings.put(fnParams.get(i), params[i]);
 			}
 			nashorn.setBindings(bindings, ScriptContext.GLOBAL_SCOPE);
-
+			
 			try {
-				m.appendReplacement(sb, (String) nashorn.eval(script));
-			} catch (ScriptException e) {
+				nashorn.eval(script);
+				String eval = (String) nashorn.get("$return");
+				m.appendReplacement(sb, eval);
+			} catch (ScriptException ex1) {
 				String errMsg = "Error executing schema function (JS script): " + funcName + " in schema: " + s;
 				logger.error(errMsg);
-				logger.debug(e.getMessage());
-				throw new RuntimeException(errMsg);
+				logger.debug(ex1.getMessage());
+				throw new Exception(errMsg, ex1);
 			}
 	    	
 	    	m.appendTail(sb);
@@ -2016,7 +2041,7 @@ public class SchemaProcessor {
         public boolean exposeToScripts(String s) {
             return false;
         }
-    }	
+    }	   	
 	
 	/**
 	 * @deprecated SERE will be processed inside {var} expression in the future, e.g. {@cell[x,y]}.
@@ -2151,7 +2176,15 @@ public class SchemaProcessor {
 				if(firstCell) firstCell = false; 
 				else System.out.print(", ");
 				String litVal = dCell.getValue();
-				litVal = processVarEx(litVal, dCell, "@value", null);							
+				try {
+					litVal = processVarEx(litVal, dCell, "@value", null);
+				} catch (Exception e) {
+					String errMsg = e.getMessage() + " at schema cell: " + dCell + " with original value: " + litVal;
+					System.err.println(errMsg);
+					logger.error(errMsg);
+					logger.debug("StackTrace: ", e);
+					throw new RuntimeException(errMsg, e);
+				}											
 				System.out.print(litVal);
 				colNum++;
 				dCell = dRow.getCell(colNum);
@@ -2190,80 +2223,92 @@ public class SchemaProcessor {
 	
 	/**
 	 * Generate RDF in Turtle format from mapped template.
+	 * This method is considered to be in an application layer (CLI).
+	 * Therefore, it ought to handle Exception and choose how to render the error message. 
 	 * @param dSchema
 	 */
-	public static void generateRdfFromTemplate(Schema dSchema) {
-		
-		Map<String, SchemaTable> dTables = dSchema.getSchemaTables();
-		
-		for(Map.Entry<String, SchemaTable> tableE : dTables.entrySet()) {
-			String tableName = tableE.getKey();
-			SchemaTable dTable = tableE.getValue();
+	public static void generateRdfFromTemplate(Schema dSchema) {		
+		try {
+
+			Map<String, SchemaTable> dTables = dSchema.getSchemaTables();
 			
-			//System.out.println(dTable);
-			//System.out.println(dTable.getVarMap());			
-			
-			if(dTable.hasTemplateMapping()) System.out.println(applyRdfTemplate(dTable));
-			
-			// for every row
-			for(Map.Entry<Integer, SchemaRow> rowE : dTable.getSchemaRows().entrySet()) {
-				Integer rowNum = rowE.getKey();
-				SchemaRow dRow = rowE.getValue();
+			for(Map.Entry<String, SchemaTable> tableE : dTables.entrySet()) {
+				String tableName = tableE.getKey();
+				SchemaTable dTable = tableE.getValue();
 				
-				//System.out.println(dRow);				
+				//System.out.println(dTable);
+				//System.out.println(dTable.getVarMap());			
 				
-				if(dRow.hasTemplateMapping()) System.out.println(applyRdfTemplate(dRow));
+				if(dTable.hasTemplateMapping()) System.out.println(applyRdfTemplate(dTable));
 				
-				// for every cell
-				for(Map.Entry<Integer, SchemaCell> cellE : dRow.getSchemaCells().entrySet()) {
-					Integer colNum = cellE.getKey();
-					SchemaCell dCell = cellE.getValue();
+				// for every row
+				for(Map.Entry<Integer, SchemaRow> rowE : dTable.getSchemaRows().entrySet()) {
+					Integer rowNum = rowE.getKey();
+					SchemaRow dRow = rowE.getValue();
 					
-					//System.out.print(dCell);
-					assert(dCell.getSchemaTable() == dTable) : "dCell : " + dCell + " has inconsistent parent table.";					
+					//System.out.println(dRow);				
 					
-					if(dCell.hasTemplateMapping()) System.out.println(applyRdfTemplate(dCell));
+					if(dRow.hasTemplateMapping()) System.out.println(applyRdfTemplate(dRow));
 					
+					// for every cell
+					for(Map.Entry<Integer, SchemaCell> cellE : dRow.getSchemaCells().entrySet()) {
+						Integer colNum = cellE.getKey();
+						SchemaCell dCell = cellE.getValue();
+						
+						//System.out.print(dCell);
+						assert(dCell.getSchemaTable() == dTable) : "dCell : " + dCell + " has inconsistent parent table.";					
+						
+						if(dCell.hasTemplateMapping()) System.out.println(applyRdfTemplate(dCell));
+						
+					}
 				}
-			}
-			
-			// for every schema property
-			for(Map.Entry<String, SchemaProperty> propE : dTable.getSchemaProperties().entrySet()) {
-				String propName = propE.getKey();
-				SchemaProperty sProp = propE.getValue();
 				
-				//System.out.println(sProp);
-				if(sProp.hasTemplateMapping()) System.out.println(applyRdfTemplate(sProp));
-			}
-			
-			// for every schema data
-			for(Map.Entry<String, SchemaData> dataE : dTable.getSchemaDataMap().entrySet()) {
-				String dataName = dataE.getKey();
-				SchemaData sData = dataE.getValue();
+				// for every schema property
+				for(Map.Entry<String, SchemaProperty> propE : dTable.getSchemaProperties().entrySet()) {
+					String propName = propE.getKey();
+					SchemaProperty sProp = propE.getValue();
+					
+					//System.out.println(sProp);
+					if(sProp.hasTemplateMapping()) System.out.println(applyRdfTemplate(sProp));
+				}
 				
-				//System.out.println(sData);
-				if(sData.hasTemplateMapping()) System.out.println(applyRdfTemplate(sData));
-			}
+				// for every schema data
+				for(Map.Entry<String, SchemaData> dataE : dTable.getSchemaDataMap().entrySet()) {
+					String dataName = dataE.getKey();
+					SchemaData sData = dataE.getValue();
+					
+					//System.out.println(sData);
+					if(sData.hasTemplateMapping()) System.out.println(applyRdfTemplate(sData));
+				}
+				
+			} // end for every schema tables			
 			
-		} // end for every schema tables
-		
+		} catch(Exception ex) {
+			String errMsg = "There's an error generating RDF from schema " + dSchema + ":" + System.lineSeparator() + ex.getMessage();
+			System.err.println(errMsg);
+			logger.error(errMsg);
+			logger.debug("StackTrace: " + ex);
+			return;
+		}
+
 	}
 	
 	/**
 	 * Generate RDF by applying mapping definition in a schema entity.
 	 * @param se SchemaEntity.
 	 * @return String after templated.
+	 * @throws Exception 
 	 */
-	public static String applyRdfTemplate(SchemaEntity se) {
+	public static String applyRdfTemplate(SchemaEntity se) throws Exception {
 		Schema s = se.getParentSchema();
 		
 		String mapping = se.getTemplateMapping();
-		if(mapping == null) throw new RuntimeException("The schema entity '" + se + "' doesn't have RDF mapping.");
+		if(mapping == null) throw new Exception("The schema entity '" + se + "' doesn't have RDF mapping.");
 		
 		// extract template name from mapping expression
 		String tmpName = mapping.substring(0, mapping.indexOf("("));
 		SchemaTemplate tmp = s.getTemplate(tmpName);
-		if(tmp == null) throw new RuntimeException("Referring to undefined template name: " + tmpName);
+		if(tmp == null) throw new Exception("Referring to undefined template name: " + tmpName);
 		
 		// then extract the parameter(s)		
 		CsvParserSettings settings = new CsvParserSettings();
@@ -2277,7 +2322,7 @@ public class SchemaProcessor {
 		
 		// get template parameter(s) list & check number of parameter
 		List<String> tmpParams = tmp.getParameterList();
-		if(params.length != tmpParams.size()) throw new RuntimeException("The number of argument (" + params.length + ") doesn't match template's parameter number: " + tmpParams.size());
+		if(params.length != tmpParams.size()) throw new Exception("The number of argument (" + params.length + ") doesn't match template's parameter number: " + tmpParams.size());
 		
 		String ttl = tmp.getTemplate();
 		//System.out.println(ttl);

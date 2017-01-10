@@ -187,7 +187,7 @@ public class SchemaTable extends SchemaEntity {
 			SchemaProperty dProp = SchemaProperty.createDataObject(sProp, newTable);
 			newTable.sProps.put(dProp.getPropertyName(), dProp);
 			// also declare var within this new table
-			if(dProp.getName() != null) newTable.addVar(dProp.getName(), dProp);
+			if(dProp.getVariableName() != null) newTable.addVar(dProp.getVariableName(), dProp);
 		}
 
 		// recreate schema data for data table
@@ -195,11 +195,11 @@ public class SchemaTable extends SchemaEntity {
 			SchemaData dData = SchemaData.createDataObject(sData, newTable);
 			newTable.sDataMap.put(dData.getDataName(), dData);
 			// also declare var within this new table
-			if(dData.getName() != null) newTable.addVar(dData.getName(), dData);
+			if(dData.getVariableName() != null) newTable.addVar(dData.getVariableName(), dData);
 		}
 		
 		// add var register for the data table itself, so other schema entity can refer to it by variable name
-		if(newTable.getName() != null) newTable.addVar(newTable.getName(), newTable);
+		if(newTable.getVariableName() != null) newTable.addVar(newTable.getVariableName(), newTable);
 		
 		assert(st.varMap.size() == 0) : "As of v0.9 this variable map must not be used at schema parsing, but only schema generation time.";
 
@@ -703,15 +703,15 @@ public class SchemaTable extends SchemaEntity {
 	 * @param name
 	 */
 	@Override
-	public void setName(String name) {	
+	public void setVariableName(String name) {	
 		if(parent == null) throw new RuntimeException("Parent schema was not initialized for schema table: " + this);
-		String oldName = getName();			
+		String oldName = getVariableName();			
 		if(oldName != null && varMap.containsKey(oldName)) {
 			varMap.remove(oldName);			
-			super.setName(name);
+			super.setVariableName(name);
 			varMap.put(name, this);
 		} else { // if it has never been set before
-			super.setName(name); 			
+			super.setVariableName(name); 			
 		}		
 	}
 

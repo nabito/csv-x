@@ -245,11 +245,11 @@ public abstract class SchemaEntity {
 	}
 
 	/**
-	 * Get name of this schema entity.
+	 * Get variable name of this schema entity (i.e. "@name").
 	 * 
 	 * @return String of variable name or null if none defined. 
 	 */
-	public String getName() {
+	public String getVariableName() {
 		return getProperty(METAPROP_NAME);
 	}
 
@@ -268,7 +268,7 @@ public abstract class SchemaEntity {
 	 * 
 	 * @param name the name to set
 	 */
-	public void setName(String name) {		
+	public void setVariableName(String name) {		
 		addProperty(METAPROP_NAME, name);
 	}
 
@@ -421,6 +421,8 @@ public abstract class SchemaEntity {
 			object = SchemaData.CLASS_IRI;
 		} else if(objCls.equals(SchemaTemplate.class)) {
 			object = SchemaTemplate.CLASS_IRI;			
+		} else if(objCls.equals(SchemaFunction.class)) {
+			object = SchemaFunction.CLASS_IRI;
 		} else {
 			throw new RuntimeException("Unrecognized Schema Entity type. Should never got here.");
 		}
@@ -493,8 +495,17 @@ public abstract class SchemaEntity {
 				break;
 			} // end property switch case	
 			
-			// create object tuple, resolve {var} expression, if any
-			object = SchemaProcessor.processVarEx(propVal, this, propName, null);			
+			// create object tuple, resolve {var} expression and function call, if any
+			try {
+				object = SchemaProcessor.processVarEx(propVal, this, propName, null);								
+			} catch (Exception ex) {
+				String errMsg = ex.getMessage() + " at schema entity: " + this + " at property: " + propName + " with original value: " + propVal;
+				System.err.println(errMsg);
+				logger.error(errMsg);
+				logger.debug("StackTrace: ", ex);
+				throw new Exception(errMsg, ex);
+			}			
+			
 			// TODO in v1.x, must recall original datatype of value in CSV-X schema
 			//this.getProperty(propName)
 			

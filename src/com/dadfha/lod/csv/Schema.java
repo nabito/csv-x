@@ -191,6 +191,7 @@ public class Schema {
 		newSchema.userFuncs.putAll(s.userFuncs);
 		newSchema.sTemplates.putAll(s.sTemplates);
 		newSchema.prefixes.putAll(s.prefixes);
+		newSchema.sFuncs.putAll(s.sFuncs);
 		return newSchema;
 	}	
 
@@ -323,7 +324,7 @@ public class Schema {
 	 * @param SchemaTemplate
 	 */
 	public void addTemplate(SchemaTemplate template) {
-		sTemplates.put(template.getName(), template);
+		sTemplates.put(template.getTemplateName(), template);
 	}
 	
 	/**
@@ -341,7 +342,7 @@ public class Schema {
 	 * @param SchemaFunction
 	 */	
 	public void addFunction(SchemaFunction func) {
-		sFuncs.put(func.getName(), func);
+		sFuncs.put(func.getFunctionName(), func);
 	}
 	
 	/**

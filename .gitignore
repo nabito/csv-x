@@ -69,3 +69,6 @@ local.properties
 
 # TestNG output folder
 test-output/
+
+# All Turtle file in data folder
+data/*.ttl

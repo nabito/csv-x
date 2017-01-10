@@ -63,15 +63,15 @@ public class SchemaData extends SchemaEntity {
 	 * @param name
 	 */
 	@Override
-	public void setName(String name) {
+	public void setVariableName(String name) {
 		if(parentTable == null) throw new RuntimeException("Parent table was not initialized for schema data: " + this);
-		String oldName = getName();		
+		String oldName = getVariableName();		
 		if(oldName != null && parentTable.hasVar(oldName)) {
 			parentTable.removeVar(oldName);			
-			super.setName(name);
+			super.setVariableName(name);
 			parentTable.addVar(name, this);
 		} else { // if it has never been set before
-			super.setName(name);
+			super.setVariableName(name);
 		}
 	}
 	

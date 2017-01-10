@@ -49,13 +49,12 @@ public class LodHelper {
 	 * or if it's already in <IRI> form.
 	 * 
 	 * @param tuple
-	 * @return String
-	 * @throws Exception 
+	 * @return String 
 	 */
-	public static String formatTtlTuple(String tuple) throws Exception {
+	public static String formatTtlTuple(String tuple) {
 		if(isPrefixedName(tuple)) return tuple;
 		else if(tuple.startsWith("<") && tuple.endsWith(">")) {
-			if(!isURL(tuple.substring(1, tuple.length() - 1))) throw new Exception("The tuple is not valid bracketed IRI: " + tuple); 
+			if(!isURL(tuple.substring(1, tuple.length() - 1))) throw new RuntimeException("The tuple is not valid bracketed IRI: " + tuple); 
 			else return tuple;
 		} else {
 			return "<" + tuple + ">";
@@ -74,10 +73,9 @@ public class LodHelper {
 	 * @param object
 	 * @param datatype
 	 * @param langCode
-	 * @return String
-	 * @throws Exception 
-	 */
-	public static String formatTtlObject(String object, String datatype, String langCode) throws Exception {		
+	 * @return String 
+	 */	
+	public static String formatTtlObject(String object, String datatype, String langCode) {
 		// if not a valid IRI, then it could be prefix:suffix form of IRI or relative IRI.
 		if(datatype != null) {
 			if(datatype.equals("anyURI") || datatype.equals("xsd:anyURI")) {
@@ -203,10 +201,9 @@ public class LodHelper {
 	 * @param datatype of object
 	 * @param langCode of object
 	 * @param endSentence
-	 * @return String
-	 * @throws Exception 
-	 */
-	public static String buildTtlTriple(String subject, String predicate, String object, String datatype, String langCode, boolean endSentence) throws Exception {		
+	 * @return String 
+	 */		
+	public static String buildTtlTriple(String subject, String predicate, String object, String datatype, String langCode, boolean endSentence) {
 		subject = formatTtlTuple(subject);
 		predicate = formatTtlTuple(predicate);
 		object = formatTtlObject(object, datatype, langCode);
@@ -222,9 +219,8 @@ public class LodHelper {
 	 * @param object
 	 * @param endSentence
 	 * @return String
-	 * @throws Exception
 	 */
-	public static String buildTtlTriple(String subject, String predicate, String object, boolean endSentence) throws Exception {
+	public static String buildTtlTriple(String subject, String predicate, String object, boolean endSentence) {
 		return buildTtlTriple(subject, predicate, object, null, null, endSentence);
 	}
 	
@@ -234,9 +230,8 @@ public class LodHelper {
 	 * @param predicate
 	 * @param object
 	 * @return String
-	 * @throws Exception
 	 */
-	public static String buildTtlTriple(String subject, String predicate, String object) throws Exception {
+	public static String buildTtlTriple(String subject, String predicate, String object) {
 		return buildTtlTriple(subject, predicate, object, null, null, true);
 	}	
 	
