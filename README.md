@@ -24,10 +24,12 @@ Features
 - Parsing (Of course!) CSV, TSV, and SSV (Space-Separated Value)
 - Annotation, IRI support, thus Linked Data enabled
 - Validation (XML Schema Datatype + RegEx)
-- Cross-Referencing
+- Value Alteration
+- Cross-Referencing (Dynamic Variable Declaration & Ref, RegEx capturing group)
 - RDF Serialization (Turtle)
 - Template-based Transformation
 - Commandline Interface (CLI)
+- New! in v0.11.0 Embedded Scripting (JavaScript)
 
 Requirements
 ---------------------------
