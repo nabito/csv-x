@@ -80,10 +80,11 @@ csvx validate input.csv schema.csvx
 Publication
 -----------
 
-To be appeared in IEEE Conference Proceedings published by IEEE CS Press (indexed by EI) with title:
+IEEE Conference Proceedings published by IEEE CS Press (indexed by EI) with title:
 ```
 CSV-X: A Linked Data Enabled Schema Language, Model, and Processing Engine for Non-Uniform CSV
 ```
+DOI 10.1109/iThings-GreenCom-CPSCom-SmartData.2016.167
 
 Remark
 ------
