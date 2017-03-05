@@ -96,5 +96,7 @@ License
 
 [CRAPL](http://matt.might.net/articles/crapl/)--the Community Research and Academic Programming License. 
 
+for commercial uses please contact nabito@gmail.com
+
 
 
