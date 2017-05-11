@@ -84,6 +84,7 @@ IEEE Conference Proceedings published by IEEE CS Press (indexed by EI) with titl
 ```
 CSV-X: A Linked Data Enabled Schema Language, Model, and Processing Engine for Non-Uniform CSV
 ```
+[IEEE Explore](http://ieeexplore.ieee.org/document/7917195/)
 DOI 10.1109/iThings-GreenCom-CPSCom-SmartData.2016.167
 
 Remark
